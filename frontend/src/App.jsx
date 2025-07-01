@@ -1,19 +1,18 @@
-import {BrowserRouter, Routes, Route} from 'react-router-dom';
-import Register from './register';
-import Home from './home';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import NotFound from "./pages/NotFound";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path='/' element={<Register/>}></Route>
-        <Route path='/register' element={<Register/>}></Route>
-        <Route path='/home' element={<Home/>}></Route>
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;

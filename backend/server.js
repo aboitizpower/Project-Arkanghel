@@ -1,7 +1,7 @@
 import express from 'express'
 import mysql from 'mysql2'
 import cors from 'cors'
-import bycrypt from 'bcrypt'
+import bcrypt from 'bcrypt'
 
 const app = express()
 
@@ -13,22 +13,57 @@ const db = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "password",
-    database: "db"
+    database: "arkanghel_db"
 })
 
-const salt = 5;
+const saltRounds = 10;
+
+// Register endpoint
 app.post("/register", (req,res)=>{
-    const sql = "INSERT INTO user ('username','email', 'password') VALUES (?)";
-    bycrypt.hash(req.body.password.toString(),salt,(err,hash)=>{
-        if(err) return res.json("Error")
-        const values = [req.body.username, req.body.email, hash];
-        db.query(sql,[values], (err,result) =>{
-            if(err) console.log(err);
-            else return res.json(result)
-        })
-    })
+    const { first_name, last_name, email, password } = req.body;
+    if (!first_name || !last_name || !email || !password) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+    bcrypt.hash(password, saltRounds, (err, hash) => {
+        if (err) return res.status(500).json({ error: 'Error hashing password.' });
+        const sql = 'INSERT INTO users (first_name, last_name, email, password, isAdmin) VALUES (?, ?, ?, ?, ?)';
+        db.query(sql, [first_name, last_name, email, hash, false], (err, result) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({ error: 'Email already exists.' });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            return res.status(201).json({ success: 'User registered successfully!' });
+        });
+    });
 })
+
+// Login endpoint
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required.' });
+    }
+    const sql = 'SELECT * FROM users WHERE email = ?';
+    db.query(sql, [email], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+        const user = results[0];
+        bcrypt.compare(password, user.password, (err, isMatch) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Invalid email or password.' });
+            }
+            // Do not send password back
+            const { password, ...userWithoutPassword } = user;
+            return res.status(200).json({ success: 'Login successful!', user: userWithoutPassword });
+        });
+    });
+});
 
 app.listen(8081, ()=>{
-    console.log('listening')
+    console.log('Server is running on port 8081')
 })
