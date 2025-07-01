@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "../styles/Auth.css";
 
@@ -23,17 +23,26 @@ async function loginUser(email, password) {
   }
 }
 
-const Login = ({ animateToRegister }) => {
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [animateOut, setAnimateOut] = useState(false);
   const navigate = useNavigate();
 
+  const handleRegisterClick = () => {
+    setAnimateOut(true);
+    setTimeout(() => {
+      navigate('/register');
+    }, 400);
+  };
+
   return (
-    <div className="auth-container darkblue-theme">
-      <div className="auth-panel auth-form-panel white-panel slide-in-left">
+    <div className="auth-container">
+      <div className={`auth-panel auth-form-panel white-panel left-panel${animateOut ? ' slide-out-left' : ' slide-in-left'}`}
+        style={{ maxWidth: 400, width: '100%', padding: '2.5rem 2rem', boxShadow: '0 4px 32px rgba(7, 14, 27, 0.10), 0 2px 8px rgba(0,0,0,0.04)' }}>
         <h2 className="auth-title darkblue-text">Login</h2>
         <form onSubmit={async (e) => {
           e.preventDefault();
@@ -43,6 +52,18 @@ const Login = ({ animateToRegister }) => {
           if (result.ok) {
             setMessage(result.success);
             setIsError(false);
+            // Redirect based on isAdmin
+            if (result.user && result.user.isAdmin) {
+              setTimeout(() => {
+                setMessage("");
+                navigate("/admin/analytics");
+              }, 700);
+            } else if (result.user && !result.user.isAdmin) {
+              setTimeout(() => {
+                setMessage("");
+                navigate("/employee/dashboard");
+              }, 700);
+            }
           } else {
             setMessage(result.error ? result.error : "Unknown error.");
             setIsError(true);
@@ -90,7 +111,7 @@ const Login = ({ animateToRegister }) => {
         </form>
         <div className="auth-link-container">
           <span className="darkblue-text">Don't have an account? </span>
-          <button className="auth-link-btn" onClick={animateToRegister}>Register</button>
+          <button className="auth-link-btn" onClick={handleRegisterClick}>Register</button>
         </div>
         {message && (
           <div className={isError ? "auth-message error" : "auth-message success"}>
@@ -98,7 +119,7 @@ const Login = ({ animateToRegister }) => {
           </div>
         )}
       </div>
-      <div className="auth-panel auth-welcome-panel darkblue-panel slide-in-right">
+      <div className="auth-panel auth-welcome-panel darkblue-panel right-panel slide-in-right">
         <h1 className="auth-welcome-title">Welcome to Project Arkanghel</h1>
         <p className="auth-welcome-desc">Your secure portal for learning and growth. Please login to continue.</p>
       </div>

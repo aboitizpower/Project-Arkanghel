@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -17,24 +17,26 @@ import A_Leaderboard from './pages/admin/A_Leaderboard';
 
 export default function App() {
     return (
-        <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+        <Router>
+            <Routes>
+                <Route path="/" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-            {/* Employee Routes */}
-            <Route path="/employee/dashboard" element={<E_Dashboard />} />
-            <Route path="/employee/modules" element={<E_Modules />} />
-            <Route path="/employee/assessment" element={<E_Assessment />} />
-            <Route path="/employee/leaderboard" element={<E_Leaderboard />} />
+                {/* Employee Routes */}
+                <Route path="/employee/dashboard" element={<E_Dashboard />} />
+                <Route path="/employee/modules" element={<E_Modules />} />
+                <Route path="/employee/assessment" element={<E_Assessment />} />
+                <Route path="/employee/leaderboard" element={<E_Leaderboard />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin/analytics" element={<A_Analytics />} />
-            <Route path="/admin/modules" element={<A_Modules />} />
-            <Route path="/admin/assessment" element={<A_Assessment />} />
-            <Route path="/admin/users" element={<A_Users />} />
-            <Route path="/admin/leaderboard" element={<A_Leaderboard />} />
+                {/* Admin Routes */}
+                <Route path="/admin/analytics" element={<A_Analytics />} />
+                <Route path="/admin/modules" element={<A_Modules />} />
+                <Route path="/admin/assessment" element={<A_Assessment />} />
+                <Route path="/admin/users" element={<A_Users />} />
+                <Route path="/admin/leaderboard" element={<A_Leaderboard />} />
 
-            <Route path="*" element={<NotFound />} />
-        </Routes>
+                <Route path="*" element={<NotFound />} />
+            </Routes>
+        </Router>
     );
 }
