@@ -1,9 +1,13 @@
 import React from 'react';
+import AdminSidebar from '../../components/AdminSidebar';
 
 const A_Modules = () => (
-  <div className="page-container">
-    <h1>Admin Modules</h1>
-    <p>Manage modules here.</p>
+  <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <AdminSidebar />
+    <main className="page-container" style={{ flex: 1 }}>
+      <h1>Admin Modules</h1>
+      <p>Manage modules here.</p>
+    </main>
   </div>
 );
 

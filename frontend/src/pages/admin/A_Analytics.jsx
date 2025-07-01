@@ -1,9 +1,13 @@
 import React from 'react';
+import AdminSidebar from '../../components/AdminSidebar';
 
 const A_Analytics = () => (
-  <div className="page-container">
-    <h1>Admin Analytics</h1>
-    <p>Analytics and reports for admins.</p>
+  <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <AdminSidebar />
+    <main className="page-container" style={{ flex: 1 }}>
+      <h1>Admin Analytics</h1>
+      <p>Analytics and reports for admins.</p>
+    </main>
   </div>
 );
 

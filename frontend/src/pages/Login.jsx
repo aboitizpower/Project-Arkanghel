@@ -52,6 +52,15 @@ const Login = () => {
           if (result.ok) {
             setMessage(result.success);
             setIsError(false);
+            // Store user info in localStorage
+            if (result.user) {
+              localStorage.setItem('user', JSON.stringify({
+                first_name: result.user.first_name,
+                last_name: result.user.last_name,
+                email: result.user.email,
+                isAdmin: result.user.isAdmin
+              }));
+            }
             // Redirect based on isAdmin
             if (result.user && result.user.isAdmin) {
               setTimeout(() => {

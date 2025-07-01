@@ -6,7 +6,7 @@ body, html, #root {
   margin: 0;
   padding: 0;
   font-family: 'Inter', 'Roboto', Arial, Helvetica, sans-serif;
-  background: linear-gradient(120deg, #070e1b 0%, #101a2b 100%);
+  background: #f7f8fa;
 }
 
 .auth-container {
@@ -15,7 +15,7 @@ body, html, #root {
   display: flex;
   align-items: stretch;
   justify-content: center;
-  background: linear-gradient(120deg, #070e1b 0%, #101a2b 100%);
+  background: #f7f8fa;
 }
 
 .auth-panel {
