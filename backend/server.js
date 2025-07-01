@@ -64,6 +64,28 @@ app.post('/login', (req, res) => {
     });
 });
 
+// Get all users endpoint
+app.get('/users', (req, res) => {
+    db.query('SELECT id, first_name, last_name, email, isAdmin FROM users', (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ users: results });
+    });
+});
+
+// Update user role endpoint
+app.put('/users/:id/role', (req, res) => {
+    const { isAdmin } = req.body;
+    const { id } = req.params;
+    db.query(
+        'UPDATE users SET isAdmin = ? WHERE id = ?',
+        [isAdmin ? 1 : 0, id],
+        (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        }
+    );
+});
+
 app.listen(8081, ()=>{
     console.log('Server is running on port 8081')
 })

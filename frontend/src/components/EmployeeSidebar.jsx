@@ -33,12 +33,12 @@ const EmployeeSidebar = () => {
           </li>
           <li>
             <NavLink to="/employee/modules" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaBook className="sidebar-icon" /> Modules
+              <FaBook className="sidebar-icon" /> Learning Modules
             </NavLink>
           </li>
           <li>
             <NavLink to="/employee/assessment" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaClipboardCheck className="sidebar-icon" /> Assessment
+              <FaClipboardCheck className="sidebar-icon" /> Assessments
             </NavLink>
           </li>
           <li>

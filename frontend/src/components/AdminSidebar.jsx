@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FaChartBar, FaBook, FaClipboardCheck, FaUsers, FaMedal, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
 import '../styles/Sidebar.css';
 
 const AdminSidebar = () => {
@@ -33,22 +33,22 @@ const AdminSidebar = () => {
           </li>
           <li>
             <NavLink to="/admin/modules" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaBook className="sidebar-icon" /> Modules
+              <FaLayerGroup className="sidebar-icon" /> Workstream Management
             </NavLink>
           </li>
           <li>
             <NavLink to="/admin/assessment" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaClipboardCheck className="sidebar-icon" /> Assessment
+              <FaTasks className="sidebar-icon" /> Assessment Management
             </NavLink>
           </li>
           <li>
             <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaUsers className="sidebar-icon" /> Users
+              <FaUserFriends className="sidebar-icon" /> User Management
             </NavLink>
           </li>
           <li>
             <NavLink to="/admin/leaderboard" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaMedal className="sidebar-icon" /> Leaderboard
+              <FaTrophy className="sidebar-icon" /> Leaderboard
             </NavLink>
           </li>
         </ul>
