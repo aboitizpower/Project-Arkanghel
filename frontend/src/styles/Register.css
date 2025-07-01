@@ -1,0 +1,84 @@
+/* Register Page Styles */
+.register-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+}
+.register-card {
+  background: #fff;
+  padding: 2.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 400px;
+}
+.register-title {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.register-field {
+  margin-bottom: 16px;
+  position: relative;
+}
+.register-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+.register-password-field .register-input {
+  margin-bottom: 0;
+}
+.register-password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 18px;
+  user-select: none;
+}
+.register-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.register-btn:hover {
+  background: #15803d;
+}
+.register-link-container {
+  text-align: center;
+  margin: 12px 0;
+}
+.register-link {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.register-message {
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  text-align: center;
+  font-size: 14px;
+}
+.register-message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+.register-message.error {
+  background: #fee2e2;
+  color: #b91c1c;
+} 

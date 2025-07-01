@@ -1,16 +1,21 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import "../styles/Auth.css";
 
-const Register = () => {
+const Register = ({ animateToLogin }) => {
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
     email: "",
     password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,6 +25,11 @@ const Register = () => {
     e.preventDefault();
     setMessage("");
     setIsError(false);
+    if (form.password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      setIsError(true);
+      return;
+    }
     try {
       const res = await fetch("http://localhost:8081/register", {
         method: "POST",
@@ -49,80 +59,110 @@ const Register = () => {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>
-      <div style={{ background: "#fff", padding: "2.5rem 2rem", borderRadius: "12px", boxShadow: "0 2px 16px rgba(0,0,0,0.08)", width: "100%", maxWidth: 400 }}>
-        <h2 style={{ textAlign: "center", marginBottom: 24 }}>Register</h2>
+    <div className="auth-container darkblue-theme">
+      <div className="auth-panel auth-welcome-panel darkblue-panel slide-in-left">
+        <h1 className="auth-welcome-title">Welcome to Project Arkanghel</h1>
+        <p className="auth-welcome-desc">Join us and unlock your learning journey. Register your account below.</p>
+      </div>
+      <div className="auth-panel auth-form-panel white-panel slide-in-right">
+        <h2 className="auth-title darkblue-text">Register</h2>
         <form onSubmit={handleRegister}>
-          <div style={{ marginBottom: 16 }}>
-            <input
-              name="first_name"
-              placeholder="First Name"
-              value={form.first_name}
-              onChange={handleChange}
-              required
-              style={{ width: "100%", padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", marginBottom: 8 }}
-            />
+          <div className="auth-field-row">
+            <div className="auth-field half-width">
+              <label htmlFor="register-first-name" className="darkblue-text">First Name</label>
+              <input
+                id="register-first-name"
+                name="first_name"
+                placeholder="First Name"
+                value={form.first_name}
+                onChange={handleChange}
+                required
+                className="auth-input darkblue-input"
+              />
+            </div>
+            <div className="auth-field half-width">
+              <label htmlFor="register-last-name" className="darkblue-text">Last Name</label>
+              <input
+                id="register-last-name"
+                name="last_name"
+                placeholder="Last Name"
+                value={form.last_name}
+                onChange={handleChange}
+                required
+                className="auth-input darkblue-input"
+              />
+            </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div className="auth-field">
+            <label htmlFor="register-email" className="darkblue-text">Email</label>
             <input
-              name="last_name"
-              placeholder="Last Name"
-              value={form.last_name}
-              onChange={handleChange}
-              required
-              style={{ width: "100%", padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", marginBottom: 8 }}
-            />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <input
+              id="register-email"
               type="email"
               name="email"
               placeholder="Email"
               value={form.email}
               onChange={handleChange}
               required
-              style={{ width: "100%", padding: "10px", borderRadius: 6, border: "1px solid #d1d5db", marginBottom: 8 }}
+              className="auth-input darkblue-input"
             />
           </div>
-          <div style={{ marginBottom: 16, position: "relative" }}>
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              style={{ width: "100%", padding: "10px", borderRadius: 6, border: "1px solid #d1d5db" }}
-            />
-            <span
-              onClick={() => setShowPassword((v) => !v)}
-              style={{ position: "absolute", right: 10, top: 10, cursor: "pointer", color: "#6b7280", fontSize: 14 }}
-              title={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? "🙈" : "👁️"}
-            </span>
+          <div className="auth-field auth-password-field">
+            <label htmlFor="register-password" className="darkblue-text">Password</label>
+            <div className="auth-password-wrapper">
+              <input
+                id="register-password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className="auth-input darkblue-input"
+              />
+              <span
+                onClick={() => setShowPassword((v) => !v)}
+                className="auth-password-toggle darkblue-icon"
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+          </div>
+          <div className="auth-field auth-password-field">
+            <label htmlFor="register-confirm-password" className="darkblue-text">Re-enter Password</label>
+            <div className="auth-password-wrapper">
+              <input
+                id="register-confirm-password"
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirm_password"
+                placeholder="Re-enter Password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                className="auth-input darkblue-input"
+              />
+              <span
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="auth-password-toggle darkblue-icon"
+                title={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
           </div>
           <button
             type="submit"
-            style={{ width: "100%", padding: "10px", borderRadius: 6, background: "#16a34a", color: "#fff", border: "none", fontWeight: 600, fontSize: 16, marginBottom: 8, cursor: "pointer" }}
+            className="auth-btn darkblue-btn"
           >
             Register
           </button>
         </form>
-        <div style={{ textAlign: "center", margin: "12px 0" }}>
-          <span>Already have an account? </span>
-          <Link to="/" style={{ color: "#2563eb", textDecoration: "underline" }}>Login</Link>
+        <div className="auth-link-container">
+          <span className="darkblue-text">Already have an account? </span>
+          <button className="auth-link-btn" onClick={animateToLogin}>Login</button>
         </div>
         {message && (
-          <div style={{
-            background: isError ? "#fee2e2" : "#dcfce7",
-            color: isError ? "#b91c1c" : "#166534",
-            padding: "8px 12px",
-            borderRadius: 6,
-            marginTop: 8,
-            textAlign: "center",
-            fontSize: 14,
-          }}>
+          <div className={isError ? "auth-message error" : "auth-message success"}>
             {message}
           </div>
         )}
