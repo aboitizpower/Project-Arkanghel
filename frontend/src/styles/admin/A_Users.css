@@ -167,6 +167,14 @@
   width: 150px;
 }
 
+.date-col, .admin-users-date {
+  text-align: center;
+  min-width: 130px;
+  color: #444;
+  font-size: 0.98em;
+  letter-spacing: 0.5px;
+}
+
 .admin-users-avatar {
   width: 48px;
   height: 48px;

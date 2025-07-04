@@ -132,12 +132,13 @@ const A_Users = () => {
                 <th className="fullname-col">Full Name</th>
                 <th className="email-col">Email</th>
                 <th className="role-col">Role</th>
+                <th className="date-col">Date Created</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="admin-users-no-users">No users found.</td>
+                  <td colSpan={5} className="admin-users-no-users">No users found.</td>
                 </tr>
               ) : (
                 filteredUsers.map(user => (
@@ -166,6 +167,15 @@ const A_Users = () => {
                         </select>
                         <span className="role-dropdown-arrow">&#9662;</span>
                       </div>
+                    </td>
+                    <td className="admin-users-date">
+                      {user.created_at
+                        ? new Date(user.created_at).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : ''}
                     </td>
                   </tr>
                 ))

@@ -6,7 +6,6 @@ import bcrypt from 'bcrypt'
 const app = express()
 
 app.use(express.json())
-
 app.use(cors())
 
 const db = mysql.createConnection({
@@ -66,9 +65,14 @@ app.post('/login', (req, res) => {
 
 // Get all users endpoint
 app.get('/users', (req, res) => {
-    db.query('SELECT id, first_name, last_name, email, isAdmin FROM users', (err, results) => {
+    db.query('SELECT user_id, first_name, last_name, email, isAdmin, created_at FROM users', (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ users: results });
+        // For frontend compatibility, map user_id to id
+        const users = results.map(u => ({
+            ...u,
+            id: u.user_id
+        }));
+        res.json({ users });
     });
 });
 
@@ -77,7 +81,7 @@ app.put('/users/:id/role', (req, res) => {
     const { isAdmin } = req.body;
     const { id } = req.params;
     db.query(
-        'UPDATE users SET isAdmin = ? WHERE id = ?',
+        'UPDATE users SET isAdmin = ? WHERE user_id = ?',
         [isAdmin ? 1 : 0, id],
         (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
