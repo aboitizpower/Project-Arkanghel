@@ -173,6 +173,20 @@ app.put('/workstreams/:id', upload.single('image'), (req, res) => {
     });
 });
 
+// Get a workstream's image
+app.get('/workstreams/:id/image', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT image, image_type FROM workstreams WHERE workstream_id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0 || !results[0].image) {
+            return res.status(404).json({ error: 'Image not found.' });
+        }
+        res.setHeader('Content-Type', results[0].image_type);
+        res.send(results[0].image);
+    });
+});
+
 // Delete a workstream (and all its related content)
 app.delete('/workstreams/:id', (req, res) => {
     const { id } = req.params;
@@ -218,14 +232,33 @@ app.delete('/workstreams/:id', (req, res) => {
 // Create a new chapter
 app.post('/chapters', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 'video_file', maxCount: 1 }]), (req, res) => {
     const { workstream_id, title, content, order_index } = req.body;
-    if (!workstream_id || !title || !content || !order_index) {
-        return res.status(400).json({ error: 'Workstream ID, title, content, and order index are required.' });
+    if (!workstream_id || !title || !content) {
+        return res.status(400).json({ error: 'Workstream ID, title, and content are required.' });
     }
-    console.log('Creating chapter. Files received:', req.files);
-    const pdfFile = req.files?.pdf_file?.[0]?.buffer || null;
-    const videoFile = req.files?.video_file?.[0]?.buffer || null;
-    const sql = 'INSERT INTO module_chapters (workstream_id, title, content, order_index, pdf_file, video_file) VALUES (?, ?, ?, ?, ?, ?)';
-    db.query(sql, [workstream_id, title, content, order_index, pdfFile, videoFile], (err, result) => {
+
+    const pdf = req.files?.pdf_file?.[0];
+    const video = req.files?.video_file?.[0];
+
+    const sql = `
+        INSERT INTO module_chapters 
+        (workstream_id, title, content, order_index, pdf_file, pdf_filename, pdf_mime_type, video_file, video_filename, video_mime_type) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const params = [
+        workstream_id,
+        title,
+        content,
+        order_index || 0,
+        pdf?.buffer || null,
+        pdf?.originalname || null,
+        pdf?.mimetype || null,
+        video?.buffer || null,
+        video?.originalname || null,
+        video?.mimetype || null
+    ];
+
+    db.query(sql, params, (err, result) => {
         if (err) {
             console.error('Error creating chapter:', err);
             return res.status(500).json({ error: 'Database error while creating chapter.' });
@@ -237,7 +270,7 @@ app.post('/chapters', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 
 // Get all chapters for a specific workstream
 app.get('/workstreams/:workstream_id/chapters', (req, res) => {
     const { workstream_id } = req.params;
-    const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, created_at, pdf_file IS NOT NULL as has_pdf, video_file IS NOT NULL as has_video FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+        const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
     db.query(sql, [workstream_id], (err, results) => {
         if (err) {
             console.error(`Error fetching chapters for workstream ${workstream_id}:`, err);
@@ -262,24 +295,28 @@ app.get('/chapters/:id', (req, res) => {
 app.put('/chapters/:id', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 'video_file', maxCount: 1 }]), (req, res) => {
     const { id } = req.params;
     const { title, content, order_index } = req.body;
-    if (!title || !content || !order_index) {
-        return res.status(400).json({ error: 'Title, content, and order index are required.' });
+    if (!title || !content) {
+        return res.status(400).json({ error: 'Title and content are required.' });
     }
-    console.log(`Updating chapter ${id}. Files received:`, req.files);
-    const pdfFile = req.files?.pdf_file?.[0];
-    const videoFile = req.files?.video_file?.[0];
+
+    const pdf = req.files?.pdf_file?.[0];
+    const video = req.files?.video_file?.[0];
+
     let sql = 'UPDATE module_chapters SET title = ?, content = ?, order_index = ?';
-    const params = [title, content, order_index];
-    if (pdfFile) {
-        sql += ', pdf_file = ?';
-        params.push(pdfFile.buffer);
+    const params = [title, content, order_index || 0];
+
+    if (pdf) {
+        sql += ', pdf_file = ?, pdf_filename = ?, pdf_mime_type = ?';
+        params.push(pdf.buffer, pdf.originalname, pdf.mimetype);
     }
-    if (videoFile) {
-        sql += ', video_file = ?';
-        params.push(videoFile.buffer);
+    if (video) {
+        sql += ', video_file = ?, video_filename = ?, video_mime_type = ?';
+        params.push(video.buffer, video.originalname, video.mimetype);
     }
+
     sql += ' WHERE chapter_id = ?';
     params.push(id);
+
     db.query(sql, params, (err, result) => {
         if (err) {
             console.error(`Error updating chapter ${id}:`, err);
@@ -287,6 +324,38 @@ app.put('/chapters/:id', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { nam
         }
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Chapter not found.' });
         res.json({ success: 'Chapter updated successfully.' });
+    });
+});
+
+// Get a chapter's PDF file
+app.get('/chapters/:id/pdf', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT pdf_file, pdf_filename, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0 || !results[0].pdf_file) {
+            return res.status(404).send('PDF not found.');
+        }
+        const file = results[0];
+        res.setHeader('Content-Type', file.pdf_mime_type);
+        res.setHeader('Content-Disposition', `inline; filename="${file.pdf_filename}"`);
+        res.send(file.pdf_file);
+    });
+});
+
+// Get a chapter's video file
+app.get('/chapters/:id/video', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT video_file, video_filename, video_mime_type FROM module_chapters WHERE chapter_id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0 || !results[0].video_file) {
+            return res.status(404).send('Video not found.');
+        }
+        const file = results[0];
+        res.setHeader('Content-Type', file.video_mime_type);
+        res.setHeader('Content-Disposition', `inline; filename="${file.video_filename}"`);
+        res.send(file.video_file);
     });
 });
 
@@ -373,6 +442,123 @@ app.get('/chapters/:chapter_id/assessments', (req, res) => {
     });
 });
 
+// Get a single assessment by ID
+app.get('/assessments/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT * FROM assessments WHERE assessment_id = ?';
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error(`Error fetching assessment ${id}:`, err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ error: 'Assessment not found' });
+        }
+        res.json(result[0]);
+    });
+});
+
+// Get all questions for a specific assessment
+app.get('/assessments/:id/questions', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT * FROM questions WHERE assessment_id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching questions for assessment ${id}:`, err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(results);
+    });
+});
+
+// Submit answers for an assessment
+app.post('/answers', (req, res) => {
+    const { userId, answers } = req.body; // `answers` is an array of { questionId, answer }
+
+    if (!userId || !answers || !Array.isArray(answers) || answers.length === 0) {
+        return res.status(400).json({ error: 'User ID and a non-empty array of answers are required.' });
+    }
+
+    const questionIds = answers.map(a => a.questionId);
+
+    // Use a transaction to ensure atomicity: delete old answers and insert new ones together.
+    db.beginTransaction(err => {
+        if (err) { 
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error.' });
+        }
+
+        const deleteSql = 'DELETE FROM answers WHERE user_id = ? AND question_id IN (?)';
+        db.query(deleteSql, [userId, questionIds], (deleteErr, deleteResult) => {
+            if (deleteErr) {
+                return db.rollback(() => {
+                    console.error('Error deleting old answers:', deleteErr);
+                    res.status(500).json({ error: 'Database error while updating answers.' });
+                });
+            }
+
+            // The 'points' column does not exist. We will query only for the correct answer.
+            const getCorrectAnswersSql = 'SELECT question_id, correct_answer FROM questions WHERE question_id IN (?)';
+            db.query(getCorrectAnswersSql, [questionIds], (fetchErr, questions) => {
+                if (fetchErr) {
+                    return db.rollback(() => {
+                        console.error('Error fetching correct answers:', fetchErr);
+                        res.status(500).json({ error: 'Database error while fetching correct answers.' });
+                    });
+                }
+
+                const correctAnswersMap = questions.reduce((map, row) => {
+                    map[row.question_id] = row.correct_answer;
+                    return map;
+                }, {});
+
+                // Each correct answer is worth 1 point.
+                const insertValues = answers.map(ans => {
+                    const correctAnswer = correctAnswersMap[ans.questionId];
+                    const score = (correctAnswer && ans.answer === correctAnswer) ? 1 : 0;
+                    return [ans.questionId, userId, ans.answer, score];
+                });
+
+                const totalScore = insertValues.reduce((sum, current) => sum + current[3], 0);
+
+                if (insertValues.length === 0) {
+                    // Nothing to insert, but no error. Commit the deletion.
+                    return db.commit(commitErr => {
+                        if (commitErr) {
+                            return db.rollback(() => res.status(500).json({ error: 'Database error.' }));
+                        }
+                        res.status(201).json({ success: 'Answers submitted successfully.', affectedRows: 0, totalScore: 0 });
+                    });
+                }
+
+                const insertSql = 'INSERT INTO answers (question_id, user_id, user_answer, score) VALUES ?';
+                db.query(insertSql, [insertValues], (insertErr, insertResult) => {
+                    if (insertErr) {
+                        return db.rollback(() => {
+                            console.error('Error inserting new answers:', insertErr);
+                            res.status(500).json({ error: 'Database error while saving answers.' });
+                        });
+                    }
+
+                    db.commit(commitErr => {
+                        if (commitErr) {
+                            return db.rollback(() => {
+                                console.error('Commit error:', commitErr);
+                                res.status(500).json({ error: 'Database error on commit.' });
+                            });
+                        }
+                        res.status(201).json({ 
+                            success: 'Answers submitted successfully.', 
+                            affectedRows: insertResult.affectedRows, 
+                            totalScore 
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
 // Delete Assessment
 app.delete('/assessments/:id', (req, res) => {
     const { id } = req.params;
@@ -403,27 +589,16 @@ app.post('/questions', (req, res) => {
 });
 
 // Get Questions for an Assessment
-app.get('/assessments/:assessment_id/questions', (req, res) => {
-    const { assessment_id } = req.params;
+app.get('/assessments/:assessmentId/questions', (req, res) => {
+    const { assessmentId } = req.params;
     const sql = 'SELECT * FROM questions WHERE assessment_id = ?';
-    db.query(sql, [assessment_id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const questions = results.map(q => {
-            let parsedOptions = null;
-            if (q.options) {
-                try {
-                    parsedOptions = JSON.parse(q.options);
-                } catch (e) {
-                    console.error(`Failed to parse options for question ${q.question_id}:`, q.options);
-                    parsedOptions = null; 
-                }
-            }
-            return {
-                ...q,
-                options: parsedOptions
-            };
-        });
-        res.json(questions);
+    db.query(sql, [assessmentId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        // The mysql2 driver handles parsing the JSON 'options' column automatically.
+        // We send the results directly to the frontend.
+        res.json(results);
     });
 });
 
@@ -452,7 +627,34 @@ app.delete('/questions/:id', (req, res) => {
     });
 });
 
+// Get assessment results for a user
+app.get('/users/:userId/assessment-results', (req, res) => {
+    const { userId } = req.params;
 
-app.listen(8081, ()=>{
-    console.log('Server is running on port 8081')
-})
+    const sql = `
+        SELECT 
+            assessments.assessment_id,
+            assessments.title,
+            SUM(answers.score) AS user_score,
+            (SELECT COUNT(*) FROM questions WHERE questions.assessment_id = assessments.assessment_id) AS total_questions
+        FROM answers
+        JOIN questions ON answers.question_id = questions.question_id
+        JOIN assessments ON questions.assessment_id = assessments.assessment_id
+        WHERE answers.user_id = ?
+        GROUP BY assessments.assessment_id, assessments.title;
+    `;
+
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            console.error('Error fetching assessment results:', err);
+            return res.status(500).json({ error: 'Database error while fetching assessment results.' });
+        }
+        res.json(results);
+    });
+});
+
+// Start server
+const PORT = process.env.PORT || 8081;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

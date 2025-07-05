@@ -37,7 +37,7 @@ const EmployeeSidebar = () => {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/employee/assessment" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+            <NavLink to="/employee/assessments" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
               <FaClipboardCheck className="sidebar-icon" /> Assessments
             </NavLink>
           </li>

@@ -8,6 +8,7 @@ import E_Dashboard from './pages/employee/E_Dashboard';
 import E_Modules from './pages/employee/E_Modules';
 import E_Assessment from './pages/employee/E_Assessment';
 import E_Leaderboard from './pages/employee/E_Leaderboard';
+import E_AssessmentResults from './pages/employee/E_AssessmentResults';
 
 import A_Analytics from './pages/admin/A_Analytics';
 import A_Modules from './pages/admin/A_Modules';
@@ -25,7 +26,8 @@ export default function App() {
                 {/* Employee Routes */}
                 <Route path="/employee/dashboard" element={<E_Dashboard />} />
                 <Route path="/employee/modules" element={<E_Modules />} />
-                <Route path="/employee/assessment" element={<E_Assessment />} />
+                <Route path="/employee/assessment/:assessmentId" element={<E_Assessment />} />
+                <Route path="/employee/assessments" element={<E_AssessmentResults />} />
                 <Route path="/employee/leaderboard" element={<E_Leaderboard />} />
 
                 {/* Admin Routes */}

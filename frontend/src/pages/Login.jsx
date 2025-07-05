@@ -60,6 +60,8 @@ const Login = () => {
                 email: result.user.email,
                 isAdmin: result.user.isAdmin
               }));
+              // Also store the userId separately for easy access
+              localStorage.setItem('userId', result.user.user_id);
             }
             // Redirect based on isAdmin
             if (result.user && result.user.isAdmin) {
