@@ -37,11 +37,6 @@ const AdminSidebar = () => {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/admin/assessment" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
-              <FaTasks className="sidebar-icon" /> Assessment Management
-            </NavLink>
-          </li>
-          <li>
             <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
               <FaUserFriends className="sidebar-icon" /> User Management
             </NavLink>

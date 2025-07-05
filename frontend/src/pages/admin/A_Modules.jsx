@@ -414,6 +414,20 @@ const A_Modules = () => {
             <div className="grid-container">
                 {workstreams.map((ws) => (
                     <div key={ws.workstream_id} className="card">
+                        {/* Display image if available */}
+                        {ws.image_url && (
+                            <div className="workstream-image-wrapper">
+                                <img
+                                    src={
+                                        ws.image_url.startsWith('http')
+                                            ? ws.image_url
+                                            : `${API_URL}/${ws.image_url.replace(/^\/+/, '')}`
+                                    }
+                                    alt={ws.title}
+                                    className="workstream-image"
+                                />
+                            </div>
+                        )}
                         <h3>{ws.title}</h3>
                         <p>{ws.description}</p>
                         <div className="actions">
