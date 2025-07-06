@@ -408,57 +408,98 @@ const A_Modules = () => {
 
     // #region View Renderers
     const renderWorkstreamView = () => (
-        <>
-            <h1>Workstream Management</h1>
-            <button onClick={() => { setCurrentWorkstream(null); setIsWorkstreamModalOpen(true); }} className="add-btn">Add New Workstream</button>
-            <div className="grid-container">
-                {workstreams.map((ws) => (
-                    <div key={ws.workstream_id} className="card">
-                        {/* Display image if available */}
-                        {ws.image_url && (
-                            <div className="workstream-image-wrapper">
-                                <img
-                                    src={
-                                        ws.image_url.startsWith('http')
-                                            ? ws.image_url
-                                            : `${API_URL}/${ws.image_url.replace(/^\/+/, '')}`
-                                    }
-                                    alt={ws.title}
-                                    className="workstream-image"
-                                />
-                            </div>
-                        )}
-                        <h3>{ws.title}</h3>
-                        <p>{ws.description}</p>
-                        <div className="actions">
-                            <button onClick={() => { setCurrentWorkstream(ws); setIsWorkstreamModalOpen(true); }}>Edit</button>
-                            <button onClick={() => handleWorkstreamDelete(ws.workstream_id)} className="delete-btn">Delete</button>
-                            <button onClick={() => { setSelectedWorkstream(ws); fetchChapters(ws.workstream_id); setView('chapters'); }} className="manage-btn">Manage Chapters</button>
-                        </div>
+        <div className="modules-boxed-wrapper">
+            <div className="modules-boxed-header">
+                <div className="modules-boxed-header-row">
+                    <h1 className="modules-boxed-title">Workstream Management</h1>
+                    <div className="modules-boxed-action">
+                        <button onClick={() => { setCurrentWorkstream(null); setIsWorkstreamModalOpen(true); }} className="add-btn">+ Add New Workstream</button>
                     </div>
-                ))}
+                </div>
+                <hr className="modules-boxed-divider" />
             </div>
-        </>
+            <div className="modules-boxed-content">
+                <div className="modules-boxed-grid">
+                    {workstreams.length === 0 && (
+                        <div className="modules-empty">No workstreams found.</div>
+                    )}
+                    {workstreams.map((ws) => {
+                        // Robust image URL logic
+                        let imgSrc = 'https://via.placeholder.com/320x120?text=No+Image';
+                        if (ws.image_url) {
+                            if (/^https?:\/\//i.test(ws.image_url)) {
+                                imgSrc = ws.image_url;
+                            } else {
+                                // Remove leading slashes only
+                                let cleanPath = ws.image_url.replace(/^\/+/, '');
+                                // If the backend serves from /uploads, ensure the path starts with uploads/
+                                if (!cleanPath.startsWith('uploads/')) {
+                                    cleanPath = 'uploads/' + cleanPath;
+                                }
+                                imgSrc = `${API_URL}/${cleanPath}`;
+                            }
+                        }
+                        return (
+                            <div key={ws.workstream_id} className="module-card">
+                                <div className="workstream-image-wrapper" style={{ minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                                    <img
+                                        src={imgSrc}
+                                        alt={ws.title}
+                                        className="workstream-image"
+                                        style={{ display: 'block', maxWidth: '100%', maxHeight: 140, minHeight: 80, objectFit: 'cover', background: '#f1f5f9', borderRadius: 12 }}
+                                        onError={e => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/320x120?text=No+Image'; }}
+                                    />
+                                </div>
+                                <div className="module-card-content">
+                                    <h3 className="module-title">{ws.title}</h3>
+                                    <p className="module-desc">{ws.description}</p>
+                                </div>
+                                <div className="actions module-actions">
+                                    <button onClick={() => { setCurrentWorkstream(ws); setIsWorkstreamModalOpen(true); }} className="edit-btn">Edit</button>
+                                    <button onClick={() => handleWorkstreamDelete(ws.workstream_id)} className="delete-btn">Delete</button>
+                                    <button onClick={() => { setSelectedWorkstream(ws); fetchChapters(ws.workstream_id); setView('chapters'); }} className="manage-btn">Manage Chapters</button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
     );
 
     const renderChapterView = () => (
-        <>
-            <button onClick={() => setView('workstreams')} className="back-btn">← Back to Workstreams</button>
-            <h1>{selectedWorkstream.title} - Chapters</h1>
-            <button onClick={() => { setCurrentChapter(null); setIsChapterModalOpen(true); }} className="add-btn">Add New Chapter</button>
-            <div className="grid-container">
-                {chapters.map((ch) => (
-                    <div key={ch.chapter_id} className="card">
-                        <h4>{ch.order_index}. {ch.title}</h4>
-                        <div className="actions">
-                            <button onClick={() => { setCurrentChapter(ch); setIsChapterModalOpen(true); }}>Edit</button>
-                            <button onClick={() => handleChapterDelete(ch.chapter_id)} className="delete-btn">Delete</button>
-                            <button onClick={() => { setSelectedChapter(ch); fetchAssessments(ch.chapter_id); setView('assessments'); }} className="manage-btn">Manage Assessment</button>
-                        </div>
+        <div className="modules-boxed-wrapper">
+            <div className="modules-boxed-header">
+                <div className="modules-boxed-header-row">
+                    <button onClick={() => setView('workstreams')} className="back-btn" style={{ marginRight: 18 }}>← Back to Workstreams</button>
+                    <h1 className="modules-boxed-title" style={{ fontSize: '1.7rem' }}>{selectedWorkstream.title} - Chapters</h1>
+                    <div className="modules-boxed-action">
+                        <button onClick={() => { setCurrentChapter(null); setIsChapterModalOpen(true); }} className="add-btn">+ Add New Chapter</button>
                     </div>
-                ))}
+                </div>
+                <hr className="modules-boxed-divider" />
             </div>
-        </>
+            <div className="modules-boxed-content">
+                <div className="modules-boxed-grid">
+                    {chapters.length === 0 && (
+                        <div className="modules-empty">No chapters found.</div>
+                    )}
+                    {chapters.map((ch) => (
+                        <div key={ch.chapter_id} className="module-card" style={{ minHeight: 180, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                            <div className="module-card-content" style={{ textAlign: 'left', width: '100%' }}>
+                                <h4 style={{ fontSize: '1.18rem', fontWeight: 700, margin: '0 0 0.5em 0', color: '#1a1a2e' }}>{ch.order_index}. {ch.title}</h4>
+                                <p style={{ color: '#555', fontSize: '1.04rem', margin: 0 }}>{ch.content && ch.content.length > 80 ? ch.content.slice(0, 80) + '...' : ch.content}</p>
+                            </div>
+                            <div className="actions module-actions" style={{ justifyContent: 'flex-end', borderTop: 'none', paddingTop: 10 }}>
+                                <button onClick={() => { setCurrentChapter(ch); setIsChapterModalOpen(true); }} className="edit-btn">Edit</button>
+                                <button onClick={() => handleChapterDelete(ch.chapter_id)} className="delete-btn">Delete</button>
+                                <button onClick={() => { setSelectedChapter(ch); fetchAssessments(ch.chapter_id); setView('assessments'); }} className="manage-btn">Manage Assessment</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 
     const renderAssessmentView = () => (
