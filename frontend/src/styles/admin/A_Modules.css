@@ -21,7 +21,7 @@
 .admin-module-setup-grid {
     display: grid;
     grid-template-columns: 1fr 1.5fr;
-    gap: 2rem;
+    gap: 1.5rem; /* Reduced gap */
     max-width: 1400px;
     margin: auto;
 }
@@ -29,13 +29,13 @@
 .admin-module-info-section, .admin-module-chapters-section {
     background-color: #ffffff;
     border-radius: 8px;
-    padding: 2rem;
+    padding: 1.5rem; /* Reduced padding */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* Left Column: Module Info */
 .admin-module-info-section h3 {
-    font-size: 1.1rem;
+    font-size: 1rem; /* Reduced font size */
     color: #6c757d;
     margin-bottom: 0.5rem;
     display: flex;
@@ -44,37 +44,40 @@
 }
 
 .admin-module-info-section .detail-value {
-    font-size: 1.25rem;
+    font-size: 1.1rem; /* Reduced font size */
     font-weight: 500;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; /* Reduced margin */
 }
 
 .admin-module-image-wrapper {
     width: 100%;
-    max-height: 300px;
+    max-height: 250px; /* Reduced height */
     object-fit: cover;
     border-radius: 8px;
-    margin-top: 1rem;
+    margin-top: 0.5rem; /* Reduced margin */
 }
 
 /* Right Column: Chapters & Assessments */
-.admin-module-chapters-section .chapters-header {
+.admin-module-chapters-section .module-chapters-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #e9ecef;
+}
+
+.module-chapters-header .header-actions {
+    display: flex;
+    gap: 10px;
 }
 
 .admin-module-chapters-section .chapters-header h3 {
-    font-size: 1.5rem;
+    font-size: 1.25rem; /* Reduced font size */
     font-weight: 600;
 }
 
 .admin-module-chapters-section .header-actions {
     display: flex;
-    gap: 15px;
+    gap: 1rem; /* Reduced gap */
 }
 
 .action-link-button {
@@ -82,7 +85,7 @@
     border: none;
     color: #495057;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Reduced font size */
     font-weight: 500;
 }
 
@@ -93,15 +96,15 @@
 .chapters-assessments-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.5rem; /* Reduced gap */
 }
 
 .list-item {
     display: flex;
     align-items: center;
     background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 0.75rem 1rem; /* Reduced padding */
+    border-radius: 6px; /* Smaller radius */
     border: 1px solid #e9ecef;
     transition: box-shadow 0.2s ease;
 }
@@ -111,36 +114,69 @@
 }
 
 .list-item .drag-handle {
-    margin-right: 15px;
+    margin-right: 1rem; /* Reduced margin */
     cursor: grab;
     color: #adb5bd;
 }
 
-.list-item .item-title {
+.list-item .item-details { /* Renamed from item-content */
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Adds space between chapter and its assessments */
+}
+
+.list-item .item-title {
+    font-size: 1rem; /* Compact font size */
     font-weight: 500;
-    color: #212529;
 }
 
-.assessment-item {
-    background-color: #f0f8ff; /* Light blue for assessments */
+.chapter-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
-.assessment-item .item-title {
-    padding-left: 20px; /* Indent assessments */
+.assessment-sub-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    margin-left: 1.5rem; /* Indent assessment under chapter */
+    background-color: #f0f2f5; /* Subtle background to group it */
+    border-radius: 4px;
+    border: 1px solid #e4e7eb;
 }
 
-.list-item .edit-item-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
+.assessment-sub-item .assessment-title {
+    font-size: 0.9rem;
+    color: #343a40;
+}
+
+.assessment-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.assessment-actions .btn-icon,
+.assessment-actions .btn-delete {
+    padding: 2px;
     color: #6c757d;
-    padding: 5px;
 }
 
-.list-item .edit-item-button:hover {
+.assessment-actions .btn-icon:hover {
     color: #212529;
+}
+
+.assessment-actions .btn-delete:hover {
+    color: #dc3545;
+}
+
+/* Remove the generic edit button style as it's now specific */
+.list-item .edit-item-button {
+    display: none; 
 }
 
 .actions-cell .btn-icon {
@@ -401,6 +437,90 @@
     color: #495057;
 }
 
+/* Assessment Create Page */
+.assessment-create-page {
+    padding: 1rem;
+}
+
+.assessment-create-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.assessment-create-page h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.assessment-create-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+}
+
+.assessment-details-section .edit-card {
+    margin-bottom: 1rem;
+}
+
+.assessment-details-section label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.assessment-questions-section .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.questions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.question-card {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.question-card .card-header {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.question-card h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.answer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.answer-item {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.correct-answer {
+    border-color: #28a745;
+    background-color: #e9f7ec;
+    font-weight: 500;
+}
+
 .chapter-create-form .form-actions {
     display: flex;
     gap: 1rem;
@@ -460,6 +580,16 @@
     align-items: center;
     padding-right: 10px;
     cursor: grab;
+}
+
+.chapter-edit-right .edit-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.chapter-edit-right .edit-card {
+    display: flex;
+    flex-direction: column;
 }
 
 .list-item.dragging {
@@ -1204,7 +1334,8 @@ body {
 }
 
 /* Modals */
-.modal-overlay {
+/* Modal Styles */
+.modal-backdrop {
     position: fixed;
     top: 0;
     left: 0;
@@ -1212,9 +1343,57 @@ body {
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     z-index: 1000;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    color: #343a40;
+}
+
+.modal-content form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.modal-content form input[type="text"],
+.modal-content form textarea,
+.modal-content form select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.modal-content form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
 }
 
 .modal-content {

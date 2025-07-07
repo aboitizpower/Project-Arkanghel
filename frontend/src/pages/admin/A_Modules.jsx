@@ -37,15 +37,23 @@ const WorkstreamModal = ({ isOpen, onClose, onSubmit, currentWorkstream }) => {
     };
 
     return (
-        <div className="modal">
+        <div className="modal-backdrop">
             <div className="modal-content">
-                <span className="close" onClick={onClose}>&times;</span>
                 <h2>{currentWorkstream ? 'Edit Workstream' : 'Add Workstream'}</h2>
                 <form onSubmit={handleSubmit}>
-                    <label>Title: <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-                    <label>Description: <textarea value={description} onChange={(e) => setDescription(e.target.value)} required /></label>
-                    <label>Image: <input type="file" onChange={(e) => setImage(e.target.files[0])} accept="image/*" /></label>
-                    <button type="submit" className="btn-primary">{currentWorkstream ? 'Update' : 'Create'}</button>
+                    <label>Title</label>
+                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                    
+                    <label>Description</label>
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} required />
+                    
+                    <label>Image</label>
+                    <input type="file" onChange={(e) => setImage(e.target.files[0])} accept="image/*" />
+                    
+                    <div className="modal-actions">
+                        <button type="submit" className="btn-primary">{currentWorkstream ? 'Update' : 'Create'}</button>
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -88,58 +96,36 @@ const ChapterModal = ({ isOpen, onClose, onSubmit, currentChapter, workstreamId 
     };
 
     return (
-        <div className="modal">
+        <div className="modal-backdrop">
             <div className="modal-content">
-                <span className="close" onClick={onClose}>&times;</span>
                 <h2>{currentChapter ? 'Edit Chapter' : 'Add Chapter'}</h2>
                 <form onSubmit={handleSubmit}>
-                    <label>Title: <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-                    <label>Content: <textarea value={content} onChange={(e) => setContent(e.target.value)} required /></label>
-                    <label>Order: <input type="number" value={orderIndex} onChange={(e) => setOrderIndex(e.target.value)} required /></label>
-                    <label>PDF File: <input type="file" onChange={(e) => setPdfFile(e.target.files[0])} accept=".pdf" /></label>
-                    <label>Video File: <input type="file" onChange={(e) => setVideoFile(e.target.files[0])} accept="video/*" /></label>
-                    <button type="submit" className="btn-primary">{currentChapter ? 'Update' : 'Create'}</button>
+                    <label>Title</label>
+                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                    
+                    <label>Content</label>
+                    <textarea value={content} onChange={(e) => setContent(e.target.value)} required />
+                    
+                    <label>Order</label>
+                    <input type="number" value={orderIndex} onChange={(e) => setOrderIndex(e.target.value)} required />
+                    
+                    <label>PDF File</label>
+                    <input type="file" onChange={(e) => setPdfFile(e.target.files[0])} accept=".pdf" />
+                    
+                    <label>Video File</label>
+                    <input type="file" onChange={(e) => setVideoFile(e.target.files[0])} accept="video/*" />
+                    
+                    <div className="modal-actions">
+                        <button type="submit" className="btn-primary">{currentChapter ? 'Update' : 'Create'}</button>
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                    </div>
                 </form>
             </div>
         </div>
     );
 };
 
-const AssessmentModal = ({ isOpen, onClose, onSubmit, currentAssessment, chapterId }) => {
-    const [title, setTitle] = useState('');
-    const [totalPoints, setTotalPoints] = useState(100);
 
-    useEffect(() => {
-        if (currentAssessment) {
-            setTitle(currentAssessment.title);
-            setTotalPoints(currentAssessment.total_points);
-        } else {
-            setTitle('');
-            setTotalPoints(100);
-        }
-    }, [currentAssessment, isOpen]);
-
-    if (!isOpen) return null;
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSubmit({ chapter_id: chapterId, title, total_points: totalPoints });
-    };
-
-    return (
-        <div className="modal">
-            <div className="modal-content">
-                <span className="close" onClick={onClose}>&times;</span>
-                <h2>{currentAssessment ? 'Edit Assessment' : 'Add Assessment'}</h2>
-                <form onSubmit={handleSubmit}>
-                    <label>Title: <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-                    <label>Total Points: <input type="number" value={totalPoints} onChange={(e) => setTotalPoints(e.target.value)} required /></label>
-                    <button type="submit" className="btn-primary">{currentAssessment ? 'Update' : 'Create'}</button>
-                </form>
-            </div>
-        </div>
-    );
-};
 
 const QuestionModal = ({ isOpen, onClose, onSubmit, currentQuestion }) => {
     const [questionText, setQuestionText] = useState('');
@@ -261,7 +247,6 @@ const A_Modules = () => {
     // #region Modal States
     const [isWorkstreamModalOpen, setIsWorkstreamModalOpen] = useState(false);
     const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
-    const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false);
     const [editingChapter, setEditingChapter] = useState(null);
     const [isChapterTitleEditing, setIsChapterTitleEditing] = useState(false);
     const [editedChapterTitle, setEditedChapterTitle] = useState('');
@@ -295,6 +280,9 @@ const A_Modules = () => {
     const [isCreatingAssessment, setIsCreatingAssessment] = useState(false);
     const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
     const [newAssessmentTotalPoints, setNewAssessmentTotalPoints] = useState(100);
+    const [newQuestions, setNewQuestions] = useState([]);
+    const [assessmentTarget, setAssessmentTarget] = useState(''); // To hold chapter_id or 'workstream'
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
 
     const [currentWorkstream, setCurrentWorkstream] = useState(null);
     const [currentChapter, setCurrentChapter] = useState(null);
@@ -323,7 +311,12 @@ const A_Modules = () => {
                 
                 const chaptersWithAssessments = await Promise.all(chapters.map(async (ch) => {
                     const assessmentResponse = await axios.get(`${API_URL}/chapters/${ch.chapter_id}/assessments`).catch(() => ({ data: [] }));
-                    const chapterWithMedia = { ...ch, assessments: assessmentResponse.data };
+
+                    const assessmentData = assessmentResponse.data;
+                    const chapterWithMedia = { 
+                        ...ch, 
+                        assessments: Array.isArray(assessmentData) ? assessmentData : (assessmentData ? [assessmentData] : []) 
+                    };
                     // Check for properties that indicate a file exists and construct URLs
                     if (ch.video_filename) {
                         chapterWithMedia.video_url = `/chapters/${ch.chapter_id}/video`;
@@ -407,19 +400,7 @@ const A_Modules = () => {
         }
     };
 
-    const handleAssessmentSubmit = async (data) => {
-        const payload = { ...data, chapter_id: currentChapter.chapter_id };
-        const url = currentAssessment ? `${API_URL}/assessments/${currentAssessment.assessment_id}` : `${API_URL}/assessments`;
-        const method = currentAssessment ? 'put' : 'post';
-        try {
-            await axios[method](url, payload);
-            fetchWorkstreamsAndChapters();
-            setIsAssessmentModalOpen(false);
-        } catch (err) {
-            setError('Failed to save assessment.');
-            console.error(err);
-        }
-    };
+
 
     const handleOpenWorkstreamModal = () => {
         setCurrentWorkstream(null);
@@ -517,11 +498,7 @@ const A_Modules = () => {
         setIsChapterModalOpen(true);
     };
 
-    const handleOpenAssessmentModal = (ass = null, ch) => {
-        setCurrentChapter(ch);
-        setCurrentAssessment(ass);
-        setIsAssessmentModalOpen(true);
-    };
+
 
     const handleDeleteWorkstream = async (workstreamId) => {
         if (window.confirm('Delete this workstream and all its content?')) {
@@ -656,22 +633,44 @@ const A_Modules = () => {
         }
     };
 
-    const handleOpenQuestionModal = (q = null) => {
-        setCurrentQuestion(q);
+    const handleOpenQuestionModal = (question, index = null) => {
+        setCurrentQuestion(question);
+        setCurrentQuestionIndex(index);
         setIsQuestionModalOpen(true);
     };
 
-    const handleQuestionSubmit = async (questionData) => {
+    const handleQuestionSubmit = async (data) => {
+        if (isCreatingAssessment) {
+            if (currentQuestionIndex !== null) {
+                const updatedQuestions = [...newQuestions];
+                updatedQuestions[currentQuestionIndex] = data;
+                setNewQuestions(updatedQuestions);
+            } else {
+                setNewQuestions([...newQuestions, data]);
+            }
+            setIsQuestionModalOpen(false);
+            setCurrentQuestion(null);
+            setCurrentQuestionIndex(null);
+            return;
+        }
+
         const url = currentQuestion
             ? `${API_URL}/questions/${currentQuestion.question_id}`
-            : `${API_URL}/assessments/${editingAssessment.assessment_id}/questions`;
+            : `${API_URL}/questions`;
         const method = currentQuestion ? 'put' : 'post';
+        const payload = { ...data, assessment_id: editingAssessment.assessment_id };
 
         try {
-            await axios[method](url, questionData);
-            const response = await axios.get(`${API_URL}/assessments/${editingAssessment.assessment_id}/questions`);
-            setQuestions(response.data);
+            await axios[method](url, payload);
+            fetchWorkstreamsAndChapters(); // Refetch all data
             setIsQuestionModalOpen(false);
+            setEditingAssessment(prev => {
+                if (!prev) return null;
+                const newQuestions = currentQuestion 
+                    ? prev.questions.map(q => q.question_id === currentQuestion.question_id ? data : q)
+                    : [...prev.questions, data];
+                return {...prev, questions: newQuestions };
+            });
         } catch (err) {
             setError('Failed to save question.');
             console.error(err);
@@ -680,151 +679,73 @@ const A_Modules = () => {
 
     const onDragEnd = async (result) => {
         const { source, destination } = result;
-        if (!destination) {
-            return; // Dropped outside the list
-        }
-        if (destination.droppableId === source.droppableId && destination.index === source.index) {
-            return; // Dropped in the same place
-        }
-
-        // Create a flat list of all items that can be dragged.
-        const currentItems = selectedWorkstream.chapters.flatMap(chapter => ([
-            { ...chapter, type: 'chapter', id: `ch-${chapter.chapter_id}` },
-            ...(chapter.assessments ? chapter.assessments.map(assessment => ({ ...assessment, type: 'assessment', id: `as-${assessment.assessment_id}` })) : [])
-        ]));
-
-        // Perform the reorder in the flat list.
-        const reorderedItems = Array.from(currentItems);
-        const [removed] = reorderedItems.splice(source.index, 1);
-        reorderedItems.splice(destination.index, 0, removed);
-
-        // Reconstruct the nested structure from the reordered flat list.
-        const newChapters = [];
-        let currentChapter = null;
-        const orphanedAssessments = [];
-
-        for (const item of reorderedItems) {
-            const { id, type, ...restOfItem } = item;
-
-            if (type === 'chapter') {
-                const newChapter = { ...restOfItem, assessments: [] };
-                newChapters.push(newChapter);
-                currentChapter = newChapter;
-            } else if (type === 'assessment') {
-                if (currentChapter) {
-                    currentChapter.assessments.push(restOfItem);
-                } else {
-                    // This assessment was dragged to a position before any chapter.
-                    // We'll hold on to it and add it to the first chapter later.
-                    orphanedAssessments.push(restOfItem);
-                }
-            }
-        }
-
-        // If any assessments were orphaned, add them to the top of the first chapter.
-        if (orphanedAssessments.length > 0 && newChapters.length > 0) {
-            newChapters[0].assessments.unshift(...orphanedAssessments);
-        } else if (orphanedAssessments.length > 0 && newChapters.length === 0) {
-            // This case should not happen if there's at least one chapter,
-            // but as a safeguard, we prevent losing the assessments.
-            // We can't add them anywhere, so we revert the change.
-            console.error("Cannot reorder: an assessment was dragged, but no chapters exist.");
-            // Revert by simply not updating state and returning.
+        if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
             return;
         }
 
-        // Create the new state for an optimistic update.
-        const newSelectedWorkstream = { ...selectedWorkstream, chapters: newChapters };
+        const reorderedChapters = Array.from(selectedWorkstream.chapters);
+        const [removed] = reorderedChapters.splice(source.index, 1);
+        reorderedChapters.splice(destination.index, 0, removed);
+
+        const newSelectedWorkstream = {
+            ...selectedWorkstream,
+            chapters: reorderedChapters,
+        };
         
-        // Optimistically update the UI.
         setSelectedWorkstream(newSelectedWorkstream);
 
-        // Persist the changes to the backend.
         try {
-            await axios.post(`${API_URL}/workstreams/${selectedWorkstream.workstream_id}/reorder-chapters`, { chapters: newChapters });
+            await axios.post(`${API_URL}/workstreams/${selectedWorkstream.workstream_id}/reorder-chapters`, { chapters: reorderedChapters });
         } catch (err) {
             setError('Failed to save new order. Reverting changes.');
             console.error(err);
-            
-            // On failure, revert the optimistic update by re-fetching the original state.
-            const originalWorkstreams = await fetchWorkstreamsAndChapters();
-            const originalWs = originalWorkstreams.find(ws => ws.workstream_id === selectedWorkstream.workstream_id);
-            if (originalWs) {
-                setSelectedWorkstream(originalWs);
-            }
-        }
-    };
-
-    const handleToggleWorkstreamPublish = async (workstream) => {
-        const newStatus = !workstream.is_published;
-        try {
-            await axios.put(`${API_URL}/workstreams/${workstream.workstream_id}/publish`, { is_published: newStatus });
-            const updatedWorkstreams = workstreams.map(ws => 
-                ws.workstream_id === workstream.workstream_id ? { ...ws, is_published: newStatus } : ws
-            );
-            setWorkstreams(updatedWorkstreams);
-
-            if (selectedWorkstream && selectedWorkstream.workstream_id === workstream.workstream_id) {
-                setSelectedWorkstream({ ...selectedWorkstream, is_published: newStatus });
-            }
-
-            alert(`Workstream successfully ${newStatus ? 'published' : 'unpublished'}.`);
-        } catch (err) {
-            setError('Failed to update workstream status.');
-            console.error(err);
-        }
-    };
-
-    const handleToggleChapterPublish = async (chapter) => {
-        const newStatus = !chapter.is_published;
-        try {
-            await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newStatus });
-            
-            const updatedChapter = { ...editingChapter, is_published: newStatus };
-            setEditingChapter(updatedChapter);
-
-            const updatedChapters = selectedWorkstream.chapters.map(ch =>
-                ch.chapter_id === chapter.chapter_id ? { ...ch, is_published: newStatus } : ch
-            );
-            setSelectedWorkstream(prev => ({ ...prev, chapters: updatedChapters }));
-
-            alert(`Chapter successfully ${newStatus ? 'published' : 'unpublished'}.`);
-        } catch (err) {
-            setError('Failed to update chapter status.');
-            console.error(err);
+            // Revert optimistic update
+            fetchWorkstreamsAndChapters().then(ws => {
+                const originalWs = ws.find(w => w.workstream_id === selectedWorkstream.workstream_id);
+                if (originalWs) setSelectedWorkstream(originalWs);
+            });
         }
     };
 
     const handleCreateAssessment = async (e) => {
         e.preventDefault();
-        if (!newAssessmentTitle) {
-            setError('Title is required.');
+        if (!newAssessmentTitle || !assessmentTarget) {
+            setError('Title and assignment are required.');
             return;
         }
 
-        const payload = {
-            title: newAssessmentTitle,
-            total_points: newAssessmentTotalPoints,
-            chapter_id: editingChapter.chapter_id,
-        };
-
         setIsLoading(true);
         try {
-            await axios.post(`${API_URL}/assessments`, payload);
+            const payload = {
+                title: newAssessmentTitle,
+                total_points: newAssessmentTotalPoints,
+                questions: newQuestions
+            };
+
+            if (assessmentTarget === 'workstream') {
+                payload.workstream_id = selectedWorkstream.workstream_id;
+            } else {
+                payload.chapter_id = assessmentTarget;
+            }
+
+            const response = await axios.post(`${API_URL}/assessments`, payload);
+            const newAssessment = response.data;
+
+            // Optimistically update the UI
             await fetchWorkstreamsAndChapters().then(updatedWorkstreams => {
                 const updatedWs = updatedWorkstreams.find(ws => ws.workstream_id === selectedWorkstream.workstream_id);
                 if (updatedWs) {
                     setSelectedWorkstream(updatedWs);
-                    const updatedCh = updatedWs.chapters.find(ch => ch.chapter_id === editingChapter.chapter_id);
-                    if (updatedCh) {
-                        setEditingChapter(updatedCh);
-                    }
                 }
             });
-            setIsCreatingAssessment(false);
-            // Reset form
+
+            // Reset form and state
             setNewAssessmentTitle('');
             setNewAssessmentTotalPoints(100);
+            setNewQuestions([]);
+            setAssessmentTarget('');
+            setIsCreatingAssessment(false);
+
         } catch (err) {
             setError('Failed to create assessment.');
             console.error(err);
@@ -1228,24 +1149,7 @@ const A_Modules = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="edit-card">
-                                <div className="card-header">
-                                    <h4>Assessments</h4>
-                                    <button className="btn-primary" onClick={() => setIsCreatingWorkstream(true)}>New Workstream</button>
-                                </div>
-                                <div className="assessments-list-mini">
-                                    {editingChapter.assessments && editingChapter.assessments.length > 0 ? (
-                                        editingChapter.assessments.map(assessment => (
-                                            <div key={assessment.assessment_id} className="list-item assessment-item-mini">
-                                                <span>{assessment.title}</span>
-                                                <button className="edit-item-button" onClick={() => setEditingAssessment(assessment)}><FaPencilAlt /></button>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="no-content-message">No assessments for this chapter.</p>
-                                    )}
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -1253,41 +1157,88 @@ const A_Modules = () => {
                 <div className="assessment-create-page">
                     <div className="assessment-create-header">
                         <button className="back-button" onClick={() => setIsCreatingAssessment(false)}>&larr; Back to Chapter Edit</button>
+                        <button className="btn-primary" onClick={handleCreateAssessment} disabled={isLoading}>
+                            {isLoading ? 'Creating...' : 'Create Assessment'}
+                        </button>
                     </div>
-                    <h2>Create New Assessment</h2>
-                    <p className="subtitle">For chapter: {editingChapter.title}</p>
-                    <form onSubmit={handleCreateAssessment} className="assessment-create-form">
-                        <div className="edit-card">
-                            <label htmlFor="as-title">Assessment Title</label>
-                            <input
-                                id="as-title"
-                                type="text"
-                                value={newAssessmentTitle}
-                                onChange={(e) => setNewAssessmentTitle(e.target.value)}
+                    <h2>Assessment Creation</h2>
+                    <p className="subtitle">Customize your Assessment</p>
+                    
+                    <div className="assessment-create-form-grid">
+                        <div className="form-card">
+                            <h4>Assign To</h4>
+                            <select 
+                                value={assessmentTarget} 
+                                onChange={(e) => setAssessmentTarget(e.target.value)} 
                                 className="form-control"
-                                placeholder="Enter a title"
-                                required
-                            />
+                            >
+                                <option value="">Select an assignment...</option>
+                                <option value="workstream">Final Assessment for Workstream</option>
+                                {selectedWorkstream?.chapters
+                                    .filter(ch => !ch.assessments || ch.assessments.length === 0)
+                                    .map(chapter => (
+                                        <option key={chapter.chapter_id} value={chapter.chapter_id}>
+                                            Chapter: {chapter.title}
+                                        </option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="edit-card">
-                            <label htmlFor="as-points">Total Points</label>
-                            <input
-                                id="as-points"
-                                type="number"
-                                value={newAssessmentTotalPoints}
-                                onChange={(e) => setNewAssessmentTotalPoints(parseInt(e.target.value, 10))}
-                                className="form-control"
-                            />
+                        {/* Left Column: Assessment Details */}
+                        <div className="assessment-details-section">
+                            <div className="edit-card">
+                                <label htmlFor="as-title">Assessment Title</label>
+                                <input
+                                    id="as-title"
+                                    type="text"
+                                    value={newAssessmentTitle}
+                                    onChange={(e) => setNewAssessmentTitle(e.target.value)}
+                                    className="form-control"
+                                    placeholder="Enter a title"
+                                    required
+                                />
+                            </div>
+                            <div className="edit-card">
+                                <label htmlFor="as-points">Total Points</label>
+                                <input
+                                    id="as-points"
+                                    type="number"
+                                    value={newAssessmentTotalPoints}
+                                    onChange={(e) => setNewAssessmentTotalPoints(parseInt(e.target.value, 10))}
+                                    className="form-control"
+                                />
+                            </div>
                         </div>
-                        <div className="form-actions">
-                            <button type="submit" className="btn-primary" disabled={isLoading}>
-                                {isLoading ? 'Creating...' : 'Create Assessment'}
-                            </button>
-                            <button type="button" className="btn-secondary" onClick={() => setIsCreatingAssessment(false)}>
-                                Cancel
-                            </button>
+            
+                        {/* Right Column: Questions */}
+                        <div className="assessment-questions-section edit-card">
+                            <div className="card-header">
+                                <h3>Questions</h3>
+                                <button className="action-link-button" onClick={() => handleOpenQuestionModal(null)}>+ Add a question</button>
+                            </div>
+                            <div className="questions-grid">
+                                {newQuestions.length > 0 ? (
+                                    newQuestions.map((q, index) => (
+                                        <div key={index} className="question-card">
+                                            <div className="card-header">
+                                                <h5>Question {index + 1}</h5>
+                                                <button className="edit-item-button" onClick={() => handleOpenQuestionModal(q, index)}><FaPencilAlt /></button>
+                                            </div>
+                                            <p>{q.question_text}</p>
+                                            <div className="answer-list">
+                                                {q.answers.map((ans, ansIndex) => (
+                                                    <div key={ansIndex} className={`answer-item ${ans.is_correct ? 'correct-answer' : ''}`}>
+                                                        {ans.answer_text}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p>No questions added yet.</p>
+                                )}
+                            </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
             ) : isCreatingChapter ? (
                 <div className="chapter-create-page">
@@ -1389,13 +1340,13 @@ const A_Modules = () => {
                             )}
                         </div>
 
-                        {/* Right Column: Chapters and Assessments */}
+                        {/* Right Column: Chapters */}
                         <div className="admin-module-chapters-section">
-                            <div className="chapters-header">
+                            <div className="module-chapters-header">
                                 <h3>Module Chapters</h3>
-                                <div className="header-actions">
-                                    
-                                    <button className="action-link-button" onClick={() => setIsCreatingChapter(true)}>+ Add a chapter</button>
+                                <div className="button-group">
+                                    <button className="action-link-button" onClick={() => setIsCreatingChapter(true)}>+ Add Chapter</button>
+                                    <button className="action-link-button" onClick={() => setIsCreatingAssessment(true)}>+ Add Assessment</button>
                                 </div>
                             </div>
                             <Droppable droppableId="chaptersAndAssessments">
@@ -1405,28 +1356,34 @@ const A_Modules = () => {
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
                                     >
-                                        {selectedWorkstream.chapters && selectedWorkstream.chapters.flatMap(chapter => ([
-                                            { ...chapter, type: 'chapter', id: `ch-${chapter.chapter_id}` },
-                                            ...(chapter.assessments ? chapter.assessments.map(assessment => ({ ...assessment, type: 'assessment', id: `as-${assessment.assessment_id}`, parentChapter: chapter })) : [])
-                                        ])).map((item, index) => (
-                                            <Draggable key={item.id} draggableId={item.id} index={index}>
+                                        {selectedWorkstream.chapters && selectedWorkstream.chapters.map((chapter, index) => (
+                                            <Draggable key={chapter.chapter_id} draggableId={`ch-${chapter.chapter_id}`} index={index}>
                                                 {(provided, snapshot) => (
                                                     <div
-                                                        className={`list-item ${item.type}-item ${snapshot.isDragging ? 'dragging' : ''}`}
+                                                        className={`list-item chapter-item ${snapshot.isDragging ? 'dragging' : ''}`}
                                                         ref={provided.innerRef}
                                                         {...provided.draggableProps}
                                                     >
                                                         <div {...provided.dragHandleProps} className="drag-handle-wrapper">
                                                             <BsGripVertical className="drag-handle" />
                                                         </div>
-                                                        <span className="item-title">{item.title}</span>
-                                                        <button className="edit-item-button" onClick={() => {
-                                                            if (item.type === 'chapter') {
-                                                                setEditingChapter(item);
-                                                            } else {
-                                                                setEditingAssessment(item);
-                                                            }
-                                                        }}><FaPencilAlt /></button>
+                                                        <div className="item-details">
+                                                            <div className="chapter-details">
+                                                                <span className="item-title">{chapter.title}</span>
+                                                                <button className="btn-icon edit-chapter-btn" title="Edit Chapter" onClick={() => setEditingChapter(chapter)}>
+                                                                    <FaPencilAlt />
+                                                                </button>
+                                                            </div>
+                                                            {chapter.assessments && chapter.assessments.length > 0 && chapter.assessments.map(assessment => (
+                                                                <div key={assessment.assessment_id} className="assessment-sub-item">
+                                                                    <span className="assessment-title">{assessment.title}</span>
+                                                                    <div className="assessment-actions">
+                                                                        <button className="btn-icon" title="Edit Assessment" onClick={() => setEditingAssessment(assessment)}><FaPencilAlt /></button>
+                                                                        <button className="btn-delete" title="Delete Assessment" onClick={() => handleAssessmentDelete(assessment.assessment_id)}><FaTrash /></button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </Draggable>
@@ -1526,13 +1483,7 @@ const A_Modules = () => {
                 workstreamId={selectedWorkstream?.workstream_id}
             />
 
-            <AssessmentModal
-                isOpen={isAssessmentModalOpen}
-                onClose={() => setIsAssessmentModalOpen(false)}
-                onSubmit={handleAssessmentSubmit}
-                currentAssessment={currentAssessment}
-                chapterId={currentChapter?.chapter_id}
-            />
+
 
             <QuestionModal
                 isOpen={isQuestionModalOpen}

@@ -371,6 +371,19 @@ app.get('/chapters/:id', (req, res) => {
     });
 });
 
+// Get all assessments for a chapter
+app.get('/chapters/:chapter_id/assessments', (req, res) => {
+    const { chapter_id } = req.params;
+    const sql = 'SELECT * FROM assessments WHERE chapter_id = ? ORDER BY assessment_id ASC';
+    db.query(sql, [chapter_id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching assessments for chapter ${chapter_id}:`, err);
+            return res.status(500).json({ error: 'Failed to fetch assessments.' });
+        }
+        res.json(results);
+    });
+});
+
 // Update a chapter
 app.put('/chapters/:id', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 'video_file', maxCount: 1 }]), (req, res) => {
     const { id } = req.params;
