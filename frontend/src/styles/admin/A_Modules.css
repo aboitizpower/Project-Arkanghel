@@ -1,393 +1,1372 @@
-/* --- Improved Boxed Layout for Workstream Management --- */
-.modules-boxed-wrapper {
-  max-width: 1200px;
-  margin: 36px auto 0 auto;
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 6px 32px rgba(37,99,235,0.10), 0 2px 8px rgba(0,0,0,0.06);
-  border: 2px solid #e0e4ea;
-  overflow: hidden;
-}
-.modules-boxed-header {
-  padding: 0 0 0 0;
-  background: #f8fafc;
-  border-bottom: 2.5px solid #e0e4ea;
-}
-.modules-boxed-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 32px 40px 18px 40px;
-}
-.modules-boxed-title {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: #1a1a2e;
-  margin: 0;
-  letter-spacing: 1.2px;
-}
-.modules-boxed-action {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-}
-.modules-boxed-divider {
-  border: none;
-  border-top: 2.5px solid #e0e4ea;
-  margin: 0;
-}
-.modules-boxed-content {
-  padding: 36px 40px 40px 40px;
-  background: #f8fafc;
-}
-.modules-boxed-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 32px;
-}
-.module-card {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(37,99,235,0.07);
-  border: 1.5px solid #e0e4ea;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32px 24px 24px 24px;
-  min-height: 340px;
-  transition: box-shadow 0.18s, transform 0.14s;
-  position: relative;
-}
-.module-card:hover {
-  box-shadow: 0 8px 32px rgba(37,99,235,0.13);
-  transform: translateY(-4px) scale(1.015);
-}
-.module-card-content {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 0.7em;
-}
-.module-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #22223b;
-  margin: 0.7em 0 0.2em 0;
-}
-.module-desc {
-  color: #555;
-  font-size: 1.08rem;
-  margin-bottom: 0.7em;
-  min-height: 48px;
-}
-.workstream-image-wrapper {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.1em;
-}
-.workstream-image {
-  max-width: 100%;
-  max-height: 140px;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.09);
-  background: #f1f5f9;
-}
-.module-actions {
-  width: 100%;
-  justify-content: center;
-  gap: 18px;
-  padding-top: 22px;
-  border-top: 1.5px solid #f1f5f9;
-  display: flex;
-}
-.modules-empty {
-  grid-column: 1/-1;
-  text-align: center;
-  color: #888;
-  font-size: 1.15rem;
-  padding: 40px 0;
-}
+/* A_Modules.css */
 
-/* Responsive improvements */
-@media (max-width: 900px) {
-  .modules-boxed-header-row, .modules-boxed-content {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-  .modules-boxed-content {
-    padding-top: 18px;
-    padding-bottom: 18px;
-  }
-}
-.page-container {
-    padding: 20px;
-    background-color: #f4f7fa;
-}
-
-/* Layouts */
-.grid-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.list-container {
+/* Main Layout */
+.admin-modules-container {
     display: flex;
-    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.admin-modules-main-content {
+    flex-grow: 1;
+    padding: 1.5rem;
+    background-color: #f4f7f9;
+    overflow-y: auto;
+}
+
+.module-setup-header {
+    margin-bottom: 1.5rem;
+}
+
+.admin-module-setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: auto;
+}
+
+.admin-module-info-section, .admin-module-chapters-section {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Left Column: Module Info */
+.admin-module-info-section h3 {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-module-info-section .detail-value {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+}
+
+.admin-module-image-wrapper {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+/* Right Column: Chapters & Assessments */
+.admin-module-chapters-section .chapters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.admin-module-chapters-section .chapters-header h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.admin-module-chapters-section .header-actions {
+    display: flex;
     gap: 15px;
 }
 
-/* Cards */
-.card, .list-item-card {
-    background-color: #fff;
-    border-radius: 14px;
-    padding: 28px 22px 22px 22px;
-    box-shadow: 0 4px 24px rgba(37,99,235,0.08), 0 1.5px 6px rgba(0,0,0,0.04);
+.action-link-button {
+    background: none;
+    border: none;
+    color: #495057;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.action-link-button:hover {
+    color: #007bff;
+}
+
+.chapters-assessments-list {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    transition: box-shadow 0.18s;
-    border: 1.5px solid #f1f5f9;
-    position: relative;
-}
-
-
-.card h3, .card h4, .list-item-card p {
-    margin-top: 0;
-}
-
-.module-card-content {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 0.7em;
-}
-
-.module-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #22223b;
-    margin: 0.5em 0 0.2em 0;
-}
-
-.module-desc {
-    color: #555;
-    font-size: 1.04rem;
-    margin-bottom: 0.7em;
-}
-
-.module-actions {
-    width: 100%;
-    justify-content: center;
-    gap: 12px;
-    padding-top: 18px;
-    border-top: 1px solid #f1f5f9;
-}
-
-.edit-btn {
-    background-color: #ffc107;
-    color: #22223b;
-    font-weight: 600;
-    border: none;
-    border-radius: 7px;
-    padding: 14px 28px;
-    font-size: 1.12rem;
-    cursor: pointer;
-    transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.08);
-}
-.edit-btn:hover {
-    background-color: #ffb300;
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 4px 16px rgba(255,193,7,0.13);
-}
-
-.modules-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 18px;
-    gap: 1.5rem;
-}
-
-.modules-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #22223b;
-    margin: 0;
-    letter-spacing: 1px;
-}
-
-.list-item-card p {
-    margin-bottom: 8px;
-}
-
-.list-item-card p strong {
-    color: #333;
-}
-
-.actions {
-    margin-top: auto;
-    padding-top: 15px;
-    display: flex;
     gap: 10px;
-    justify-content: flex-end;
-    border-top: 1px solid #eee;
 }
 
-/* Buttons */
-.add-btn, .back-btn, .manage-btn {
-    padding: 16px 32px;
+.list-item {
+    display: flex;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: box-shadow 0.2s ease;
+}
+
+.list-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+}
+
+.list-item .drag-handle {
+    margin-right: 15px;
+    cursor: grab;
+    color: #adb5bd;
+}
+
+.list-item .item-title {
+    flex-grow: 1;
+    font-weight: 500;
+    color: #212529;
+}
+
+.assessment-item {
+    background-color: #f0f8ff; /* Light blue for assessments */
+}
+
+.assessment-item .item-title {
+    padding-left: 20px; /* Indent assessments */
+}
+
+.list-item .edit-item-button {
+    background: none;
     border: none;
-    border-radius: 7px;
     cursor: pointer;
-    font-size: 1.18rem;
-    font-weight: 600;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.08);
-    transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+    font-size: 1rem;
+    color: #6c757d;
+    padding: 5px;
 }
 
-.add-btn {
-    background-color: #28a745;
-    color: white;
-}
-.add-btn:hover {
-    background-color: #218838;
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 4px 16px rgba(40,167,69,0.13);
+.list-item .edit-item-button:hover {
+    color: #212529;
 }
 
-.back-btn {
-    background-color: #6c757d;
-    color: white;
-}
-.back-btn:hover {
-    background-color: #495057;
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 4px 16px rgba(108,117,125,0.13);
+.actions-cell .btn-icon {
+    background-color: transparent;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    line-height: 1;
 }
 
-.manage-btn {
+.actions-cell .btn-icon svg {
+    font-size: 1.1rem;
+    color: #6c757d; /* Default icon color */
+    transition: color 0.2s ease-in-out;
+}
+
+.actions-cell .btn-icon:not(.btn-delete):hover svg {
+    color: #212529; /* Darker color for non-delete icons on hover */
+}
+
+.actions-cell .btn-delete:hover svg {
+    color: #dc3545; /* Red for delete on hover */
+}
+
+.reorder-hint {
+    margin-top: 20px;
+    color: #adb5bd;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Chapter Edit Page Styles */
+.chapter-edit-page {
+    display: flex;
+    flex-direction: column;
+    /* Adjust height to fill parent, considering parent's padding */
+    height: calc(100vh - 3rem); 
+    padding: 1rem;
+    overflow: hidden;
+}
+
+.chapter-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+}
+
+.publish-button,
+.unpublish-button {
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.publish-button {
     background-color: #007bff;
     color: white;
 }
-.manage-btn:hover {
-    background-color: #0056b3;
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 4px 16px rgba(0,123,255,0.13);
-}
 
-.delete-btn {
-    background-color: #dc3545;
+.unpublish-button {
+    background-color: #343a40;
     color: white;
-    padding: 14px 28px;
-    font-size: 1.12rem;
-    font-weight: 600;
     border: none;
-    border-radius: 7px;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(220,53,69,0.08);
-    transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
-}
-.delete-btn:hover {
-    background-color: #c82333;
-    transform: translateY(-2px) scale(1.04);
-    box-shadow: 0 4px 16px rgba(220,53,69,0.13);
 }
 
-/* Error Message */
-.error-message {
-    color: #dc3545;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+.btn-primary {
+    background-color: #007bff; /* Blue */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px; /* Rounded corners */
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
 }
 
-/* Modal Styles */
-.modal {
-    position: fixed; 
-    z-index: 1000; 
-    left: 0;
-    top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.4); 
+.btn-primary:hover {
+    background-color: #0056b3; /* Darker blue on hover */
 }
 
-.modal-content {
-    background-color: #fefefe;
-    margin: 10% auto; 
-    padding: 20px;
-    border: 1px solid #888;
-    width: 90%;
-    max-width: 500px;
+.btn-secondary {
+    background-color: #6c757d; /* Grey */
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px; /* Rounded corners */
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268; /* Darker grey on hover */
+}
+
+.chapter-edit-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+}
+
+.chapter-edit-page .subtitle {
+    color: #6c757d;
+    margin-bottom: 1rem; /* Reduced margin */
+    flex-shrink: 0;
+}
+
+.chapter-edit-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.chapter-edit-left,
+.chapter-edit-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow: hidden;
+}
+
+.chapter-edit-left h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0; /* Remove margin, use gap from parent */
+    flex-shrink: 0;
+}
+
+.edit-card {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 0; /* Replaced by gap in parent flex container */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.description-card {
+    flex-grow: 1; /* Allow description card to fill vertical space */
+}
+
+.description-card .editing-view,
+.description-card .display-view {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.description-editor {
+    flex-grow: 1;
+    resize: none; /* Disable manual resizing */
+}
+
+.description-display {
+    flex-grow: 1;
+    overflow-y: auto; /* Add scrollbar ONLY if description is very long */
+    line-height: 1.6;
+    margin: 0;
+}
+
+.chapter-edit-right .edit-card {
+    flex-grow: 1; /* Make both cards on the right grow equally */
+}
+
+.chapter-edit-right .display-view {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chapter-edit-right video,
+.chapter-edit-right .placeholder-media {
+    flex-grow: 1;
+    min-height: 0; /* Crucial for flexbox sizing */
+}
+
+.chapter-edit-right video {
+    object-fit: contain;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+/* Workstream Create Page Styles */
+.workstream-create-page {
+    padding: 1rem;
+}
+
+.workstream-create-header {
+    margin-bottom: 1rem;
+}
+
+.workstream-create-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.workstream-create-form .edit-card {
+    margin-bottom: 1.5rem;
+}
+
+.workstream-create-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.workstream-create-form .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Chapter Create Page Styles */
+.chapter-create-page {
+    padding: 1rem;
+}
+
+.chapter-create-header {
+    margin-bottom: 1rem;
+}
+
+.chapter-create-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.chapter-create-form .edit-card {
+    margin-bottom: 1.5rem;
+}
+
+.chapter-create-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.chapter-create-form .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Assessment Create Page Styles */
+.assessment-create-page {
+    padding: 1rem;
+}
+
+.assessment-create-header {
+    margin-bottom: 1rem;
+}
+
+.assessment-create-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.assessment-create-form .edit-card {
+    margin-bottom: 1.5rem;
+}
+
+.assessment-create-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.assessment-create-form .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Mini-list for assessments in chapter edit */
+.assessments-list-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.assessment-item-mini {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.drag-handle-wrapper {
+    display: flex;
+    align-items: center;
+    padding-right: 10px;
+    cursor: grab;
+}
+
+.list-item.dragging {
+    background-color: #e9ecef;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+
+.edit-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.edit-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.edit-card p {
+    color: #495057;
+}
+
+.video-placeholder img {
+    width: 100%;
     border-radius: 8px;
 }
 
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.modal form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.modal label {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.modal input[type="text"], 
-.modal input[type="number"], 
-.modal textarea, 
-.modal select, 
-.modal input[type="file"] {
+/* Inline Editing Styles */
+.editing-view .form-control {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
+    padding: 0.5rem;
+    font-size: 1.2rem;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    margin-bottom: 1rem;
 }
 
-.modal button[type="submit"] {
-    padding: 10px 15px;
+.edit-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.placeholder-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px dashed #dee2e6;
+    color: #6c757d;
+    text-align: center;
+    padding: 1rem;
+}
+
+.placeholder-media p {
+    margin: 0;
+    color: #6c757d;
+}
+
+/* Assessment Edit Page Styles */
+.assessment-edit-page {
+    padding: 1rem;
+}
+
+.assessment-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.assessment-edit-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.assessment-edit-page .subtitle {
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+.assessment-edit-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+}
+
+.questions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.questions-header h3 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.questions-list .question-item {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.question-item .question-text {
+    margin: 0;
+    flex-grow: 1;
+}
+
+.question-item .question-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1200px) {
+    .chapter-edit-content,
+    .assessment-edit-content,
+    .admin-module-setup-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-modules-main-content {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-modules-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+
+
+
+
+
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* General Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+    color: #333;
+}
+
+/* Main Container */
+.admin-modules-container {
+    display: flex;
+    background: #f8fafc;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.admin-modules-main-content {
+  flex: 1;
+  padding: 1.5rem;
+
+}
+
+/* Header Section */
+.admin-modules-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.admin-modules-header h1 {
+    font-size: 1.5rem;
+    color: #1e293b;
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Filter Section */
+.admin-modules-filter {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.admin-modules-filter input {
+    width: 100%;
+    max-width: 300px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-shadow: none;
+}
+
+/* Table/List Layout for Overview */
+.admin-modules-table {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    width: 100%;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.admin-modules-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-modules-table th,
+.admin-modules-table td {
+    padding: 0.875rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-modules-table th {
+    background: linear-gradient(to right, #f8fafc, white);
+    font-weight: 600;
+    color: #1e293b;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+.admin-modules-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-modules-table tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background: white;
+}
+
+.admin-modules-table .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.admin-modules-table .status-badge.published {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.admin-modules-table .status-badge.unpublished {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Pagination */
+.admin-modules-pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 25px;
+    gap: 8px;
+}
+
+.admin-modules-pagination button {
+    background-color: #fff;
+    border: 1px solid #e0e4ea;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #555;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-modules-pagination button:hover {
+    background-color: #f1f5f9;
+    border-color: #cdd2d8;
+}
+
+.admin-modules-pagination button.active {
     background-color: #007bff;
     color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    align-self: flex-end;
+    border-color: #007bff;
 }
 
-/* Add to your A_Modules.css for better image display */
-.workstream-image-wrapper {
-  width: 100%;
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: #4285F4;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #3367D6;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.btn-success {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
   display: flex;
-  justify-content: center;
-  margin-bottom: 0.7em;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.workstream-image {
-  max-width: 100%;
-  max-height: 120px;
-  border-radius: 10px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+.btn-success:hover {
+  background-color: #45a049;
+}
+
+.btn-success svg {
+  width: 16px;
+  height: 16px;
+}
+
+.workstream-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workstream-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.workstream-actions .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 6px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+}
+
+.btn-icon:hover {
+  background: #f8fafc;
+  border-color: #4285F4;
+  color: #4285F4;
+}
+
+.btn-edit {
+    background: #f39c12;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-edit:hover {
+    background: #d68910;
+}
+
+.btn-delete {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+}
+
+.btn-delete:hover {
+    background: #c0392b;
+}
+
+/* Details Page */
+.admin-module-details-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.admin-module-details-header .back-button {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    color: #475569;
+    cursor: pointer;
+    margin-right: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.admin-module-details-header .back-button:hover {
+    background-color: #f1f5f9;
+}
+
+.admin-module-details-header h2 {
+    font-size: 1.875rem;
+    color: #1e293b;
+    margin: 0;
+    font-weight: 700;
+}
+
+.admin-module-setup-grid {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.admin-module-info-section,
+.admin-module-chapters-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+}
+
+.admin-module-info-section h3,
+.admin-module-chapters-section h3 {
+    font-size: 1.25rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-module-info-item {
+    margin-bottom: 1rem;
+}
+
+.admin-module-info-item:last-child {
+    margin-bottom: 0;
+}
+
+.admin-module-info-item label {
+    display: block;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.admin-module-info-item p {
+    font-size: 1rem;
+    color: #334155;
+    margin: 0;
+}
+
+.admin-module-info-item .edit-button {
+    background: none;
+    border: none;
+    color: #4285F4;
+    cursor: pointer;
+    font-size: 0.875rem;
+    margin-left: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.admin-module-info-item .edit-button:hover {
+    color: #3367D6;
+}
+
+.admin-module-image-wrapper {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 1rem;
+    border: 1px solid #e2e8f0;
+}
+
+.edit-button {
+    background: none;
+    border: none;
+    color: #4285F4;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.edit-button:hover {
+    color: #3367D6;
+}
+
+.admin-module-chapters-section .btn-primary {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.chapters-list {
+    margin-top: 1rem;
+}
+
+.chapter-item {
+    background: #fdfdfd;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.chapter-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.chapter-item-header h4 {
+    font-size: 1rem;
+    color: #1e293b;
+    margin: 0;
+    font-weight: 600;
+}
+
+.chapter-actions .btn-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+}
+
+.chapter-actions .btn-icon svg {
+    font-size: 0.8rem;
+}
+
+.assessments-list {
+    margin-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+}
+
+.assessments-list h5 {
+    font-size: 0.9rem;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.assessment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.assessment-item span {
+    font-size: 0.9rem;
+    color: #334155;
+}
+
+.assessment-actions .btn-icon {
+    width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
+    border-radius: 3px;
+}
+
+.assessment-actions .btn-icon svg {
+    font-size: 0.75rem;
+}
+
+.no-content-message {
+    text-align: center;
+    color: #64748b;
+    padding: 2rem;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.loading-message,
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #475569;
+}
+
+
+
+.admin-module-image-wrapper img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.admin-module-chapters-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.admin-module-chapters-list .chapter-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-module-chapters-list .chapter-item:last-child {
+    border-bottom: none;
+}
+
+.admin-module-chapters-list .chapter-item span {
+    font-size: 1rem;
+    color: #334155;
+}
+
+.admin-module-chapters-list .chapter-item .edit-button {
+    background: none;
+    border: none;
+    color: #4285F4;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.admin-module-chapters-list .chapter-item .edit-button:hover {
+    color: #3367D6;
+}
+
+/* Chapter Creation Page */
+.admin-chapter-creation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+.admin-chapter-info-section,
+.admin-chapter-video-section {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 25px;
+}
+
+.admin-chapter-video-wrapper {
+    width: 100%;
+    margin-top: 15px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.admin-chapter-video-wrapper video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 550px;
+    position: relative;
+    animation: fadeIn 0.3s ease-out;
+    border: 1px solid #e2e8f0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    font-size: 1.75rem;
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+}
+
+.modal-content .close-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.75rem;
+    cursor: pointer;
+    color: #64748b;
+    transition: color 0.2s ease;
+}
+
+.modal-content .close-button:hover {
+    color: #334155;
+}
+
+.modal-content form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #334155;
+    font-size: 0.95rem;
+}
+
+.modal-content form input[type="text"],
+.modal-content form textarea,
+.modal-content form input[type="file"],
+.modal-content form input[type="number"] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #334155;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-content form input[type="text"]:focus,
+.modal-content form textarea:focus,
+.modal-content form input[type="file"]:focus,
+.modal-content form input[type="number"]:focus {
+    border-color: #4285F4;
+    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
+    outline: none;
+}
+
+.modal-content form textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.modal-content .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.modal-content .form-actions button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.modal-content .form-actions .btn-cancel {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+.modal-content .form-actions .btn-cancel:hover {
+    background-color: #cbd5e1;
+}
+
+.modal-content .form-actions .btn-submit {
+    background-color: #4285F4;
+    color: white;
+}
+
+.modal-content .form-actions .btn-submit:hover {
+    background-color: #3367D6;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .admin-modules-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .admin-modules-filter input {
+        width: 100%;
+    }
+
+    .admin-module-setup-grid,
+    .admin-chapter-creation-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-modules-header h1 {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-modules-container {
+        padding: 10px;
+    }
+
+    .admin-modules-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .admin-modules-new-button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .admin-modules-table th,
+    .admin-modules-table td {
+        padding: 10px 15px;
+    }
 }

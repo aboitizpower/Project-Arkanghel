@@ -22,7 +22,7 @@ const E_Modules = () => {
         const fetchWorkstreams = async () => {
             setIsLoading(true);
             try {
-                const response = await axios.get(`${API_URL}/workstreams`);
+                const response = await axios.get(`${API_URL}/employee/workstreams`);
                 setWorkstreams(response.data);
                 setError('');
             } catch (err) {
@@ -38,7 +38,7 @@ const E_Modules = () => {
     const fetchChapters = async (workstreamId) => {
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/chapters`);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
             setChapters(response.data);
             setError('');
         } catch (err) {

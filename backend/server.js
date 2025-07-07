@@ -116,9 +116,9 @@ app.post('/workstreams', upload.single('image'), (req, res) => {
     });
 });
 
-// Read all workstreams
+// Read all workstreams (for admin)
 app.get('/workstreams', (req, res) => {
-    const sql = 'SELECT workstream_id, title, description, image_type, created_at FROM workstreams';
+    const sql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams';
     db.query(sql, (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -227,6 +227,86 @@ app.delete('/workstreams/:id', (req, res) => {
     });
 });
 
+// Update workstream publish status
+app.put('/workstreams/:id/publish', (req, res) => {
+    const { id } = req.params;
+    const { is_published } = req.body;
+
+    if (is_published === undefined) {
+        return res.status(400).json({ error: 'is_published field is required.' });
+    }
+
+    const sql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
+    db.query(sql, [is_published, id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+        res.json({ success: `Workstream ${is_published ? 'published' : 'unpublished'} successfully!` });
+    });
+});
+
+// Reorder chapters and assessments
+app.post('/workstreams/:workstream_id/reorder-chapters', (req, res) => {
+    const { workstream_id } = req.params;
+    const { chapters } = req.body;
+
+    if (!chapters || !Array.isArray(chapters)) {
+        return res.status(400).json({ error: 'Invalid payload. Expected an array of chapters.' });
+    }
+
+    db.beginTransaction(err => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to start transaction.', details: err.message });
+        }
+
+        const chapterPromises = chapters.map((chapter, chapterIndex) => {
+            return new Promise((resolve, reject) => {
+                const chapterSql = 'UPDATE module_chapters SET order_index = ? WHERE chapter_id = ? AND workstream_id = ?';
+                db.query(chapterSql, [chapterIndex, chapter.chapter_id, workstream_id], (err, result) => {
+                    if (err) return reject(err);
+                    if (result.affectedRows === 0) return reject(new Error(`Chapter with ID ${chapter.chapter_id} not found or does not belong to workstream ${workstream_id}.`));
+
+                    if (chapter.assessments && chapter.assessments.length > 0) {
+                        const assessmentPromises = chapter.assessments.map((assessment, assessmentIndex) => {
+                            return new Promise((resolve, reject) => {
+                                const assessmentSql = 'UPDATE assessments SET order_index = ? WHERE assessment_id = ? AND chapter_id = ?';
+                                db.query(assessmentSql, [assessmentIndex, assessment.assessment_id, chapter.chapter_id], (err, result) => {
+                                    if (err) return reject(err);
+                                    if (result.affectedRows === 0) return reject(new Error(`Assessment with ID ${assessment.assessment_id} not found or does not belong to chapter ${chapter.chapter_id}.`));
+                                    resolve();
+                                });
+                            });
+                        });
+                        Promise.all(assessmentPromises).then(resolve).catch(reject);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        });
+
+        Promise.all(chapterPromises)
+            .then(() => {
+                db.commit(err => {
+                    if (err) {
+                        return db.rollback(() => {
+                            res.status(500).json({ error: 'Failed to commit transaction.', details: err.message });
+                        });
+                    }
+                    res.json({ success: 'Order updated successfully.' });
+                });
+            })
+            .catch(error => {
+                db.rollback(() => {
+                    res.status(500).json({ error: 'Failed to update order.', details: error.message });
+                });
+            });
+    });
+});
+
 // Module Chapters CRUD
 
 // Create a new chapter
@@ -267,10 +347,10 @@ app.post('/chapters', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 
     });
 });
 
-// Get all chapters for a specific workstream
+// Get all chapters for a specific workstream (for admin)
 app.get('/workstreams/:workstream_id/chapters', (req, res) => {
     const { workstream_id } = req.params;
-        const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+    const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename, is_published FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
     db.query(sql, [workstream_id], (err, results) => {
         if (err) {
             console.error(`Error fetching chapters for workstream ${workstream_id}:`, err);
@@ -393,6 +473,27 @@ app.delete('/chapters/:id', (req, res) => {
     });
 });
 
+// Update chapter publish status
+app.put('/chapters/:id/publish', (req, res) => {
+    const { id } = req.params;
+    const { is_published } = req.body;
+
+    if (is_published === undefined) {
+        return res.status(400).json({ error: 'is_published field is required.' });
+    }
+
+    const sql = 'UPDATE module_chapters SET is_published = ? WHERE chapter_id = ?';
+    db.query(sql, [is_published, id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        res.json({ success: `Chapter ${is_published ? 'published' : 'unpublished'} successfully!` });
+    });
+});
+
 // Get chapter PDF file
 app.get('/chapters/:id/pdf', (req, res) => {
     const { id } = req.params;
@@ -425,20 +526,75 @@ app.get('/chapters/:id/video', (req, res) => {
 // Create Assessment
 app.post('/assessments', (req, res) => {
     const { chapter_id, title, total_points } = req.body;
-    const sql = 'INSERT INTO assessments (chapter_id, title, total_points) VALUES (?, ?, ?)';
-    db.query(sql, [chapter_id, title, total_points], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ success: 'Assessment created', assessment_id: result.insertId });
+
+    // Get the highest current order_index for the given chapter_id
+    const getMaxOrderIndexSql = 'SELECT MAX(order_index) as max_order FROM assessments WHERE chapter_id = ?';
+    db.query(getMaxOrderIndexSql, [chapter_id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error while fetching max order index.', details: err.message });
+        }
+
+        const nextOrderIndex = (results[0].max_order === null) ? 0 : results[0].max_order + 1;
+
+        const sql = 'INSERT INTO assessments (chapter_id, title, total_points, order_index) VALUES (?, ?, ?, ?)';
+        db.query(sql, [chapter_id, title, total_points, nextOrderIndex], (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: 'Database error while creating assessment.', details: err.message });
+            }
+            res.status(201).json({ success: 'Assessment created', assessment_id: result.insertId, order_index: nextOrderIndex });
+        });
     });
 });
 
 // Get Assessments for a Chapter
 app.get('/chapters/:chapter_id/assessments', (req, res) => {
     const { chapter_id } = req.params;
-    const sql = 'SELECT * FROM assessments WHERE chapter_id = ?';
+    const sql = 'SELECT * FROM assessments WHERE chapter_id = ? ORDER BY order_index ASC';
     db.query(sql, [chapter_id], (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(results);
+    });
+});
+
+// Update an assessment
+app.put('/assessments/:id', (req, res) => {
+    const { id } = req.params;
+    const { title, total_points, order_index } = req.body;
+
+    // Build the query dynamically based on provided fields
+    let fieldsToUpdate = [];
+    let params = [];
+
+    if (title !== undefined) {
+        fieldsToUpdate.push('title = ?');
+        params.push(title);
+    }
+    if (total_points !== undefined) {
+        fieldsToUpdate.push('total_points = ?');
+        params.push(total_points);
+    }
+    if (order_index !== undefined) {
+        fieldsToUpdate.push('order_index = ?');
+        params.push(order_index);
+    }
+
+    if (fieldsToUpdate.length === 0) {
+        return res.status(400).json({ error: 'No fields to update.' });
+    }
+
+    params.push(id);
+
+    const sql = `UPDATE assessments SET ${fieldsToUpdate.join(', ')} WHERE assessment_id = ?`;
+
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.error(`Error updating assessment ${id}:`, err);
+            return res.status(500).json({ error: 'Database error while updating assessment.' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Assessment not found.' });
+        }
+        res.json({ success: 'Assessment updated successfully.' });
     });
 });
 
@@ -623,7 +779,62 @@ app.delete('/questions/:id', (req, res) => {
     const sql = 'DELETE FROM questions WHERE question_id = ?';
     db.query(sql, [id], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: 'Question deleted' });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found.' });
+        res.json({ success: 'Question deleted successfully.' });
+    });
+});
+
+// --- Employee-facing Endpoints ---
+
+// Get all published workstreams for employees
+app.get('/employee/workstreams', (req, res) => {
+    const sql = 'SELECT workstream_id, title, description, image_type, created_at FROM workstreams WHERE is_published = TRUE';
+    db.query(sql, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Get all published chapters for a specific workstream for employees
+app.get('/employee/workstreams/:workstream_id/chapters', (req, res) => {
+    const { workstream_id } = req.params;
+    const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename FROM module_chapters WHERE workstream_id = ? AND is_published = TRUE ORDER BY order_index ASC';
+    db.query(sql, [workstream_id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching chapters for workstream ${workstream_id}:`, err);
+            return res.status(500).json({ error: 'Failed to fetch chapters.' });
+        }
+        res.json(results);
+    });
+});
+
+// Publish Question
+app.put('/questions/:id/publish', (req, res) => {
+    const { id } = req.params;
+    const sql = 'UPDATE questions SET is_published = TRUE WHERE question_id = ?';
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error('Error publishing question:', err);
+            return res.status(500).json({ error: 'Failed to publish question.' });
+        }
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found.' });
+        res.json({ success: 'Question published successfully.' });
+    });
+});
+
+// Unpublish Question
+app.put('/questions/:id/unpublish', (req, res) => {
+    const { id } = req.params;
+    const sql = 'UPDATE questions SET is_published = FALSE WHERE question_id = ?';
+    db.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error('Error unpublishing question:', err);
+            return res.status(500).json({ error: 'Failed to unpublish question.' });
+        }
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found.' });
+        res.json({ success: 'Question unpublished successfully.' });
     });
 });
 
