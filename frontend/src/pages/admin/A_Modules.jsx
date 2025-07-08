@@ -500,6 +500,29 @@ const A_Modules = () => {
 
 
 
+    const handleToggleWorkstreamPublish = async (workstream) => {
+        try {
+            const response = await axios.put(`${API_URL}/workstreams/${workstream.workstream_id}/publish`, { 
+                is_published: !workstream.is_published 
+            });
+
+            if (response.status === 200) {
+                // Update the state locally
+                setWorkstreams(prevWorkstreams => 
+                    prevWorkstreams.map(ws => 
+                        ws.workstream_id === workstream.workstream_id 
+                            ? { ...ws, is_published: !ws.is_published } 
+                            : ws
+                    )
+                );
+            } else {
+                console.error('Failed to update workstream publish state');
+            }
+        } catch (error) {
+            console.error('Error toggling workstream publish state:', error);
+        }
+    };
+
     const handleDeleteWorkstream = async (workstreamId) => {
         if (window.confirm('Delete this workstream and all its content?')) {
             try {
