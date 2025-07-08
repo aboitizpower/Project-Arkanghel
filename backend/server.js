@@ -190,39 +190,99 @@ app.get('/workstreams/:id/image', (req, res) => {
 // Delete a workstream (and all its related content)
 app.delete('/workstreams/:id', (req, res) => {
     const { id } = req.params;
-    // Note: This is a simplified cascade delete. For production, use transactions and more robust error handling.
-    const getChaptersSql = 'SELECT chapter_id FROM module_chapters WHERE workstream_id = ?';
-    db.query(getChaptersSql, [id], (err, chapters) => {
-        if (err) return res.status(500).json({ error: `Failed to fetch chapters: ${err.message}` });
 
-        if (chapters.length > 0) {
-            const chapterIds = chapters.map(c => c.chapter_id);
-            const getAssessmentsSql = `SELECT assessment_id FROM assessments WHERE chapter_id IN (${chapterIds.join(',')})`;
-            db.query(getAssessmentsSql, (err, assessments) => {
-                if (err) return res.status(500).json({ error: `Failed to fetch assessments: ${err.message}` });
-
-                if (assessments.length > 0) {
-                    const assessmentIds = assessments.map(a => a.assessment_id);
-                    const deleteQuestionsSql = `DELETE FROM questions WHERE assessment_id IN (${assessmentIds.join(',')})`;
-                    db.query(deleteQuestionsSql, (err, result) => {
-                        if (err) return res.status(500).json({ error: `Failed to delete questions: ${err.message}` });
-                        
-                        const deleteAssessmentsSql = `DELETE FROM assessments WHERE assessment_id IN (${assessmentIds.join(',')})`;
-                        db.query(deleteAssessmentsSql, (err, result) => {
-                            if (err) return res.status(500).json({ error: `Failed to delete assessments: ${err.message}` });
-                        });
-                    });
-                }
-                const deleteChaptersSql = 'DELETE FROM module_chapters WHERE workstream_id = ?';
-                db.query(deleteChaptersSql, [id], (err, result) => {
-                    if (err) return res.status(500).json({ error: `Failed to delete chapters: ${err.message}` });
-                });
-            });
+    db.beginTransaction(err => {
+        if (err) {
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error starting transaction.' });
         }
-        const deleteWorkstreamSql = 'DELETE FROM workstreams WHERE workstream_id = ?';
-        db.query(deleteWorkstreamSql, [id], (err, result) => {
-            if (err) return res.status(500).json({ error: `Failed to delete workstream: ${err.message}` });
-            res.json({ success: 'Workstream and all associated content deleted successfully!' });
+
+        // 1. Get all chapters for the workstream
+        const getChaptersSql = 'SELECT chapter_id FROM module_chapters WHERE workstream_id = ?';
+        db.query(getChaptersSql, [id], (err, chapters) => {
+            if (err) {
+                return db.rollback(() => res.status(500).json({ error: 'Failed to fetch chapters for deletion.' }));
+            }
+
+            const chapterIds = chapters.map(c => c.chapter_id);
+
+            const performDeletions = (assessmentIds, questionIds) => {
+                const deleteOperations = [
+                    (callback) => { // Delete answers
+                        if (questionIds.length === 0) return callback();
+                        db.query('DELETE FROM answers WHERE question_id IN (?)', [questionIds], callback);
+                    },
+                    (callback) => { // Delete questions
+                        if (assessmentIds.length === 0) return callback();
+                        db.query('DELETE FROM questions WHERE assessment_id IN (?)', [assessmentIds], callback);
+                    },
+                    (callback) => { // Delete assessments
+                        if (chapterIds.length === 0) return callback();
+                        db.query('DELETE FROM assessments WHERE chapter_id IN (?)', [chapterIds], callback);
+                    },
+                    (callback) => { // Delete user progress
+                        if (chapterIds.length === 0) return callback();
+                        db.query('DELETE FROM user_progress WHERE chapter_id IN (?)', [chapterIds], callback);
+                    },
+                    (callback) => { // Delete chapters
+                        if (chapterIds.length === 0) return callback();
+                        db.query('DELETE FROM module_chapters WHERE workstream_id = ?', [id], callback);
+                    },
+                    (callback) => { // Delete workstream
+                        db.query('DELETE FROM workstreams WHERE workstream_id = ?', [id], callback);
+                    }
+                ];
+
+                let opIndex = 0;
+                const next = (err, result) => {
+                    if (err) {
+                        return db.rollback(() => {
+                            console.error('Error during deletion operation:', err);
+                            res.status(500).json({ error: 'Failed during cascaded delete.' });
+                        });
+                    }
+                    opIndex++;
+                    if (opIndex < deleteOperations.length) {
+                        deleteOperations[opIndex](next);
+                    } else {
+                        db.commit(err => {
+                            if (err) {
+                                return db.rollback(() => res.status(500).json({ error: 'Failed to commit transaction.' }));
+                            }
+                            res.json({ success: 'Workstream and all associated content deleted successfully!' });
+                        });
+                    }
+                };
+                deleteOperations[0](next);
+            };
+
+            if (chapterIds.length > 0) {
+                // 2. Get all assessments for the chapters
+                const getAssessmentsSql = 'SELECT assessment_id FROM assessments WHERE chapter_id IN (?)';
+                db.query(getAssessmentsSql, [chapterIds], (err, assessments) => {
+                    if (err) {
+                        return db.rollback(() => res.status(500).json({ error: 'Failed to fetch assessments for deletion.' }));
+                    }
+
+                    const assessmentIds = assessments.map(a => a.assessment_id);
+
+                    if (assessmentIds.length > 0) {
+                        // 3. Get all questions for the assessments
+                        const getQuestionsSql = 'SELECT question_id FROM questions WHERE assessment_id IN (?)';
+                        db.query(getQuestionsSql, [assessmentIds], (err, questions) => {
+                            if (err) {
+                                return db.rollback(() => res.status(500).json({ error: 'Failed to fetch questions for deletion.' }));
+                            }
+                            const questionIds = questions.map(q => q.question_id);
+                            performDeletions(assessmentIds, questionIds);
+                        });
+                    } else {
+                        performDeletions([], []);
+                    }
+                });
+            } else {
+                performDeletions([], []);
+            }
         });
     });
 });
