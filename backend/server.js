@@ -228,6 +228,27 @@ app.delete('/workstreams/:id', (req, res) => {
 });
 
 // Update workstream publish status
+app.put('/chapters/:id/publish', (req, res) => {
+    const { id } = req.params;
+    const { is_published } = req.body;
+
+    if (typeof is_published !== 'boolean') {
+        return res.status(400).json({ error: 'Invalid is_published value. It must be a boolean.' });
+    }
+
+    const sql = 'UPDATE module_chapters SET is_published = ? WHERE chapter_id = ?';
+    db.query(sql, [is_published, id], (err, result) => {
+        if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: 'Failed to update chapter publish state.', details: err.message });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        res.json({ success: true, message: 'Chapter publish state updated successfully.' });
+    });
+});
+
 app.put('/workstreams/:id/publish', (req, res) => {
     const { id } = req.params;
     const { is_published } = req.body;
@@ -262,28 +283,13 @@ app.post('/workstreams/:workstream_id/reorder-chapters', (req, res) => {
             return res.status(500).json({ error: 'Failed to start transaction.', details: err.message });
         }
 
-        const chapterPromises = chapters.map((chapter, chapterIndex) => {
+        const chapterPromises = chapters.map((chapter) => {
             return new Promise((resolve, reject) => {
                 const chapterSql = 'UPDATE module_chapters SET order_index = ? WHERE chapter_id = ? AND workstream_id = ?';
-                db.query(chapterSql, [chapterIndex, chapter.chapter_id, workstream_id], (err, result) => {
+                db.query(chapterSql, [chapter.order_index, chapter.chapter_id, workstream_id], (err, result) => {
                     if (err) return reject(err);
                     if (result.affectedRows === 0) return reject(new Error(`Chapter with ID ${chapter.chapter_id} not found or does not belong to workstream ${workstream_id}.`));
-
-                    if (chapter.assessments && chapter.assessments.length > 0) {
-                        const assessmentPromises = chapter.assessments.map((assessment, assessmentIndex) => {
-                            return new Promise((resolve, reject) => {
-                                const assessmentSql = 'UPDATE assessments SET order_index = ? WHERE assessment_id = ? AND chapter_id = ?';
-                                db.query(assessmentSql, [assessmentIndex, assessment.assessment_id, chapter.chapter_id], (err, result) => {
-                                    if (err) return reject(err);
-                                    if (result.affectedRows === 0) return reject(new Error(`Assessment with ID ${assessment.assessment_id} not found or does not belong to chapter ${chapter.chapter_id}.`));
-                                    resolve();
-                                });
-                            });
-                        });
-                        Promise.all(assessmentPromises).then(resolve).catch(reject);
-                    } else {
-                        resolve();
-                    }
+                    resolve();
                 });
             });
         });
@@ -384,39 +390,72 @@ app.get('/chapters/:chapter_id/assessments', (req, res) => {
     });
 });
 
-// Update a chapter
-app.put('/chapters/:id', upload.fields([{ name: 'pdf_file', maxCount: 1 }, { name: 'video_file', maxCount: 1 }]), (req, res) => {
+// Update a chapter's text details
+app.put('/chapters/:id/details', (req, res) => {
     const { id } = req.params;
-    const { title, content, order_index } = req.body;
-    if (!title || !content) {
-        return res.status(400).json({ error: 'Title and content are required.' });
+    const { title, content } = req.body;
+
+    if (!title && !content) {
+        return res.status(400).json({ error: 'No fields to update.' });
     }
 
-    const pdf = req.files?.pdf_file?.[0];
-    const video = req.files?.video_file?.[0];
-
-    let sql = 'UPDATE module_chapters SET title = ?, content = ?, order_index = ?';
-    const params = [title, content, order_index || 0];
-
-    if (pdf) {
-        sql += ', pdf_file = ?, pdf_filename = ?, pdf_mime_type = ?';
-        params.push(pdf.buffer, pdf.originalname, pdf.mimetype);
+    let sql = 'UPDATE module_chapters SET ';
+    const params = [];
+    if (title) {
+        sql += 'title = ?';
+        params.push(title);
     }
-    if (video) {
-        sql += ', video_file = ?, video_filename = ?, video_mime_type = ?';
-        params.push(video.buffer, video.originalname, video.mimetype);
+    if (content) {
+        if (params.length > 0) sql += ', ';
+        sql += 'content = ?';
+        params.push(content);
     }
-
     sql += ' WHERE chapter_id = ?';
     params.push(id);
 
     db.query(sql, params, (err, result) => {
         if (err) {
-            console.error(`Error updating chapter ${id}:`, err);
-            return res.status(500).json({ error: 'Database error while updating chapter.' });
+            console.error('Error updating chapter details:', err);
+            return res.status(500).json({ error: 'Database error while updating chapter details.' });
         }
-        if (result.affectedRows === 0) return res.status(404).json({ error: 'Chapter not found.' });
-        res.json({ success: 'Chapter updated successfully.' });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        res.json({ success: 'Chapter details updated successfully.' });
+    });
+});
+
+// Upload/update chapter video
+app.post('/chapters/:id/upload-video', upload.single('video_file'), (req, res) => {
+    const { id } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: 'No video file uploaded.' });
+    }
+    const { buffer, originalname, mimetype } = req.file;
+    const sql = 'UPDATE module_chapters SET video_file = ?, video_filename = ?, video_mime_type = ? WHERE chapter_id = ?';
+    db.query(sql, [buffer, originalname, mimetype, id], (err, result) => {
+        if (err) {
+            console.error('Error uploading video:', err);
+            return res.status(500).json({ error: 'Database error while uploading video.' });
+        }
+        res.json({ success: true, message: 'Video uploaded successfully.' });
+    });
+});
+
+// Upload/update chapter PDF
+app.post('/chapters/:id/upload-pdf', upload.single('pdf_file'), (req, res) => {
+    const { id } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: 'No PDF file uploaded.' });
+    }
+    const { buffer, originalname, mimetype } = req.file;
+    const sql = 'UPDATE module_chapters SET pdf_file = ?, pdf_filename = ?, pdf_mime_type = ? WHERE chapter_id = ?';
+    db.query(sql, [buffer, originalname, mimetype, id], (err, result) => {
+        if (err) {
+            console.error('Error uploading PDF:', err);
+            return res.status(500).json({ error: 'Database error while uploading PDF.' });
+        }
+        res.json({ success: true, message: 'PDF uploaded successfully.' });
     });
 });
 

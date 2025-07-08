@@ -500,6 +500,46 @@ const A_Modules = () => {
 
 
 
+    const handleDeleteChapter = async (chapterId) => {
+        if (!window.confirm('Are you sure you want to delete this chapter and all of its contents? This action cannot be undone.')) {
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await axios.delete(`${API_URL}/chapters/${chapterId}`);
+            setEditingChapter(null); // Go back to the workstream detail view
+            await fetchWorkstreamsAndChapters().then(updatedWorkstreams => {
+                const updatedWs = updatedWorkstreams.find(ws => ws.workstream_id === selectedWorkstream.workstream_id);
+                if (updatedWs) {
+                    setSelectedWorkstream(updatedWs);
+                }
+            });
+            alert('Chapter deleted successfully.');
+        } catch (err) {
+            setError('Failed to delete chapter.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleToggleChapterPublish = async (chapter) => {
+        try {
+            const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { 
+                is_published: !chapter.is_published 
+            });
+            if (response.data.success) {
+                setEditingChapter(prev => ({...prev, is_published: !prev.is_published}));
+                // Optionally, update the main list as well
+                fetchWorkstreamsAndChapters();
+            }
+        } catch (err) {
+            setError('Failed to update chapter publish state.');
+            console.error(err);
+        }
+    };
+
     const handleToggleWorkstreamPublish = async (workstream) => {
         try {
             const response = await axios.put(`${API_URL}/workstreams/${workstream.workstream_id}/publish`, { 
@@ -538,17 +578,7 @@ const A_Modules = () => {
         }
     };
 
-    const handleChapterDelete = async (chapterId) => {
-        if (window.confirm('Delete this chapter?')) {
-            try {
-                await axios.delete(`${API_URL}/chapters/${chapterId}`);
-                fetchWorkstreamsAndChapters();
-            } catch (err) {
-                setError('Failed to delete chapter.');
-                console.error(err);
-            }
-        }
-    };
+
 
     const handleSaveChapterPdf = async () => {
         if (!editingChapter || !editedChapterPdf) return;
@@ -557,7 +587,7 @@ const A_Modules = () => {
         formData.append('pdf_file', editedChapterPdf);
 
         try {
-            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}`, formData, {
+            await axios.post(`${API_URL}/chapters/${editingChapter.chapter_id}/upload-pdf`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             
@@ -586,7 +616,7 @@ const A_Modules = () => {
         formData.append('video_file', editedChapterVideo);
 
         try {
-            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}`, formData, {
+            await axios.post(`${API_URL}/chapters/${editingChapter.chapter_id}/upload-video`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -615,7 +645,7 @@ const A_Modules = () => {
 
         try {
             const updatedChapter = { ...editingChapter, content: editedChapterDescription };
-            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}`, { content: editedChapterDescription });
+            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}/details`, { content: editedChapterDescription });
             
             setEditingChapter(updatedChapter);
             setIsChapterDescriptionEditing(false);
@@ -638,7 +668,7 @@ const A_Modules = () => {
 
         try {
             const updatedChapter = { ...editingChapter, title: editedChapterTitle };
-            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}`, { title: editedChapterTitle });
+            await axios.put(`${API_URL}/chapters/${editingChapter.chapter_id}/details`, { title: editedChapterTitle });
             
             setEditingChapter(updatedChapter);
             setIsChapterTitleEditing(false);
@@ -718,7 +748,11 @@ const A_Modules = () => {
         setSelectedWorkstream(newSelectedWorkstream);
 
         try {
-            await axios.post(`${API_URL}/workstreams/${selectedWorkstream.workstream_id}/reorder-chapters`, { chapters: reorderedChapters });
+            const payload = reorderedChapters.map((chapter, index) => ({ 
+                chapter_id: chapter.chapter_id,
+                order_index: index 
+            }));
+            await axios.post(`${API_URL}/workstreams/${selectedWorkstream.workstream_id}/reorder-chapters`, { chapters: payload });
         } catch (err) {
             setError('Failed to save new order. Reverting changes.');
             console.error(err);
@@ -1040,11 +1074,12 @@ const A_Modules = () => {
                     <div className="chapter-edit-header">
                         <button className="back-button" onClick={() => setEditingChapter(null)}>&larr; Back to module setup</button>
                         <div className="header-actions-right">
-                            {editingChapter.is_published ? (
-                                <button onClick={() => handleToggleChapterPublish(editingChapter)} className="unpublish-button">Unpublish</button>
-                            ) : (
-                                <button onClick={() => handleToggleChapterPublish(editingChapter)} className="publish-button">Publish</button>
-                            )}
+                            <button onClick={() => handleToggleChapterPublish(editingChapter)} className={`px-4 py-2 rounded-md text-white ${editingChapter.is_published ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}>
+                                {editingChapter.is_published ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <button onClick={() => handleDeleteChapter(editingChapter.chapter_id)} className="btn-delete" disabled={isLoading}>
+                                {isLoading ? 'Deleting...' : 'Delete Chapter'}
+                            </button>
                         </div>
                     </div>
                     <h2>Module Chapter Creation</h2>
