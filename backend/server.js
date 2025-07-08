@@ -1224,6 +1224,57 @@ app.post('/user-progress', (req, res) => {
     });
 });
 
+// Get leaderboard data
+app.get('/leaderboard', (req, res) => {
+    const totalChaptersSql = 'SELECT COUNT(*) as total FROM module_chapters WHERE is_published = TRUE';
+    db.query(totalChaptersSql, (err, totalResult) => {
+        if (err) {
+            console.error('Error fetching total chapters for leaderboard:', err);
+            return res.status(500).json({ error: 'Database error while preparing leaderboard.' });
+        }
+        const totalChapters = totalResult[0].total;
+
+        if (totalChapters === 0) {
+            // No published chapters, so leaderboard is empty.
+            return res.json([]);
+        }
+
+        const leaderboardSql = `
+            SELECT
+                u.user_id,
+                u.first_name,
+                u.last_name,
+                (
+                    SELECT COUNT(DISTINCT up.chapter_id)
+                    FROM user_progress up
+                    JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                    WHERE up.user_id = u.user_id AND up.is_completed = TRUE AND mc.is_published = TRUE
+                ) AS completed_chapters_count
+            FROM
+                users u
+            WHERE
+                u.isAdmin = FALSE
+            ORDER BY
+                completed_chapters_count DESC;
+        `;
+
+        db.query(leaderboardSql, (err, users) => {
+            if (err) {
+                console.error('Error fetching user progress for leaderboard:', err);
+                return res.status(500).json({ error: 'Database error while generating leaderboard.' });
+            }
+
+            const leaderboardData = users.map(user => ({
+                ...user,
+                overall_progress: (user.completed_chapters_count / totalChapters) * 100,
+                total_chapters: totalChapters
+            }));
+            
+            res.json(leaderboardData);
+        });
+    });
+});
+
 // Start server
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
