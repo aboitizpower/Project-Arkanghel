@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Assessment.css';
@@ -9,6 +9,8 @@ const API_URL = 'http://localhost:8081';
 const E_Assessment = () => {
     const { assessmentId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { workstreamId, chapterId } = location.state || {};
     const [assessment, setAssessment] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [answers, setAnswers] = useState({});
@@ -109,10 +111,16 @@ const E_Assessment = () => {
                 answers: formattedAnswers,
                 assessmentId: parseInt(assessmentId, 10)
             });
-            const { totalScore } = response.data;
-            const totalQuestions = formattedAnswers.length;
+            const { totalScore, totalQuestions } = response.data;
             alert(`Assessment submitted successfully!\n\nYou scored ${totalScore} out of ${totalQuestions}.`);
-            navigate('/employee/modules'); // Navigate back to modules page
+            
+            navigate('/employee/modules', { 
+                state: { 
+                    workstreamId, 
+                    chapterId,
+                    refresh: Date.now()
+                } 
+            });
         } catch (err) {
             setError('Failed to submit assessment.');
             console.error(err);

@@ -208,6 +208,26 @@
     text-align: center;
 }
 
+/* Final Assessment Section */
+.final-assessment-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #dee2e6;
+}
+
+.final-assessment-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.final-assessment-list .assessment-sub-item {
+    margin-left: 0; /* Override default indent */
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+}
+
 /* Chapter Edit Page Styles */
 .chapter-edit-page {
     display: flex;

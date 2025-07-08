@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
+import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock } from 'react-icons/fa';
 
 const API_URL = 'http://localhost:8081';
 
 const E_Modules = () => {
     const [workstreams, setWorkstreams] = useState([]);
     const [chapters, setChapters] = useState([]);
-    const [assessments, setAssessments] = useState([]);
-
     const [selectedWorkstream, setSelectedWorkstream] = useState(null);
     const [selectedChapter, setSelectedChapter] = useState(null);
+    const [assessmentForCurrentChapter, setAssessmentForCurrentChapter] = useState(null);
+    const [isAssessmentPassed, setIsAssessmentPassed] = useState(false);
+    const [currentContentView, setCurrentContentView] = useState('video'); // 'video' or 'pdf'
+    const [completedChapters, setCompletedChapters] = useState(new Set());
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [userId, setUserId] = useState(null);
+
+    const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         const loggedInUserId = localStorage.getItem('userId');
@@ -27,7 +33,33 @@ const E_Modules = () => {
         }
     }, []);
 
-    // Function to fetch workstreams that can be called from anywhere
+    useEffect(() => {
+        // This effect will run when the component mounts and when the location state changes.
+        const { workstreamId, chapterId, refresh } = location.state || {};
+        if (workstreamId && refresh) {
+            // If we are returning from an assessment, re-select the workstream.
+            // The chapters will be fetched by handleSelectWorkstream.
+            const workstreamToSelect = workstreams.find(ws => ws.workstream_id === workstreamId);
+            if (workstreamToSelect) {
+                handleSelectWorkstream(workstreamToSelect);
+            }
+        }
+    }, [location.state, workstreams]); // Re-run if workstreams list changes
+
+    useEffect(() => {
+        // This effect runs when chapters are populated and location state has a chapterId
+        const { chapterId, refresh } = location.state || {};
+        if (chapterId && refresh && chapters.length > 0) {
+            const chapterToSelect = chapters.find(ch => ch.chapter_id === chapterId);
+            if (chapterToSelect) {
+                handleSelectChapter(chapterToSelect);
+
+                // Clear the refresh state to prevent re-triggering
+                navigate(location.pathname, { state: {}, replace: true });
+            }
+        }
+    }, [chapters, location.state]);
+
     const fetchWorkstreams = async () => {
         if (!userId) return;
         setIsLoading(true);
@@ -42,17 +74,19 @@ const E_Modules = () => {
         setIsLoading(false);
     };
 
-    // Initial fetch of workstreams
     useEffect(() => {
         fetchWorkstreams();
     }, [userId]);
 
-    // Fetch chapters for a selected workstream
     const fetchChapters = async (workstreamId) => {
         setIsLoading(true);
         try {
             const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
             setChapters(response.data);
+            if (response.data.length > 0) {
+                // Automatically select the first chapter
+                handleSelectChapter(response.data[0]);
+            }
             setError('');
         } catch (err) {
             setError(`Failed to fetch chapters for workstream ${workstreamId}.`);
@@ -61,43 +95,168 @@ const E_Modules = () => {
         setIsLoading(false);
     };
 
-    // Fetch assessments for a selected chapter
-    const fetchAssessments = async (chapterId) => {
-        setIsLoading(true);
+    const fetchUserProgress = async (workstreamId) => {
+        if (!userId) return;
         try {
-            const response = await axios.get(`${API_URL}/chapters/${chapterId}/assessments`);
-            setAssessments(response.data);
-            setError('');
+            const response = await axios.get(`${API_URL}/user-progress/${userId}/${workstreamId}`);
+            const completedIds = response.data.map(item => item.chapter_id);
+            setCompletedChapters(new Set(completedIds));
         } catch (err) {
-            setError(`Failed to fetch assessments for chapter ${chapterId}.`);
-            console.error(err);
+            console.error('Failed to fetch user progress:', err);
+            setError('Could not load your progress. Please refresh the page.');
         }
-        setIsLoading(false);
     };
 
     const handleSelectWorkstream = (workstream) => {
         setSelectedWorkstream(workstream);
-        setSelectedChapter(null); // Reset chapter selection
-        setAssessments([]); // Clear assessments
+        setSelectedChapter(null);
+        setChapters([]);
+        setCompletedChapters(new Set()); // Reset progress for the new workstream
         fetchChapters(workstream.workstream_id);
+        fetchUserProgress(workstream.workstream_id);
     };
 
-    const handleSelectChapter = (chapter) => {
+    const _selectChapterForView = async (chapter) => {
         setSelectedChapter(chapter);
-        fetchAssessments(chapter.chapter_id);
+        
+        if (chapter.video_filename) {
+            setCurrentContentView('video');
+        } else if (chapter.pdf_filename) {
+            setCurrentContentView('pdf');
+        }
+
+        // Fetch assessment and user progress for it
+        setIsLoading(true);
+        try {
+            const assessmentRes = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`);
+            if (assessmentRes.data && assessmentRes.data.length > 0) {
+                const assessment = assessmentRes.data[0];
+                setAssessmentForCurrentChapter(assessment);
+
+                // Check if user has passed this assessment
+                try {
+                    const passRes = await axios.get(`${API_URL}/user-assessment-progress/${userId}/${assessment.assessment_id}`);
+                    setIsAssessmentPassed(passRes.data && passRes.data.is_passed);
+                } catch (progressError) {
+                    if (progressError.response && progressError.response.status === 404) {
+                        setIsAssessmentPassed(false); // Not taken yet
+                    } else {
+                        throw progressError; // A real error
+                    }
+                }
+            } else {
+                // NO ASSESSMENT for this chapter
+                setAssessmentForCurrentChapter(null);
+                setIsAssessmentPassed(true); // Can always proceed if no assessment
+
+                // Since there's no assessment, we can mark the chapter as complete right away.
+                if (userId && chapter.chapter_id) {
+                    await axios.post(`${API_URL}/user-progress`, {
+                        userId: userId,
+                        chapterId: chapter.chapter_id,
+                    });
+                    setCompletedChapters(prev => new Set(prev).add(chapter.chapter_id));
+                }
+            }
+        } catch (err) {
+            if (err.response && err.response.status === 404) {
+                // This means no assessment was found, which is not an application error.
+                setAssessmentForCurrentChapter(null);
+                setIsAssessmentPassed(true);
+            } else {
+                setError('Failed to load chapter data.');
+                console.error(err);
+                setIsAssessmentPassed(false);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSelectChapter = async (chapter) => {
+        // Prevent selecting locked chapters.
+        const chapterIndex = chapters.findIndex(c => c.chapter_id === chapter.chapter_id);
+        if (chapterIndex > 0 && !completedChapters.has(chapters[chapterIndex - 1].chapter_id)) {
+            // If it's not the first chapter and the previous one isn't complete, do nothing.
+            return;
+        }
+
+        if (chapter.title.toLowerCase().includes('final assessment')) {
+            const allChaptersComplete = chapters
+                .filter(c => !c.title.toLowerCase().includes('final assessment'))
+                .every(c => completedChapters.has(c.chapter_id));
+
+            if (!allChaptersComplete) {
+                alert("You must complete all chapters before taking the final assessment.");
+                return;
+            }
+
+            const fetchAndNavigate = async () => {
+                setIsLoading(true);
+                try {
+                    const response = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`);
+                    if (response.data && response.data.length > 0) {
+                        navigate(`/employee/assessment/${response.data[0].assessment_id}`);
+                    } else {
+                        setError('Final assessment is not available at this time.');
+                    }
+                } catch (err) {
+                    setError('Could not load the final assessment.');
+                    console.error(err);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchAndNavigate();
+        } else {
+            _selectChapterForView(chapter);
+        }
     };
     
     const handleBackToWorkstreams = () => {
         setSelectedWorkstream(null);
         setSelectedChapter(null);
         setChapters([]);
-        setAssessments([]);
+        setAssessmentForCurrentChapter(null);
+        fetchWorkstreams(); // Refetch to show latest progress
     };
 
-    const handleBackToChapters = () => {
-        setSelectedChapter(null);
-        setAssessments([]);
-    }
+    const handleNextChapter = async () => {
+        const isReadyForNext = !assessmentForCurrentChapter || isAssessmentPassed;
+
+        if (selectedChapter && isReadyForNext) {
+            try {
+                // Mark current chapter as complete
+                await axios.post(`${API_URL}/user-progress`, {
+                    userId: userId,
+                    chapterId: selectedChapter.chapter_id,
+                });
+                
+                // Optimistically update the local state
+                const updatedCompleted = new Set(completedChapters).add(selectedChapter.chapter_id);
+                setCompletedChapters(updatedCompleted);
+                
+                // Check if this was the last regular chapter
+                const regularChapters = chapters.filter(c => !c.title.toLowerCase().includes('final assessment'));
+                const finalAssessmentChapter = chapters.find(c => c.title.toLowerCase().includes('final assessment'));
+                const lastRegularChapterId = regularChapters.length > 0 ? regularChapters[regularChapters.length - 1].chapter_id : null;
+
+                if (selectedChapter.chapter_id === lastRegularChapterId && finalAssessmentChapter) {
+                    // Last chapter completed, automatically navigate to final assessment
+                    handleSelectChapter(finalAssessmentChapter);
+                } else {
+                    // Move to the next chapter in the sequence
+                    const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
+                    if (currentIndex < chapters.length - 1) {
+                        _selectChapterForView(chapters[currentIndex + 1]);
+                    }
+                }
+            } catch (err) {
+                setError('Failed to save your progress. Please try again.');
+                console.error('Failed to mark chapter as complete:', err);
+            }
+        }
+    };
 
     const handlePreviousChapter = () => {
         const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
@@ -106,29 +265,14 @@ const E_Modules = () => {
         }
     };
 
-    const handleNextChapter = async () => {
-        if (selectedChapter) {
-            // Mark current chapter as complete if it has no assessments
-            if (!assessments || assessments.length === 0) {
-                console.log(`Chapter '${selectedChapter.title}' has no assessments. Marking as complete.`);
-                try {
-                    await axios.post(`${API_URL}/user-progress`, {
-                        userId: userId,
-                        chapterId: selectedChapter.chapter_id
-                    });
-                    // Refetch workstreams to update progress bars
-                    await fetchWorkstreams();
-                } catch (err) {
-                    console.error('Failed to mark chapter as complete:', err);
+    const handleTakeAssessment = () => {
+        if (assessmentForCurrentChapter) {
+            navigate(`/employee/assessment/${assessmentForCurrentChapter.assessment_id}`, {
+                state: {
+                    workstreamId: selectedWorkstream.workstream_id,
+                    chapterId: selectedChapter.chapter_id
                 }
-            } else {
-                console.log(`Chapter '${selectedChapter.title}' has ${assessments.length} assessment(s). Progress will only update after passing the assessment.`);
-            }
-        }
-        
-        const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
-        if (currentIndex < chapters.length - 1) {
-            handleSelectChapter(chapters[currentIndex + 1]);
+            });
         }
     };
 
@@ -136,15 +280,16 @@ const E_Modules = () => {
         <>
             <h1>Workstreams</h1>
             <div className="grid-container-ws">
-                {workstreams.map((ws, index) => {
-                    // Use progress from API, default to 0 if null/undefined
-                    const progress = Math.round(ws.progress || 0); 
+                {workstreams.map((ws) => {
+                    const progress = Math.round(ws.progress || 0);
                     const isCompleted = progress === 100;
                     const hasContent = ws.chapters_count > 0;
 
                     let actionButton;
                     if (isCompleted) {
                         actionButton = <button className="action-btn completed">Completed</button>;
+                    } else if (ws.has_final_assessment && ws.all_regular_chapters_completed) {
+                        actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Take Final Assessment</button>;
                     } else if (hasContent) {
                         actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
                     } else {
@@ -184,98 +329,143 @@ const E_Modules = () => {
         </>
     );
 
-    const renderChapterView = () => (
-        <>
-            <button onClick={handleBackToWorkstreams} className="back-btn">← Back to Workstreams</button>
-            <h1>{selectedWorkstream.title}</h1>
-            <p>{selectedWorkstream.description}</p>
-            <hr />
-            <h2>Chapters</h2>
-            <div className="chapters-list">
-                {chapters.map((ch) => (
-                    <div key={ch.chapter_id} className="chapter-item" onClick={() => handleSelectChapter(ch)}>
-                        <h4>{ch.title}</h4>
-                    </div>
-                ))}
-            </div>
-        </>
-    );
+    const renderModuleView = () => {
+        if (!selectedWorkstream || !selectedChapter) {
+            return <div>Loading module...</div>; // Or some other loading state
+        }
 
-    const renderChapterDetailView = () => {
+        const isNextButtonDisabled = !!assessmentForCurrentChapter && !isAssessmentPassed;
         const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
-        const isFirstChapter = currentIndex === 0;
         const isLastChapter = currentIndex === chapters.length - 1;
+        const isFirstChapter = currentIndex === 0;
+
+        const hasVideo = selectedChapter.video_filename;
+        const hasPdf = selectedChapter.pdf_filename;
+
+        const regularChapters = chapters.filter(c => !c.title.toLowerCase().includes('final assessment'));
+        const finalAssessmentChapter = chapters.find(c => c.title.toLowerCase().includes('final assessment'));
+        const areAllChaptersComplete = regularChapters.every(c => completedChapters.has(c.chapter_id));
 
         return (
-            <>
-                <div className="navigation-header">
-                    <button onClick={handleBackToChapters} className="back-btn">← Back to Chapters</button>
-                    <div className="chapter-nav-buttons">
-                        <button onClick={handlePreviousChapter} disabled={isFirstChapter} className="nav-btn">Previous Chapter</button>
-                        <button onClick={handleNextChapter} disabled={isLastChapter} className="nav-btn">Next Chapter</button>
+            <div className="module-view-container">
+                <div className="module-view-sidebar">
+                    <div className="module-view-header">
+                        <button onClick={handleBackToWorkstreams} className="back-to-ws-btn">
+                            <FaArrowLeft />
+                            <span>Back to Workstreams</span>
+                        </button>
+                        <h2>{selectedWorkstream.title}</h2>
                     </div>
-                </div>
-                <h2>{selectedChapter.title}</h2>
-                <div className="chapter-content">
-                    <p>{selectedChapter.content}</p>
-                    <div className="file-display">
-                        {selectedChapter.pdf_filename && (
-                            <div className="pdf-container">
-                                <iframe 
-                                    src={`${API_URL}/chapters/${selectedChapter.chapter_id}/pdf`}
-                                    title={selectedChapter.title}
-                                    width="100%"
-                                    height="600px"
-                                    style={{ border: 'none' }}
-                                />
-                            </div>
-                        )}
-                        {selectedChapter.video_filename && (
-                            <div className="video-container">
-                                <video 
-                                    src={`${API_URL}/chapters/${selectedChapter.chapter_id}/video`}
-                                    controls 
-                                    width="100%"
-                                    title={selectedChapter.title}
-                                >
-                                    Your browser does not support the video tag.
-                                </video>
-                            </div>
-                        )}
+                    <div className="chapter-list-container">
+                        <ul className="chapter-list">
+                            {regularChapters.map((ch, index) => {
+                                const isLocked = index > 0 && !completedChapters.has(regularChapters[index - 1].chapter_id);
+                                return (
+                                    <li 
+                                        key={ch.chapter_id} 
+                                        className={`chapter-list-item ${selectedChapter.chapter_id === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                        onClick={() => !isLocked && handleSelectChapter(ch)}
+                                    >
+                                        <div className="chapter-icon">{isLocked ? <FaLock /> : <FaBook />}</div>
+                                        <span className="chapter-title">{ch.title}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
-                </div>
-                <hr />
-                <h3>Assessments</h3>
-                <div className="assessments-list">
-                    {assessments.length > 0 ? (
-                        assessments.map((asm) => (
-                            <Link to={`/employee/assessment/${asm.assessment_id}`} key={asm.assessment_id} className="assessment-item-link">
-                                <div className="assessment-item">
-                                    <h3>{asm.title}</h3>
-                                    <p>Total Points: {asm.total_points}</p>
-                                </div>
-                            </Link>
-                        ))
-                    ) : (
-                        <p>No assessments for this chapter.</p>
+
+                    {finalAssessmentChapter && (
+                        <div className="final-assessment-nav-section">
+                             <ul className="chapter-list">
+                                {(() => {
+                                    const isLocked = !areAllChaptersComplete;
+                                    return (
+                                        <li 
+                                            key={finalAssessmentChapter.chapter_id} 
+                                            className={`chapter-list-item ${isLocked ? 'locked' : ''}`}
+                                            onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}
+                                        >
+                                            <div className="chapter-icon">{isLocked ? <FaLock /> : <FaClipboardList />}</div>
+                                            <span className="chapter-title">{finalAssessmentChapter.title}</span>
+                                        </li>
+                                    );
+                                })()}
+                            </ul>
+                        </div>
                     )}
                 </div>
-            </>
-        );
+
+                <div className="module-view-content">
+                    <div className="chapter-media-container">
+                         {hasVideo && currentContentView === 'video' ? (
+                            <video 
+                                src={`${API_URL}/chapters/${selectedChapter.chapter_id}/video`}
+                                controls 
+                                autoPlay
+                                muted
+                                width="100%"
+                                title={selectedChapter.title}
+                            >
+                                Your browser does not support the video tag.
+                            </video>
+                        ) : hasPdf && currentContentView === 'pdf' ? (
+                            <iframe 
+                                src={`${API_URL}/chapters/${selectedChapter.chapter_id}/pdf`}
+                                title={selectedChapter.title}
+                                width="100%"
+                                height="100%"
+                                style={{ border: 'none' }}
+                            />
+                        ) : (
+                            <div className="media-placeholder">
+                                <p>No content available for this chapter.</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="chapter-details">
+                        <p className="chapter-description">{selectedChapter.content}</p>
+                    </div>
+                    <div className="chapter-footer">
+                        <div className="chapter-pagination">
+                            {hasVideo && hasPdf && currentContentView === 'video' && (
+                                <button onClick={() => setCurrentContentView('pdf')} className="btn-view-content">
+                                    <FaFilePdf /> View PDF
+                                </button>
+                            )}
+                            {hasVideo && hasPdf && currentContentView === 'pdf' && (
+                                <button onClick={() => setCurrentContentView('video')} className="btn-view-content">
+                                    <FaVideo /> View Video
+                                </button>
+                            )}
+                        </div>
+                        <div className="chapter-actions">
+                            <button onClick={handlePreviousChapter} className="btn-previous-chapter" disabled={isFirstChapter}>
+                                Previous
+                            </button>
+                            {assessmentForCurrentChapter && (
+                                <button onClick={handleTakeAssessment} className="btn-take-assessment">
+                                    Take Assessment
+                                </button>
+                            )}
+                            <button onClick={handleNextChapter} className="btn-next-chapter" disabled={isNextButtonDisabled || isLastChapter}>
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
     };
 
-
     return (
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
-            <EmployeeSidebar />
-            <main className="page-container" style={{ flex: 1 }}>
-                {isLoading && <p>Loading...</p>}
+        <div className="e-modules-page">
+            {!selectedWorkstream ? <EmployeeSidebar /> : null}
+            <main className={`main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
                 {error && <p className="error-message">{error}</p>}
-                
-                {!selectedWorkstream && !isLoading && renderWorkstreamView()}
-                {selectedWorkstream && !selectedChapter && !isLoading && renderChapterView()}
-                {selectedChapter && !isLoading && renderChapterDetailView()}
-
+                {isLoading && <p>Loading...</p>}
+                {!isLoading && !error && (
+                    selectedWorkstream ? renderModuleView() : renderWorkstreamView()
+                )}
             </main>
         </div>
     );

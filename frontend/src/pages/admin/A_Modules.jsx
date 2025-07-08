@@ -522,9 +522,20 @@ const A_Modules = () => {
                 is_published: !chapter.is_published 
             });
             if (response.data.success) {
-                setEditingChapter(prev => ({...prev, is_published: !prev.is_published}));
-                // Optionally, update the main list as well
-                fetchWorkstreamsAndChapters();
+                // If on the chapter edit page, update that specific state
+                if (editingChapter && editingChapter.chapter_id === chapter.chapter_id) {
+                    setEditingChapter(prev => ({...prev, is_published: !prev.is_published}));
+                }
+                
+                // Also, update the chapter within the selectedWorkstream state
+                if (selectedWorkstream) {
+                    const updatedChapters = selectedWorkstream.chapters.map(ch => 
+                        ch.chapter_id === chapter.chapter_id 
+                            ? { ...ch, is_published: !ch.is_published } 
+                            : ch
+                    );
+                    setSelectedWorkstream(prev => ({ ...prev, chapters: updatedChapters }));
+                }
             }
         } catch (err) {
             setError('Failed to update chapter publish state.');
@@ -1390,43 +1401,80 @@ const A_Modules = () => {
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
                                     >
-                                        {selectedWorkstream.chapters && selectedWorkstream.chapters.map((chapter, index) => (
-                                            <Draggable key={chapter.chapter_id} draggableId={`ch-${chapter.chapter_id}`} index={index}>
-                                                {(provided, snapshot) => (
-                                                    <div
-                                                        className={`list-item chapter-item ${snapshot.isDragging ? 'dragging' : ''}`}
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                    >
-                                                        <div {...provided.dragHandleProps} className="drag-handle-wrapper">
-                                                            <BsGripVertical className="drag-handle" />
-                                                        </div>
-                                                        <div className="item-details">
-                                                            <div className="chapter-details">
-                                                                <span className="item-title">{chapter.title}</span>
-                                                                <button className="btn-icon edit-chapter-btn" title="Edit Chapter" onClick={() => setEditingChapter(chapter)}>
-                                                                    <FaPencilAlt />
-                                                                </button>
+                                        {selectedWorkstream.chapters && selectedWorkstream.chapters
+                                            .filter(chapter => !chapter.title.toLowerCase().includes('final assessment'))
+                                            .map((chapter, index) => (
+                                                <Draggable key={chapter.chapter_id} draggableId={`ch-${chapter.chapter_id}`} index={index}>
+                                                    {(provided, snapshot) => (
+                                                        <div
+                                                            className={`list-item chapter-item ${snapshot.isDragging ? 'dragging' : ''}`}
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                        >
+                                                            <div {...provided.dragHandleProps} className="drag-handle-wrapper">
+                                                                <BsGripVertical className="drag-handle" />
                                                             </div>
-                                                            {chapter.assessments && chapter.assessments.length > 0 && chapter.assessments.map(assessment => (
-                                                                <div key={assessment.assessment_id} className="assessment-sub-item">
-                                                                    <span className="assessment-title">{assessment.title}</span>
-                                                                    <div className="assessment-actions">
-                                                                        <button className="btn-icon" title="Edit Assessment" onClick={() => setEditingAssessment(assessment)}><FaPencilAlt /></button>
-                                                                        <button className="btn-delete" title="Delete Assessment" onClick={() => handleAssessmentDelete(assessment.assessment_id)}><FaTrash /></button>
-                                                                    </div>
+                                                            <div className="item-details">
+                                                                <div className="chapter-details">
+                                                                    <span className="item-title">{chapter.title}</span>
+                                                                    <button className="btn-icon edit-chapter-btn" title="Edit Chapter" onClick={() => setEditingChapter(chapter)}>
+                                                                        <FaPencilAlt />
+                                                                    </button>
                                                                 </div>
-                                                            ))}
+                                                                {chapter.assessments && chapter.assessments.length > 0 && chapter.assessments.map(assessment => (
+                                                                    <div key={assessment.assessment_id} className="assessment-sub-item">
+                                                                        <span className="assessment-title">{assessment.title}</span>
+                                                                        <div className="assessment-actions">
+                                                                            <button className="btn-icon" title="Edit Assessment" onClick={() => setEditingAssessment(assessment)}><FaPencilAlt /></button>
+                                                                            <button className="btn-delete" title="Delete Assessment" onClick={() => handleAssessmentDelete(assessment.assessment_id)}><FaTrash /></button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
+                                                    )}
+                                                </Draggable>
+                                            ))}
                                         {provided.placeholder}
                                     </div>
                                 )}
                             </Droppable>
                             <p className="reorder-hint">Drag and drop to reorder chapters</p>
+                            
+                            {/* Final Assessment Section */}
+                            <div className="final-assessment-section">
+                                {(() => {
+                                    const finalAssessmentChapters = selectedWorkstream.chapters
+                                        .filter(chapter => chapter.title.toLowerCase().includes('final assessment'));
+
+                                    if (finalAssessmentChapters.length === 0) return null;
+
+                                    return (
+                                        <>
+                                            <h4 className="final-assessment-heading">Final Assessment</h4>
+                                            <div className="final-assessment-list">
+                                                {finalAssessmentChapters.map(chapter =>
+                                                    (chapter.assessments || []).map(assessment => (
+                                                        <div key={assessment.assessment_id} className="assessment-sub-item final-assessment-sub-item">
+                                                            <span className="assessment-title">{assessment.title}</span>
+                                                            <div className="assessment-actions">
+                                                                <button 
+                                                                    className="btn-icon" 
+                                                                    title={chapter.is_published ? 'Unpublish Assessment' : 'Publish Assessment'} 
+                                                                    onClick={() => handleToggleChapterPublish(chapter)}>
+                                                                    {chapter.is_published ? <FaEyeSlash /> : <FaEye />}
+                                                                </button>
+                                                                <button className="btn-icon" title="Edit Assessment" onClick={() => setEditingAssessment(assessment)}><FaPencilAlt /></button>
+                                                                <button className="btn-delete" title="Delete Assessment" onClick={() => handleAssessmentDelete(assessment.assessment_id)}><FaTrash /></button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
                 </DragDropContext>
