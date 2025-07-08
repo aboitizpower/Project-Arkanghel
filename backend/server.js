@@ -577,24 +577,80 @@ app.get('/chapters/:id/video', (req, res) => {
 
 // Create Assessment
 app.post('/assessments', (req, res) => {
-    const { chapter_id, title, total_points } = req.body;
+    const { chapter_id, workstream_id, title, questions } = req.body;
+    const total_points = (questions && questions.length) ? questions.length : 0;
 
-    // Get the highest current order_index for the given chapter_id
-    const getMaxOrderIndexSql = 'SELECT MAX(order_index) as max_order FROM assessments WHERE chapter_id = ?';
-    db.query(getMaxOrderIndexSql, [chapter_id], (err, results) => {
+    if (!title) {
+        return res.status(400).json({ error: 'Title is required.' });
+    }
+    if (!chapter_id && !workstream_id) {
+        return res.status(400).json({ error: 'Either chapter_id or workstream_id is required.' });
+    }
+
+    db.beginTransaction(err => {
         if (err) {
-            return res.status(500).json({ error: 'Database error while fetching max order index.', details: err.message });
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error.' });
         }
 
-        const nextOrderIndex = (results[0].max_order === null) ? 0 : results[0].max_order + 1;
+        const createAssessmentAndQuestions = (targetChapterId) => {
+            const assessmentSql = 'INSERT INTO assessments (chapter_id, title, total_points) VALUES (?, ?, ?)';
+            db.query(assessmentSql, [targetChapterId, title, total_points], (err, result) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error creating assessment:', err);
+                        res.status(500).json({ error: 'Database error while creating assessment.' });
+                    });
+                }
 
-        const sql = 'INSERT INTO assessments (chapter_id, title, total_points, order_index) VALUES (?, ?, ?, ?)';
-        db.query(sql, [chapter_id, title, total_points, nextOrderIndex], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: 'Database error while creating assessment.', details: err.message });
-            }
-            res.status(201).json({ success: 'Assessment created', assessment_id: result.insertId, order_index: nextOrderIndex });
-        });
+                const newAssessmentId = result.insertId;
+
+                if (questions && questions.length > 0) {
+                    const questionInsertSql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES ?';
+                    const questionValues = questions.map(q => [
+                        newAssessmentId, q.question_text, q.question_type, q.correct_answer, JSON.stringify(q.options || null)
+                    ]);
+
+                    db.query(questionInsertSql, [questionValues], (err, questionResult) => {
+                        if (err) {
+                            return db.rollback(() => {
+                                console.error('Error creating questions:', err);
+                                res.status(500).json({ error: 'Database error while creating questions.' });
+                            });
+                        }
+                        db.commit(err => {
+                            if (err) { return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' })); }
+                            res.status(201).json({ success: 'Assessment and questions created', assessment_id: newAssessmentId });
+                        });
+                    });
+                } else {
+                    db.commit(err => {
+                        if (err) { return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' })); }
+                        res.status(201).json({ success: 'Assessment created', assessment_id: newAssessmentId });
+                    });
+                }
+            });
+        };
+
+        if (workstream_id) {
+            // This is a workstream-level assessment, so we create a hidden chapter for it.
+            const chapterSql = 'INSERT INTO module_chapters (workstream_id, title, content, is_published, order_index) VALUES (?, ?, ?, ?, ?)';
+            const hiddenChapterTitle = `Final Assessment: ${title}`;
+            const hiddenChapterContent = 'This chapter holds the final assessment for the workstream.';
+            db.query(chapterSql, [workstream_id, hiddenChapterTitle, hiddenChapterContent, false, 9999], (err, result) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error creating hidden chapter for assessment:', err);
+                        res.status(500).json({ error: 'Failed to create hidden chapter.' });
+                    });
+                }
+                const newChapterId = result.insertId;
+                createAssessmentAndQuestions(newChapterId);
+            });
+        } else {
+            // This is a regular chapter assessment.
+            createAssessmentAndQuestions(chapter_id);
+        }
     });
 });
 
@@ -603,7 +659,10 @@ app.get('/chapters/:chapter_id/assessments', (req, res) => {
     const { chapter_id } = req.params;
     const sql = 'SELECT * FROM assessments WHERE chapter_id = ? ORDER BY order_index ASC';
     db.query(sql, [chapter_id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error(`Error fetching assessments for chapter ${chapter_id}:`, err);
+            return res.status(500).json({ error: 'Failed to fetch assessments.' });
+        }
         res.json(results);
     });
 });
@@ -611,34 +670,15 @@ app.get('/chapters/:chapter_id/assessments', (req, res) => {
 // Update an assessment
 app.put('/assessments/:id', (req, res) => {
     const { id } = req.params;
-    const { title, total_points, order_index } = req.body;
+    const { title } = req.body;
 
-    // Build the query dynamically based on provided fields
-    let fieldsToUpdate = [];
-    let params = [];
-
-    if (title !== undefined) {
-        fieldsToUpdate.push('title = ?');
-        params.push(title);
-    }
-    if (total_points !== undefined) {
-        fieldsToUpdate.push('total_points = ?');
-        params.push(total_points);
-    }
-    if (order_index !== undefined) {
-        fieldsToUpdate.push('order_index = ?');
-        params.push(order_index);
-    }
-
-    if (fieldsToUpdate.length === 0) {
+    if (title === undefined) {
         return res.status(400).json({ error: 'No fields to update.' });
     }
 
-    params.push(id);
+    const sql = `UPDATE assessments SET title = ? WHERE assessment_id = ?`;
 
-    const sql = `UPDATE assessments SET ${fieldsToUpdate.join(', ')} WHERE assessment_id = ?`;
-
-    db.query(sql, params, (err, result) => {
+    db.query(sql, [title, id], (err, result) => {
         if (err) {
             console.error(`Error updating assessment ${id}:`, err);
             return res.status(500).json({ error: 'Database error while updating assessment.' });
@@ -681,15 +721,14 @@ app.get('/assessments/:id/questions', (req, res) => {
 
 // Submit answers for an assessment
 app.post('/answers', (req, res) => {
-    const { userId, answers } = req.body; // `answers` is an array of { questionId, answer }
+    const { userId, answers, assessmentId } = req.body;
 
-    if (!userId || !answers || !Array.isArray(answers) || answers.length === 0) {
-        return res.status(400).json({ error: 'User ID and a non-empty array of answers are required.' });
+    if (!userId || !answers || !Array.isArray(answers) || answers.length === 0 || !assessmentId) {
+        return res.status(400).json({ error: 'User ID, Assessment ID, and a non-empty array of answers are required.' });
     }
 
     const questionIds = answers.map(a => a.questionId);
 
-    // Use a transaction to ensure atomicity: delete old answers and insert new ones together.
     db.beginTransaction(err => {
         if (err) { 
             console.error('Transaction start error:', err);
@@ -705,13 +744,12 @@ app.post('/answers', (req, res) => {
                 });
             }
 
-            // The 'points' column does not exist. We will query only for the correct answer.
-            const getCorrectAnswersSql = 'SELECT question_id, correct_answer FROM questions WHERE question_id IN (?)';
-            db.query(getCorrectAnswersSql, [questionIds], (fetchErr, questions) => {
-                if (fetchErr) {
+            const getQuestionsSql = 'SELECT question_id, correct_answer, (SELECT chapter_id FROM assessments WHERE assessment_id = ?) as chapter_id FROM questions WHERE question_id IN (?)';
+            db.query(getQuestionsSql, [assessmentId, questionIds], (fetchErr, questions) => {
+                if (fetchErr || questions.length === 0) {
                     return db.rollback(() => {
-                        console.error('Error fetching correct answers:', fetchErr);
-                        res.status(500).json({ error: 'Database error while fetching correct answers.' });
+                        console.error('Error fetching questions or no questions found:', fetchErr);
+                        res.status(500).json({ error: 'Database error while fetching question details.' });
                     });
                 }
 
@@ -720,24 +758,16 @@ app.post('/answers', (req, res) => {
                     return map;
                 }, {});
 
-                // Each correct answer is worth 1 point.
+                const chapterId = questions[0].chapter_id;
+
                 const insertValues = answers.map(ans => {
-                    const correctAnswer = correctAnswersMap[ans.questionId];
-                    const score = (correctAnswer && ans.answer === correctAnswer) ? 1 : 0;
+                    const score = (correctAnswersMap[ans.questionId] && ans.answer === correctAnswersMap[ans.questionId]) ? 1 : 0;
                     return [ans.questionId, userId, ans.answer, score];
                 });
 
                 const totalScore = insertValues.reduce((sum, current) => sum + current[3], 0);
-
-                if (insertValues.length === 0) {
-                    // Nothing to insert, but no error. Commit the deletion.
-                    return db.commit(commitErr => {
-                        if (commitErr) {
-                            return db.rollback(() => res.status(500).json({ error: 'Database error.' }));
-                        }
-                        res.status(201).json({ success: 'Answers submitted successfully.', affectedRows: 0, totalScore: 0 });
-                    });
-                }
+                const totalQuestions = questions.length;
+                const percentage = totalQuestions > 0 ? (totalScore / totalQuestions) * 100 : 0;
 
                 const insertSql = 'INSERT INTO answers (question_id, user_id, user_answer, score) VALUES ?';
                 db.query(insertSql, [insertValues], (insertErr, insertResult) => {
@@ -748,19 +778,35 @@ app.post('/answers', (req, res) => {
                         });
                     }
 
-                    db.commit(commitErr => {
-                        if (commitErr) {
-                            return db.rollback(() => {
-                                console.error('Commit error:', commitErr);
-                                res.status(500).json({ error: 'Database error on commit.' });
+                    // If score is > 50%, mark chapter as complete
+                    if (percentage > 50 && chapterId) {
+                        const completeChapterSql = `
+                            INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time)
+                            VALUES (?, ?, TRUE, NOW())
+                            ON DUPLICATE KEY UPDATE is_completed = TRUE, completion_time = NOW()
+                        `;
+                        db.query(completeChapterSql, [userId, chapterId], (completeErr, completeResult) => {
+                            if (completeErr) {
+                                // Don't fail the whole transaction, just log it
+                                console.error('Failed to mark chapter as complete after passing assessment:', completeErr);
+                            }
+                            // Commit the transaction regardless
+                            db.commit(commitErr => {
+                                if (commitErr) {
+                                    return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' }));
+                                }
+                                res.status(201).json({ success: 'Answers submitted successfully.', totalScore });
                             });
-                        }
-                        res.status(201).json({ 
-                            success: 'Answers submitted successfully.', 
-                            affectedRows: insertResult.affectedRows, 
-                            totalScore 
                         });
-                    });
+                    } else {
+                        // Commit transaction without marking chapter as complete
+                        db.commit(commitErr => {
+                            if (commitErr) {
+                                return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' }));
+                            }
+                            res.status(201).json({ success: 'Answers submitted successfully.', totalScore });
+                        });
+                    }
                 });
             });
         });
@@ -770,15 +816,91 @@ app.post('/answers', (req, res) => {
 // Delete Assessment
 app.delete('/assessments/:id', (req, res) => {
     const { id } = req.params;
-    // First delete questions associated with the assessment
-    const deleteQuestionsSql = 'DELETE FROM questions WHERE assessment_id = ?';
-    db.query(deleteQuestionsSql, [id], (err, result) => {
-        if (err) return res.status(500).json({ error: `Failed to delete questions: ${err.message}` });
 
-        const deleteAssessmentSql = 'DELETE FROM assessments WHERE assessment_id = ?';
-        db.query(deleteAssessmentSql, [id], (err, result) => {
-            if (err) return res.status(500).json({ error: `Failed to delete assessment: ${err.message}` });
-            res.json({ success: 'Assessment and its questions deleted successfully!' });
+    db.beginTransaction(err => {
+        if (err) {
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error.' });
+        }
+
+        // 1. Get all question IDs for the assessment
+        const getQuestionsSql = 'SELECT question_id FROM questions WHERE assessment_id = ?';
+        db.query(getQuestionsSql, [id], (err, questions) => {
+            if (err) {
+                return db.rollback(() => {
+                    console.error('Error fetching questions for deletion:', err);
+                    res.status(500).json({ error: 'Failed to fetch questions for deletion.' });
+                });
+            }
+
+            const questionIds = questions.map(q => q.question_id);
+
+            const deleteAnswers = (callback) => {
+                if (questionIds.length === 0) {
+                    return callback(); // No questions, so no answers to delete
+                }
+                const deleteAnswersSql = 'DELETE FROM answers WHERE question_id IN (?)';
+                db.query(deleteAnswersSql, [questionIds], (err, result) => {
+                    if (err) {
+                        return db.rollback(() => {
+                            console.error('Error deleting answers:', err);
+                            res.status(500).json({ error: 'Failed to delete answers.' });
+                        });
+                    }
+                    callback();
+                });
+            };
+
+            const deleteQuestions = (callback) => {
+                if (questionIds.length === 0) {
+                    return callback();
+                }
+                const deleteQuestionsSql = 'DELETE FROM questions WHERE assessment_id = ?';
+                db.query(deleteQuestionsSql, [id], (err, result) => {
+                    if (err) {
+                        return db.rollback(() => {
+                            console.error('Error deleting questions:', err);
+                            res.status(500).json({ error: 'Failed to delete questions.' });
+                        });
+                    }
+                    callback();
+                });
+            };
+
+            const deleteAssessment = (callback) => {
+                const deleteAssessmentSql = 'DELETE FROM assessments WHERE assessment_id = ?';
+                db.query(deleteAssessmentSql, [id], (err, result) => {
+                    if (err) {
+                        return db.rollback(() => {
+                            console.error('Error deleting assessment:', err);
+                            res.status(500).json({ error: 'Failed to delete assessment.' });
+                        });
+                    }
+                    if (result.affectedRows === 0) {
+                        return db.rollback(() => {
+                            res.status(404).json({ error: 'Assessment not found.' });
+                        });
+                    }
+                    callback();
+                });
+            };
+
+            // Execute deletions in order
+            deleteAnswers(() => {
+                deleteQuestions(() => {
+                    deleteAssessment(() => {
+                        db.commit(err => {
+                            if (err) {
+                                return db.rollback(() => {
+                                    console.error('Commit error:', err);
+                                    res.status(500).json({ error: 'Database error on commit.' });
+                                });
+                            }
+                            res.json({ success: 'Assessment and all associated content deleted successfully!' });
+                        });
+                    });
+                });
+            });
         });
     });
 });
@@ -786,13 +908,34 @@ app.delete('/assessments/:id', (req, res) => {
 // Create Question
 app.post('/questions', (req, res) => {
     const { assessment_id, question_text, question_type, correct_answer, options } = req.body;
-    const sql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
-    db.query(sql, [assessment_id, question_text, question_type, correct_answer, JSON.stringify(options || null)], (err, result) => {
-        if (err) {
-            console.error('Error creating question:', err);
-            return res.status(500).json({ error: 'Failed to create question.' });
-        }
-        res.status(201).json({ success: 'Question created', question_id: result.insertId });
+    
+    db.beginTransaction(err => {
+        if (err) { return res.status(500).json({ error: 'Database error.' }); }
+
+        const questionSql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
+        db.query(questionSql, [assessment_id, question_text, question_type, correct_answer, JSON.stringify(options || null)], (err, result) => {
+            if (err) {
+                return db.rollback(() => {
+                    console.error('Error creating question:', err);
+                    res.status(500).json({ error: 'Failed to create question.' });
+                });
+            }
+            const newQuestionId = result.insertId;
+
+            const updatePointsSql = 'UPDATE assessments SET total_points = total_points + 1 WHERE assessment_id = ?';
+            db.query(updatePointsSql, [assessment_id], (err, updateResult) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error updating assessment points:', err);
+                        res.status(500).json({ error: 'Failed to update points.' });
+                    });
+                }
+                db.commit(err => {
+                    if (err) { return db.rollback(() => res.status(500).json({ error: 'DB commit error.'}))}
+                    res.status(201).json({ success: 'Question created', question_id: newQuestionId });
+                });
+            });
+        });
     });
 });
 
@@ -828,11 +971,38 @@ app.put('/questions/:id', (req, res) => {
 // Delete Question
 app.delete('/questions/:id', (req, res) => {
     const { id } = req.params;
-    const sql = 'DELETE FROM questions WHERE question_id = ?';
-    db.query(sql, [id], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (result.affectedRows === 0) return res.status(404).json({ error: 'Question not found.' });
-        res.json({ success: 'Question deleted successfully.' });
+
+    db.beginTransaction(err => {
+        if (err) { return res.status(500).json({ error: 'Database error.' }); }
+
+        const getAssessmentIdSql = 'SELECT assessment_id FROM questions WHERE question_id = ?';
+        db.query(getAssessmentIdSql, [id], (err, results) => {
+            if (err || results.length === 0) {
+                return db.rollback(() => res.status(404).json({ error: 'Question not found.' }));
+            }
+            const assessmentId = results[0].assessment_id;
+
+            const deleteSql = 'DELETE FROM questions WHERE question_id = ?';
+            db.query(deleteSql, [id], (err, result) => {
+                if (err) {
+                    return db.rollback(() => res.status(500).json({ error: err.message }));
+                }
+                if (result.affectedRows === 0) {
+                    return db.rollback(() => res.status(404).json({ error: 'Question not found during deletion.' }));
+                }
+
+                const updatePointsSql = 'UPDATE assessments SET total_points = total_points - 1 WHERE assessment_id = ?';
+                db.query(updatePointsSql, [assessmentId], (err, updateResult) => {
+                    if (err) {
+                        return db.rollback(() => res.status(500).json({ error: 'Failed to update points.' }));
+                    }
+                    db.commit(err => {
+                        if (err) { return db.rollback(() => res.status(500).json({ error: 'DB commit error.'}))}
+                        res.json({ success: 'Question deleted successfully.' });
+                    });
+                });
+            });
+        });
     });
 });
 
@@ -840,9 +1010,59 @@ app.delete('/questions/:id', (req, res) => {
 
 // Get all published workstreams for employees
 app.get('/employee/workstreams', (req, res) => {
-    const sql = 'SELECT workstream_id, title, description, image_type, created_at FROM workstreams WHERE is_published = TRUE';
-    db.query(sql, (err, results) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    const sql = `
+        SELECT
+            w.workstream_id,
+            w.title,
+            w.description,
+            w.image_type,
+            w.created_at,
+            (
+                SELECT COUNT(*)
+                FROM module_chapters mc
+                WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+            ) AS chapters_count,
+            (
+                SELECT COUNT(a.assessment_id)
+                FROM assessments a
+                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+            ) AS assessments_count,
+            COALESCE(
+                ROUND(
+                    (
+                        SELECT COUNT(DISTINCT up.chapter_id) * 100.0
+                        FROM user_progress up
+                        JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                        WHERE mc.workstream_id = w.workstream_id 
+                        AND mc.is_published = TRUE
+                        AND up.user_id = ?
+                        AND up.is_completed = TRUE
+                    ) / NULLIF(
+                        (
+                            SELECT COUNT(*)
+                            FROM module_chapters mc
+                            WHERE mc.workstream_id = w.workstream_id 
+                            AND mc.is_published = TRUE
+                        ), 0
+                    )
+                ), 0
+            ) AS progress
+        FROM
+            workstreams w
+        WHERE
+            w.is_published = TRUE
+    `;
+    
+    db.query(sql, [userId], (err, results) => {
         if (err) {
+            console.error('Error fetching employee workstreams:', err);
             return res.status(500).json({ error: err.message });
         }
         res.json(results);
@@ -913,6 +1133,34 @@ app.get('/users/:userId/assessment-results', (req, res) => {
             return res.status(500).json({ error: 'Database error while fetching assessment results.' });
         }
         res.json(results);
+    });
+});
+
+// --- User Progress Endpoints ---
+
+// Mark a chapter as completed for a user
+app.post('/user-progress', (req, res) => {
+    const { userId, chapterId } = req.body;
+
+    if (!userId || !chapterId) {
+        return res.status(400).json({ error: 'User ID and Chapter ID are required.' });
+    }
+
+    const sql = `
+        INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time)
+        VALUES (?, ?, TRUE, NOW())
+        ON DUPLICATE KEY UPDATE is_completed = TRUE, completion_time = NOW()
+    `;
+
+    db.query(sql, [userId, chapterId], (err, result) => {
+        if (err) {
+            console.error('Error marking chapter as complete:', err);
+            return res.status(500).json({ error: 'Failed to update user progress.' });
+        }
+        if (result.affectedRows === 0 && result.insertId === 0) {
+             return res.json({ success: true, message: 'Chapter was already marked as complete.' });
+        }
+        res.status(201).json({ success: true, message: 'Chapter marked as complete.' });
     });
 });
 

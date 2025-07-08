@@ -16,23 +16,36 @@ const E_Modules = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [userId, setUserId] = useState(null);
 
-    // Fetch all workstreams
     useEffect(() => {
-        const fetchWorkstreams = async () => {
-            setIsLoading(true);
-            try {
-                const response = await axios.get(`${API_URL}/employee/workstreams`);
-                setWorkstreams(response.data);
-                setError('');
-            } catch (err) {
-                setError('Failed to fetch workstreams. Please try again later.');
-                console.error(err);
-            }
-            setIsLoading(false);
-        };
-        fetchWorkstreams();
+        const loggedInUserId = localStorage.getItem('userId');
+        if (loggedInUserId) {
+            setUserId(loggedInUserId);
+        } else {
+            setError("You must be logged in to view this page.");
+        }
     }, []);
+
+    // Function to fetch workstreams that can be called from anywhere
+    const fetchWorkstreams = async () => {
+        if (!userId) return;
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
+            setWorkstreams(response.data);
+            setError('');
+        } catch (err) {
+            setError('Failed to fetch workstreams. Please try again later.');
+            console.error(err);
+        }
+        setIsLoading(false);
+    };
+
+    // Initial fetch of workstreams
+    useEffect(() => {
+        fetchWorkstreams();
+    }, [userId]);
 
     // Fetch chapters for a selected workstream
     const fetchChapters = async (workstreamId) => {
@@ -93,7 +106,26 @@ const E_Modules = () => {
         }
     };
 
-    const handleNextChapter = () => {
+    const handleNextChapter = async () => {
+        if (selectedChapter) {
+            // Mark current chapter as complete if it has no assessments
+            if (!assessments || assessments.length === 0) {
+                console.log(`Chapter '${selectedChapter.title}' has no assessments. Marking as complete.`);
+                try {
+                    await axios.post(`${API_URL}/user-progress`, {
+                        userId: userId,
+                        chapterId: selectedChapter.chapter_id
+                    });
+                    // Refetch workstreams to update progress bars
+                    await fetchWorkstreams();
+                } catch (err) {
+                    console.error('Failed to mark chapter as complete:', err);
+                }
+            } else {
+                console.log(`Chapter '${selectedChapter.title}' has ${assessments.length} assessment(s). Progress will only update after passing the assessment.`);
+            }
+        }
+        
         const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
         if (currentIndex < chapters.length - 1) {
             handleSelectChapter(chapters[currentIndex + 1]);
@@ -103,16 +135,51 @@ const E_Modules = () => {
     const renderWorkstreamView = () => (
         <>
             <h1>Workstreams</h1>
-            <div className="grid-container">
-                {workstreams.map((ws) => (
-                    <div key={ws.workstream_id} className="card" onClick={() => handleSelectWorkstream(ws)}>
-                        {ws.image_type && <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-image"/>}
-                        <div className="card-content">
-                            <h3>{ws.title}</h3>
-                            <p>{ws.description}</p>
+            <div className="grid-container-ws">
+                {workstreams.map((ws, index) => {
+                    // Use progress from API, default to 0 if null/undefined
+                    const progress = Math.round(ws.progress || 0); 
+                    const isCompleted = progress === 100;
+                    const hasContent = ws.chapters_count > 0;
+
+                    let actionButton;
+                    if (isCompleted) {
+                        actionButton = <button className="action-btn completed">Completed</button>;
+                    } else if (hasContent) {
+                        actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
+                    } else {
+                        actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
+                    }
+
+                    return (
+                        <div key={ws.workstream_id} className="card-ws">
+                            <div className="card-ws-image-container" onClick={() => hasContent && handleSelectWorkstream(ws)}>
+                                {ws.image_type ? 
+                                    <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
+                                    <div className="card-ws-image-placeholder"></div>
+                                }
+                            </div>
+                            <div className="card-ws-content">
+                                <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
+                                <div className="card-ws-stats">
+                                    <span>{ws.chapters_count || 0} Chapters</span>
+                                    <span>•</span>
+                                    <span>{ws.assessments_count || 0} Assessments</span>
+                                </div>
+                                <div className="card-ws-progress">
+                                     <span className="progress-label">Progress</span>
+                                     <span className="progress-percentage">{progress}%</span>
+                                </div>
+                                <div className="progress-bar-container">
+                                    <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                                </div>
+                                <div className="card-ws-action">
+                                    {actionButton}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </>
     );

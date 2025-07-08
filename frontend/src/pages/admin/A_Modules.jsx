@@ -125,8 +125,6 @@ const ChapterModal = ({ isOpen, onClose, onSubmit, currentChapter, workstreamId 
     );
 };
 
-
-
 const QuestionModal = ({ isOpen, onClose, onSubmit, currentQuestion }) => {
     const [questionText, setQuestionText] = useState('');
     const [questionType, setQuestionType] = useState('Multiple Choice');
@@ -262,8 +260,6 @@ const A_Modules = () => {
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [isAssessmentTitleEditing, setIsAssessmentTitleEditing] = useState(false);
     const [editedAssessmentTitle, setEditedAssessmentTitle] = useState('');
-    const [isAssessmentPointsEditing, setIsAssessmentPointsEditing] = useState(false);
-    const [editedAssessmentPoints, setEditedAssessmentPoints] = useState(0);
 
     // State for the new Workstream Creation Page
     const [isCreatingWorkstream, setIsCreatingWorkstream] = useState(false);
@@ -279,8 +275,7 @@ const A_Modules = () => {
     // State for new Assessment Creation Page
     const [isCreatingAssessment, setIsCreatingAssessment] = useState(false);
     const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
-    const [newAssessmentTotalPoints, setNewAssessmentTotalPoints] = useState(100);
-    const [newQuestions, setNewQuestions] = useState([]);
+    const [newAssessmentQuestions, setNewAssessmentQuestions] = useState([{ question_text: '', question_type: 'multiple-choice', correct_answer: '', options: ['', ''] }]);
     const [assessmentTarget, setAssessmentTarget] = useState(''); // To hold chapter_id or 'workstream'
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
 
@@ -351,22 +346,23 @@ const A_Modules = () => {
 
     useEffect(() => {
         if (editingAssessment) {
-            const fetchQuestions = async () => {
-                setIsLoading(true);
-                try {
-                    const response = await axios.get(`${API_URL}/assessments/${editingAssessment.assessment_id}/questions`);
-                    setQuestions(response.data);
-                } catch (err) {
-                    setError('Failed to fetch questions.');
-                    console.error(err);
-                    setQuestions([]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchQuestions();
+            fetchQuestions(editingAssessment.assessment_id);
         }
     }, [editingAssessment]);
+
+    const fetchQuestions = async (assessmentId) => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
+            setQuestions(response.data);
+        } catch (err) {
+            setError('Failed to fetch questions.');
+            console.error(err);
+            setQuestions([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
     // #endregion
 
     // #region Handlers
@@ -399,8 +395,6 @@ const A_Modules = () => {
             console.error(err);
         }
     };
-
-
 
     const handleOpenWorkstreamModal = () => {
         setCurrentWorkstream(null);
@@ -498,8 +492,6 @@ const A_Modules = () => {
         setIsChapterModalOpen(true);
     };
 
-
-
     const handleDeleteChapter = async (chapterId) => {
         if (!window.confirm('Are you sure you want to delete this chapter and all of its contents? This action cannot be undone.')) {
             return;
@@ -577,8 +569,6 @@ const A_Modules = () => {
             }
         }
     };
-
-
 
     const handleSaveChapterPdf = async () => {
         if (!editingChapter || !editedChapterPdf) return;
@@ -695,11 +685,11 @@ const A_Modules = () => {
     const handleQuestionSubmit = async (data) => {
         if (isCreatingAssessment) {
             if (currentQuestionIndex !== null) {
-                const updatedQuestions = [...newQuestions];
+                const updatedQuestions = [...newAssessmentQuestions];
                 updatedQuestions[currentQuestionIndex] = data;
-                setNewQuestions(updatedQuestions);
+                setNewAssessmentQuestions(updatedQuestions);
             } else {
-                setNewQuestions([...newQuestions, data]);
+                setNewAssessmentQuestions([...newAssessmentQuestions, data]);
             }
             setIsQuestionModalOpen(false);
             setCurrentQuestion(null);
@@ -715,15 +705,10 @@ const A_Modules = () => {
 
         try {
             await axios[method](url, payload);
-            fetchWorkstreamsAndChapters(); // Refetch all data
             setIsQuestionModalOpen(false);
-            setEditingAssessment(prev => {
-                if (!prev) return null;
-                const newQuestions = currentQuestion 
-                    ? prev.questions.map(q => q.question_id === currentQuestion.question_id ? data : q)
-                    : [...prev.questions, data];
-                return {...prev, questions: newQuestions };
-            });
+            setCurrentQuestion(null);
+            // After saving, refetch the questions to get the updated list
+            fetchQuestions(editingAssessment.assessment_id);
         } catch (err) {
             setError('Failed to save question.');
             console.error(err);
@@ -775,8 +760,10 @@ const A_Modules = () => {
         try {
             const payload = {
                 title: newAssessmentTitle,
-                total_points: newAssessmentTotalPoints,
-                questions: newQuestions
+                questions: newAssessmentQuestions.map(q => ({
+                    ...q,
+                    options: q.question_type === 'multiple-choice' ? q.options.map(opt => ({ text: opt })) : null
+                })),
             };
 
             if (assessmentTarget === 'workstream') {
@@ -798,8 +785,7 @@ const A_Modules = () => {
 
             // Reset form and state
             setNewAssessmentTitle('');
-            setNewAssessmentTotalPoints(100);
-            setNewQuestions([]);
+            setNewAssessmentQuestions([{ question_text: '', question_type: 'multiple-choice', correct_answer: '', options: ['', ''] }]);
             setAssessmentTarget('');
             setIsCreatingAssessment(false);
 
@@ -880,25 +866,23 @@ const A_Modules = () => {
     const handleSaveAssessmentDetails = async () => {
         if (!editingAssessment) return;
 
-        const payload = {
-            title: editedAssessmentTitle,
-            total_points: editedAssessmentPoints,
-        };
+        const updates = {};
 
-        try {
-            await axios.put(`${API_URL}/assessments/${editingAssessment.assessment_id}`, payload);
-            
-            setEditingAssessment(prev => ({ ...prev, ...payload }));
-            setIsAssessmentTitleEditing(false);
-            setIsAssessmentPointsEditing(false);
-
-            // Refresh the main workstream list in the background
-            fetchWorkstreamsAndChapters();
-
-        } catch (err) {
-            setError('Failed to update assessment details.');
-            console.error(err);
+        if (editedAssessmentTitle !== editingAssessment.title) {
+            updates.title = editedAssessmentTitle;
         }
+
+        if (Object.keys(updates).length > 0) {
+            try {
+                await axios.put(`${API_URL}/assessments/${editingAssessment.assessment_id}`, updates);
+                alert('Assessment updated successfully');
+                setEditingAssessment(prev => ({...prev, ...updates}));
+            } catch (error) {
+                console.error('Error updating assessment:', error);
+                alert('Failed to update assessment');
+            }
+        }
+        setIsAssessmentTitleEditing(false);
     };
 
     const handleQuestionDelete = async (questionId) => {
@@ -917,7 +901,18 @@ const A_Modules = () => {
         if (window.confirm('Delete this assessment?')) {
             try {
                 await axios.delete(`${API_URL}/assessments/${assessmentId}`);
-                fetchWorkstreamsAndChapters();
+                
+                // Refetch all data
+                const updatedWorkstreams = await fetchWorkstreamsAndChapters();
+                
+                // If a workstream is currently selected, find its updated version to refresh the view
+                if (selectedWorkstream) {
+                    const updatedSelectedWorkstream = updatedWorkstreams.find(
+                        ws => ws.workstream_id === selectedWorkstream.workstream_id
+                    );
+                    setSelectedWorkstream(updatedSelectedWorkstream || null);
+                }
+
             } catch (err) {
                 setError('Failed to delete assessment.');
                 console.error(err);
@@ -933,8 +928,6 @@ const A_Modules = () => {
     const handleBackToOverview = () => {
         setSelectedWorkstream(null);
     };
-    // #endregion
-
     // #endregion
 
     if (isLoading) return <div className="loading-message">Loading workstreams...</div>;
@@ -1011,9 +1004,7 @@ const A_Modules = () => {
                                     <h4>Assessment Details</h4>
                                     <button className="action-link-button" onClick={() => {
                                         setIsAssessmentTitleEditing(true);
-                                        setIsAssessmentPointsEditing(true);
                                         setEditedAssessmentTitle(editingAssessment.title);
-                                        setEditedAssessmentPoints(editingAssessment.total_points);
                                     }}>Edit Details</button>
                                 </div>
                                 {isAssessmentTitleEditing ? (
@@ -1025,25 +1016,16 @@ const A_Modules = () => {
                                             onChange={(e) => setEditedAssessmentTitle(e.target.value)}
                                             className="form-control" 
                                         />
-                                        <label>Total Points:</label>
-                                        <input 
-                                            type="number" 
-                                            defaultValue={editingAssessment.total_points}
-                                            onChange={(e) => setEditedAssessmentPoints(e.target.value)}
-                                            className="form-control" 
-                                        />
                                         <div className="edit-actions">
                                             <button className="btn-primary" onClick={handleSaveAssessmentDetails}>Save</button>
                                             <button className="btn-secondary" onClick={() => {
                                                 setIsAssessmentTitleEditing(false);
-                                                setIsAssessmentPointsEditing(false);
                                             }}>Cancel</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="display-view">
                                         <p><strong>Title:</strong> {editingAssessment.title}</p>
-                                        <p><strong>Total Points:</strong> {editingAssessment.total_points}</p>
                                     </div>
                                 )}
                             </div>
@@ -1083,7 +1065,6 @@ const A_Modules = () => {
                         </div>
                     </div>
                     <h2>Module Chapter Creation</h2>
-
 
                     <div className="chapter-edit-content">
                         <div className="chapter-edit-left">
@@ -1138,7 +1119,7 @@ const A_Modules = () => {
                                                 setEditedChapterDescription(editingChapter.content);
                                             }}>Edit description</button>
                                         </div>
-                                                                                <p className="description-display">Objectives: {editingChapter.content || 'Not set'}</p>
+                                        <p className="description-display">Objectives: {editingChapter.content || 'Not set'}</p>
                                     </div>
                                 )}
                             </div>
@@ -1255,16 +1236,6 @@ const A_Modules = () => {
                                     required
                                 />
                             </div>
-                            <div className="edit-card">
-                                <label htmlFor="as-points">Total Points</label>
-                                <input
-                                    id="as-points"
-                                    type="number"
-                                    value={newAssessmentTotalPoints}
-                                    onChange={(e) => setNewAssessmentTotalPoints(parseInt(e.target.value, 10))}
-                                    className="form-control"
-                                />
-                            </div>
                         </div>
             
                         {/* Right Column: Questions */}
@@ -1274,8 +1245,8 @@ const A_Modules = () => {
                                 <button className="action-link-button" onClick={() => handleOpenQuestionModal(null)}>+ Add a question</button>
                             </div>
                             <div className="questions-grid">
-                                {newQuestions.length > 0 ? (
-                                    newQuestions.map((q, index) => (
+                                {newAssessmentQuestions.length > 0 ? (
+                                    newAssessmentQuestions.map((q, index) => (
                                         <div key={index} className="question-card">
                                             <div className="card-header">
                                                 <h5>Question {index + 1}</h5>
@@ -1283,11 +1254,16 @@ const A_Modules = () => {
                                             </div>
                                             <p>{q.question_text}</p>
                                             <div className="answer-list">
-                                                {q.answers.map((ans, ansIndex) => (
-                                                    <div key={ansIndex} className={`answer-item ${ans.is_correct ? 'correct-answer' : ''}`}>
-                                                        {ans.answer_text}
+                                                {q.question_type === 'Multiple Choice' && q.options && q.options.map((option, ansIndex) => (
+                                                    <div key={ansIndex} className={`answer-item ${option === q.correct_answer ? 'correct-answer' : ''}`}>
+                                                        {option}
                                                     </div>
                                                 ))}
+                                                {q.question_type !== 'Multiple Choice' && q.correct_answer && (
+                                                    <div className="answer-item correct-answer">
+                                                        <strong>Correct Answer: </strong>{q.correct_answer}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     ))
@@ -1341,7 +1317,7 @@ const A_Modules = () => {
                 </div>
             ) : selectedWorkstream ? (
                 <DragDropContext onDragEnd={onDragEnd}>
-                                        <div className="module-setup-header">
+                    <div className="module-setup-header">
                         <button className="back-button" onClick={() => setSelectedWorkstream(null)}>&larr; Back to all workstreams</button>
                     </div>
                     <div className="admin-module-setup-grid">
@@ -1540,8 +1516,6 @@ const A_Modules = () => {
                 currentChapter={currentChapter}
                 workstreamId={selectedWorkstream?.workstream_id}
             />
-
-
 
             <QuestionModal
                 isOpen={isQuestionModalOpen}

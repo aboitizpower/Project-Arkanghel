@@ -104,7 +104,11 @@ const E_Assessment = () => {
         }
 
         try {
-            const response = await axios.post(`${API_URL}/answers`, { userId: parseInt(userId, 10), answers: formattedAnswers });
+            const response = await axios.post(`${API_URL}/answers`, { 
+                userId: parseInt(userId, 10), 
+                answers: formattedAnswers,
+                assessmentId: parseInt(assessmentId, 10)
+            });
             const { totalScore } = response.data;
             const totalQuestions = formattedAnswers.length;
             alert(`Assessment submitted successfully!\n\nYou scored ${totalScore} out of ${totalQuestions}.`);
