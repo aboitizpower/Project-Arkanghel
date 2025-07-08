@@ -1275,6 +1275,185 @@ app.get('/leaderboard', (req, res) => {
     });
 });
 
+// --- Admin Analytics Endpoints ---
+
+// Get KPIs
+app.get('/admin/analytics/kpis', (req, res) => {
+    const { workstreamId } = req.query;
+
+    const kpis = {};
+
+    const getTotalUsers = new Promise((resolve, reject) => {
+        db.query('SELECT COUNT(*) as total FROM users WHERE isAdmin = FALSE', (err, result) => {
+            if (err) return reject(err);
+            resolve(result[0].total);
+        });
+    });
+
+    const getAvgScore = new Promise((resolve, reject) => {
+        const sql = `
+            SELECT AVG(user_assessment_score) as average_score
+            FROM (
+                SELECT (SUM(a.score) / ast.total_points) * 100 AS user_assessment_score
+                FROM answers a
+                JOIN questions q ON a.question_id = q.question_id
+                JOIN assessments ast ON q.assessment_id = ast.assessment_id
+                WHERE ast.total_points > 0
+                GROUP BY a.user_id, q.assessment_id
+            ) as user_scores;
+        `;
+        db.query(sql, (err, result) => {
+            if (err) return reject(err);
+            resolve(result[0].average_score || 0);
+        });
+    });
+
+    const getUserProgress = new Promise((resolve, reject) => {
+        const totalChaptersSql = `
+            SELECT w.workstream_id, COUNT(mc.chapter_id) as total_chapters
+            FROM workstreams w
+            JOIN module_chapters mc ON w.workstream_id = mc.workstream_id
+            WHERE w.is_published = TRUE AND mc.is_published = TRUE
+            ${workstreamId ? 'AND w.workstream_id = ?' : ''}
+            GROUP BY w.workstream_id
+        `;
+        
+        const progressSql = `
+            SELECT u.user_id, mc.workstream_id, COUNT(up.chapter_id) as completed_chapters
+            FROM users u
+            JOIN user_progress up ON u.user_id = up.user_id
+            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+            WHERE u.isAdmin = FALSE AND mc.is_published = TRUE AND up.is_completed = TRUE
+            ${workstreamId ? 'AND mc.workstream_id = ?' : ''}
+            GROUP BY u.user_id, mc.workstream_id
+        `;
+
+        db.query(totalChaptersSql, [workstreamId], (err, totals) => {
+            if (err) return reject(err);
+            db.query(progressSql, [workstreamId], (err, progresses) => {
+                if (err) return reject(err);
+                
+                const userProgressMap = {}; // { userId: { workstreamId: progress } }
+                progresses.forEach(p => {
+                    const total = totals.find(t => t.workstream_id === p.workstream_id)?.total_chapters;
+                    if (total > 0) {
+                        if (!userProgressMap[p.user_id]) userProgressMap[p.user_id] = {};
+                        userProgressMap[p.user_id][p.workstream_id] = (p.completed_chapters / total) * 100;
+                    }
+                });
+
+                let completed = 0;
+                let pending = 0;
+
+                db.query('SELECT user_id FROM users WHERE isAdmin = FALSE', (err, users) => {
+                    if(err) return reject(err);
+
+                    users.forEach(user => {
+                        const userWorkstreams = userProgressMap[user.user_id] || {};
+                        let allCompleted = totals.length > 0;
+                        
+                        totals.forEach(totalWs => {
+                            if ((userWorkstreams[totalWs.workstream_id] || 0) < 100) {
+                                allCompleted = false;
+                            }
+                        });
+
+                        if(allCompleted) completed++; else pending++;
+                    });
+                    resolve({ completed, pending });
+                });
+            });
+        });
+    });
+
+    Promise.all([getTotalUsers, getAvgScore, getUserProgress])
+        .then(([totalUsers, averageScore, userProgress]) => {
+            res.json({
+                totalUsers,
+                averageScore,
+                userProgress,
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching admin KPIs:', err);
+            res.status(500).json({ error: 'Failed to fetch KPI data.' });
+        });
+});
+
+// Get User Engagement
+app.get('/admin/analytics/engagement', (req, res) => {
+    const { range = 'monthly' } = req.query;
+    let startDate = new Date();
+
+    switch (range) {
+        case 'weekly': startDate.setDate(startDate.getDate() - 7); break;
+        case 'monthly': startDate.setMonth(startDate.getMonth() - 1); break;
+        case 'quarterly': startDate.setMonth(startDate.getMonth() - 3); break;
+        case 'yearly': startDate.setFullYear(startDate.getFullYear() - 1); break;
+        default: startDate.setMonth(startDate.getMonth() - 1);
+    }
+    
+    const sql = `
+        SELECT DATE(completion_time) as date, COUNT(*) as value
+        FROM user_progress
+        WHERE completion_time >= ?
+        GROUP BY DATE(completion_time)
+        ORDER BY date ASC;
+    `;
+    db.query(sql, [startDate], (err, result) => {
+        if (err) {
+            console.error('Error fetching engagement data:', err);
+            return res.status(500).json({ error: 'Failed to fetch engagement data.' });
+        }
+        res.json(result);
+    });
+});
+
+// Get Assessment Tracker Data
+app.get('/admin/analytics/assessment-tracker', (req, res) => {
+    const sql = `
+        SELECT 
+            a.title,
+            SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 >= 50 THEN 1 ELSE 0 END) as passed,
+            SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 < 50 THEN 1 ELSE 0 END) as failed
+        FROM assessments a
+        JOIN (SELECT DISTINCT user_id, chapter_id FROM user_progress) up ON a.chapter_id = up.chapter_id
+        WHERE a.chapter_id IN (SELECT chapter_id FROM module_chapters WHERE title LIKE 'Final Assessment%')
+        GROUP BY a.assessment_id;
+    `;
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Error fetching assessment tracker data:', err);
+            return res.status(500).json({ error: 'Failed to fetch assessment tracker data.' });
+        }
+        res.json(results);
+    });
+});
+
+// Get Critical Learning Areas
+app.get('/admin/analytics/critical-areas', (req, res) => {
+    const sql = `
+        SELECT
+            mc.title,
+            (SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 < 50 THEN 1 ELSE 0 END) / COUNT(DISTINCT up.user_id)) * 100 as failure_rate
+        FROM assessments a
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        JOIN (SELECT DISTINCT user_id, chapter_id FROM user_progress) up ON a.chapter_id = up.chapter_id
+        WHERE a.total_points > 0
+        GROUP BY a.assessment_id
+        ORDER BY failure_rate DESC
+        LIMIT 5;
+    `;
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Error fetching critical learning areas:', err);
+            return res.status(500).json({ error: 'Failed to fetch critical learning areas.' });
+        }
+        res.json(results.map(r => r.title));
+    });
+});
+
+
 // Start server
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
