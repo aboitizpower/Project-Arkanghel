@@ -1374,7 +1374,7 @@ app.get('/admin/analytics/kpis', (req, res) => {
 
         db.query(totalChaptersSql, [workstreamId], (err, totals) => {
             if (err) return reject(err);
-            db.query(progressSql, [userId, workstreamId], (err, progresses) => {
+            db.query(progressSql, [workstreamId], (err, progresses) => {
                 if (err) return reject(err);
                 
                 const userProgressMap = {}; // { userId: { workstreamId: progress } }
