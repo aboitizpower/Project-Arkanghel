@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
 /* Auth (Login/Register) Page Styles - Dark Blue Theme */
 
 /* Split-screen layout and blurred background */
@@ -67,8 +69,6 @@
   background: #0D47A1;
   color: #fff;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
 body, html, #root {
   height: 100%;
