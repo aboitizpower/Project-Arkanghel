@@ -42,7 +42,6 @@ const E_AssessmentResults = () => {
         <div className="e-assessment-results-container">
             <EmployeeSidebar />
             <main className="page-container">
-                <h1>My Assessment Results</h1>
                 {results.length > 0 ? (
                     <table className="results-table">
                         <thead>

@@ -28,9 +28,6 @@ const E_Leaderboard = () => {
         <div className="e-leaderboard-container">
             <EmployeeSidebar />
             <main className="e-leaderboard-main-content">
-                <h1>Leaderboard</h1>
-                <p>See who's leading the way in learning and development.</p>
-
                 {isLoading ? (
                     <div className="loading-message">Loading leaderboard...</div>
                 ) : error ? (
