@@ -1,0 +1,136 @@
+/* E_Dashboard.css */
+
+.employee-dashboard-page {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.employee-dashboard-page .main-content {
+  flex: 1;
+  padding: 2rem;
+}
+
+.employee-dashboard-page h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  color: #1a202c;
+}
+
+/* KPI Cards */
+.kpi-container {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  flex: 1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+}
+
+.kpi-icon {
+  font-size: 2.5rem;
+  margin-right: 1.5rem;
+}
+
+.kpi-card.in-progress .kpi-icon {
+  color: #3b82f6; /* Blue 500 */
+}
+
+.kpi-card.completed .kpi-icon {
+  color: #10b981; /* Emerald 500 */
+}
+
+.kpi-info p {
+  margin: 0;
+  font-size: 1rem;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.kpi-info span {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a202c;
+}
+
+/* Workstream Grid */
+.workstream-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.workstream-card-static {
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.workstream-card-image {
+  height: 160px;
+  background-color: #e2e8f0;
+}
+
+.workstream-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.workstream-card-content {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.workstream-card-content h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #1a202c;
+}
+
+.workstream-card-content p {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.progress-bar-container {
+  width: 100%;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  height: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #3b82f6;
+  border-radius: 9999px;
+  transition: width 0.5s ease-in-out;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: #4a5568;
+  font-weight: 600;
+  align-self: flex-end;
+} 
