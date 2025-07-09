@@ -201,14 +201,14 @@
 /* New Workstream Card Styles */
 .grid-container-ws {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); /* Even smaller min-width for 4+ cards */
+    gap: 1rem; /* Tighter gap */
 }
 
 .card-ws {
     background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-radius: 8px; /* Tighter radius */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -222,7 +222,7 @@
 
 .card-ws-image-container {
     width: 100%;
-    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+    padding-top: 45%; /* Shorter image container */
     position: relative;
     cursor: pointer;
 }
@@ -246,72 +246,73 @@
 }
 
 .card-ws-content {
-    padding: 1.25rem;
+    padding: 0.8rem;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    flex: 1 1 auto;
 }
 
 .card-ws-title {
-    margin: 0 0 0.5rem;
-    font-size: 1.2rem;
+    font-size: 0.9rem; /* Smaller title */
     font-weight: 600;
-    color: #343a40;
-    cursor: pointer;
+    color: #2c3e50;
+    margin-bottom: 0.2rem;
 }
 
 .card-ws-stats {
+    font-size: 0.7rem; /* Smaller stats */
+    color: #7f8c8d;
+    margin-bottom: 0.5rem;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #6c757d;
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
 }
 
 .card-ws-stats span {
-    display: inline-flex;
-    align-items: center;
+    color: #6c757d;
 }
 
 .card-ws-progress {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    width: 100%;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
     color: #6c757d;
-    margin-bottom: 0.25rem;
 }
 
+/* Make progress bar container span full width, ignoring card padding */
 .progress-bar-container {
-    width: 100%;
+    height: 6px;
     background-color: #e9ecef;
-    border-radius: 999px;
-    height: 8px;
+    border-radius: 6px;
     overflow: hidden;
-    margin-bottom: 1rem;
+    margin-top: 0.25rem;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .progress-bar {
     height: 100%;
-    background-color: #007bff;
-    border-radius: 4px;
-    transition: width 0.4s ease-in-out;
+    border-radius: inherit;
+    transition: width 0.3s;
 }
 
 .card-ws-action {
-    margin-top: 1.5rem;
+    margin-top: auto;
 }
 
 .action-btn {
     width: 100%;
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
+    padding: 0.5rem 0.8rem; /* Smaller button */
     border: none;
-    border-radius: 8px;
+    border-radius: 6px; /* Tighter radius */
+    font-size: 0.8rem; /* Smaller font */
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
+    text-align: center;
 }
 
 .action-btn.completed {
@@ -330,12 +331,12 @@
 }
 
 .action-btn.no-content {
-    background-color: #e9ecef;
+    background-color: #f0f2f5;
     color: #6c757d;
     cursor: not-allowed;
 }
 
-/* New Module View Styles */
+/* Page Layout */
 .e-modules-page {
     display: flex;
     height: 100vh;
@@ -345,212 +346,213 @@
 .main-content {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 2rem;
-    background-color: #f8f9fa;
-    transition: all 0.3s ease-in-out;
+    background-color: #f4f7f9;
 }
 
 .main-content.module-view-active {
-    padding: 0;
+    overflow: hidden; /* Prevent scrolling on the main content when module view is active */
 }
 
 .module-view-container {
     display: flex;
-    height: 100vh;
+    height: 100%;
 }
 
 .module-view-sidebar {
     width: 320px;
-    flex-shrink: 0;
     background-color: #fff;
-    border-right: 1px solid #e0e0e0;
+    border-right: 1px solid #e9ecef;
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 
 .module-view-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e0e0e0;
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .back-to-ws-btn {
-    display: flex;
-    align-items: center;
     background: none;
     border: none;
-    cursor: pointer;
+    color: #495057;
     font-size: 0.9rem;
-    color: #555;
-    margin-bottom: 1.5rem;
-    padding: 0;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
 }
 
 .back-to-ws-btn:hover {
-    color: #007bff;
+    background-color: #f8f9fa;
 }
 
 .back-to-ws-btn svg {
-    margin-right: 8px;
+    font-size: 1rem;
 }
 
 .module-view-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #333;
+    margin: 0.75rem 0 0;
+    font-size: 1.2rem;
 }
 
 .chapter-list-container {
     flex-grow: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* Allow only this part to scroll */
+    padding: 1rem;
 }
 
 .chapter-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    flex-grow: 1;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .chapter-list-item {
     display: flex;
     align-items: center;
-    padding: 1rem 1.5rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 6px;
     cursor: pointer;
-    border-bottom: 1px solid #e9ecef;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .chapter-list-item:hover {
-    background-color: #f8f9fa;
+    background-color: #f0f2f5;
 }
 
 .chapter-list-item.locked {
     color: #adb5bd;
     cursor: not-allowed;
-    background-color: #f8f9fa;
 }
 
 .chapter-list-item.locked:hover {
-    background-color: #f8f9fa; /* No change on hover for locked items */
+    background-color: transparent;
 }
 
 .chapter-list-item.active {
-    background-color: #e7f3ff;
-    border-right: 3px solid #007bff;
-    font-weight: 600;
-    color: #0056b3;
+    background-color: #007bff;
+    color: #fff;
 }
 
 .chapter-icon {
-    margin-right: 1rem;
-    color: #888;
+    font-size: 1rem;
 }
 
 .chapter-list-item.active .chapter-icon {
-    color: #007bff;
+    color: #fff;
 }
 
 .chapter-title {
-    font-size: 1rem;
+    font-weight: 500;
 }
 
 .module-view-content {
     flex-grow: 1;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    background-color: #f4f7f6;
+    overflow: hidden; /* Prevent this part from scrolling */
 }
 
 .chapter-media-container {
     flex-grow: 1;
-    background-color: #000;
     display: flex;
     justify-content: center;
     align-items: center;
+    background-color: #000;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
     position: relative;
 }
 
-.chapter-media-container video {
+.chapter-media-container video,
+.chapter-media-container .pdf-container {
     max-width: 100%;
     max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .media-placeholder {
-    width: 100%;
-    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #2c3e50;
+    width: 100%;
+    height: 100%;
+    background-color: #f8f9fa;
+    color: #6c757d;
 }
 
 .media-placeholder p {
-    color: #fff;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    font-weight: 500;
 }
 
 .chapter-details {
-    padding: 2rem;
-    background-color: #fff;
-    border-top: 1px solid #e0e0e0;
+    padding: 0 0.5rem;
+    flex-shrink: 0;
 }
 
 .chapter-description {
-    font-size: 1.2rem;
-    color: #333;
-    line-height: 1.5;
-    margin: 0;
+    font-size: 1rem;
+    color: #343a40;
+    margin: 0 0 1rem;
 }
 
 .chapter-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
-    background-color: #fff;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #e9ecef;
+    padding-top: 1rem;
+    margin-top: 1rem;
 }
 
 .chapter-pagination {
-    flex-grow: 1;
+    display: flex;
+    gap: 1rem;
 }
 
 .btn-view-content {
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    background-color: #f0f2f5;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
     cursor: pointer;
+    font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: background-color 0.2s ease;
+    gap: 0.5rem;
+    transition: all 0.2s;
 }
 
 .btn-view-content:hover {
-    background-color: #5a6268;
+    background-color: #e9ecef;
 }
 
 .chapter-actions {
     display: flex;
-    align-items: center;
     gap: 1rem;
 }
 
 .btn-take-assessment,
 .btn-next-chapter,
 .btn-previous-chapter {
-    padding: 0.8rem 2rem;
-    font-size: 1rem;
-    font-weight: 600;
+    padding: 0.75rem 1.5rem;
     border-radius: 8px;
+    font-weight: 600;
     cursor: pointer;
     border: none;
-    transition: all 0.3s ease;
+    transition: all 0.2s;
 }
 
 .btn-previous-chapter {
@@ -563,13 +565,12 @@
 }
 
 .btn-take-assessment {
-    background-color: #ffc107;
-    color: #212529;
-    margin-right: 1rem;
+    background-color: #28a745;
+    color: #fff;
 }
 
 .btn-take-assessment:hover {
-    background-color: #e0a800;
+    background-color: #218838;
 }
 
 .btn-next-chapter {
@@ -579,22 +580,17 @@
 
 .btn-next-chapter:hover:not(:disabled) {
     background-color: #0056b3;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
 }
 
 .btn-next-chapter:disabled,
 .btn-previous-chapter:disabled {
     background-color: #e9ecef;
-    color: #6c757d;
+    color: #adb5bd;
     cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
 }
 
 .final-assessment-nav-section {
-    flex-shrink: 0;
-    border-top: 2px solid #e9ecef;
-    padding-top: 0.5rem;
-    margin-top: 0.5rem;
+    padding: 1rem;
+    border-top: 1px solid #e9ecef;
+    margin-top: auto; /* Pushes it to the bottom */
 }

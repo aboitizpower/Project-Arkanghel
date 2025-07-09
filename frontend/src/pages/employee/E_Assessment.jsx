@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Assessment.css';
+import { FaBook, FaClipboardList, FaArrowLeft, FaLock } from 'react-icons/fa';
 
 const API_URL = 'http://localhost:8081';
 
@@ -15,6 +16,9 @@ const E_Assessment = () => {
     const [questions, setQuestions] = useState([]);
     const [answers, setAnswers] = useState({});
     const [error, setError] = useState('');
+    const [workstream, setWorkstream] = useState(null);
+    const [chapters, setChapters] = useState([]);
+    const [completedChapters, setCompletedChapters] = useState(new Set());
 
     useEffect(() => {
         const fetchAssessmentData = async () => {
@@ -32,6 +36,33 @@ const E_Assessment = () => {
 
         fetchAssessmentData();
     }, [assessmentId]);
+
+    useEffect(() => {
+        // Fetch workstream and chapters for sidebar
+        const fetchSidebarData = async () => {
+            if (!workstreamId) return;
+            try {
+                const wsRes = await axios.get(`${API_URL}/employee/workstreams?userId=${localStorage.getItem('userId')}`);
+                const ws = wsRes.data.find(w => w.workstream_id === workstreamId);
+                setWorkstream(ws);
+                const chaptersRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
+                setChapters(chaptersRes.data);
+                // Fetch completed chapters
+                const progressRes = await axios.get(`${API_URL}/user-progress/${localStorage.getItem('userId')}/${workstreamId}`);
+                const completedIds = progressRes.data.map(item => item.chapter_id);
+                setCompletedChapters(new Set(completedIds));
+            } catch (err) {
+                // Sidebar is not critical, so don't block assessment
+                console.error('Sidebar fetch error:', err);
+            }
+        };
+        fetchSidebarData();
+    }, [workstreamId]);
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+    }, []);
 
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -127,6 +158,21 @@ const E_Assessment = () => {
         }
     };
 
+    const handleSelectChapter = (ch) => {
+        // Only allow navigation to unlocked chapters
+        const chapterIndex = chapters.findIndex(c => c.chapter_id === ch.chapter_id);
+        if (chapterIndex > 0 && !completedChapters.has(chapters[chapterIndex - 1].chapter_id)) {
+            return;
+        }
+        navigate('/employee/modules', {
+            state: {
+                workstreamId,
+                chapterId: ch.chapter_id,
+                refresh: Date.now()
+            }
+        });
+    };
+
     if (error) {
         return <div className="error-message">{error}</div>;
     }
@@ -135,10 +181,61 @@ const E_Assessment = () => {
         return <div>Loading assessment...</div>;
     }
 
+    // Sidebar logic
+    const regularChapters = chapters.filter(c => !c.title?.toLowerCase().includes('final assessment'));
+    const finalAssessmentChapter = chapters.find(c => c.title?.toLowerCase().includes('final assessment'));
+    const areAllChaptersComplete = regularChapters.every(c => completedChapters.has(c.chapter_id));
+
     return (
-        <div className="e-assessment-container">
-            <EmployeeSidebar />
-            <main className="page-container">
+        <div className="e-assessment-container" style={{ display: 'flex' }}>
+            {/* Chapter Sidebar */}
+            <div className="module-view-sidebar">
+                <div className="module-view-header">
+                    <button onClick={() => navigate('/employee/modules', { state: { workstreamId } })} className="back-to-ws-btn">
+                        <FaArrowLeft />
+                        <span>Back to Workstreams</span>
+                    </button>
+                    <h2>{workstream?.title}</h2>
+                </div>
+                <div className="chapter-list-container">
+                    <ul className="chapter-list">
+                        {regularChapters.map((ch, index) => {
+                            const isLocked = index > 0 && !completedChapters.has(regularChapters[index - 1].chapter_id);
+                            return (
+                                <li
+                                    key={ch.chapter_id}
+                                    className={`chapter-list-item ${chapterId === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                    onClick={() => !isLocked && handleSelectChapter(ch)}
+                                >
+                                    <div className="chapter-icon">{isLocked ? <FaLock /> : <FaBook />}</div>
+                                    <span className="chapter-title">{ch.title}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+                {finalAssessmentChapter && (
+                    <div className="final-assessment-nav-section">
+                        <ul className="chapter-list">
+                            {(() => {
+                                const isLocked = !areAllChaptersComplete;
+                                return (
+                                    <li
+                                        key={finalAssessmentChapter.chapter_id}
+                                        className={`chapter-list-item ${chapterId === finalAssessmentChapter.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                        onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}
+                                    >
+                                        <div className="chapter-icon">{isLocked ? <FaLock /> : <FaClipboardList />}</div>
+                                        <span className="chapter-title">{finalAssessmentChapter.title}</span>
+                                    </li>
+                                );
+                            })()}
+                        </ul>
+                    </div>
+                )}
+            </div>
+            {/* Assessment Content */}
+            <main className="page-container" style={{ flex: 1 }}>
                 <h1>{assessment.title}</h1>
                 <p>{assessment.description}</p>
                 <form onSubmit={handleSubmit} className="assessment-form">

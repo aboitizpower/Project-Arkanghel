@@ -277,8 +277,7 @@ const E_Modules = () => {
     };
 
     const renderWorkstreamView = () => (
-        <>
-            <h1>Workstreams</h1>
+        <div className="page-container">
             <div className="grid-container-ws">
                 {workstreams.map((ws) => {
                     const progress = Math.round(ws.progress || 0);
@@ -326,7 +325,7 @@ const E_Modules = () => {
                     );
                 })}
             </div>
-        </>
+        </div>
     );
 
     const renderModuleView = () => {
@@ -459,7 +458,7 @@ const E_Modules = () => {
 
     return (
         <div className="e-modules-page">
-            {!selectedWorkstream ? <EmployeeSidebar /> : null}
+            {!selectedWorkstream && <EmployeeSidebar />}
             <main className={`main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
                 {error && <p className="error-message">{error}</p>}
                 {isLoading && <p>Loading...</p>}

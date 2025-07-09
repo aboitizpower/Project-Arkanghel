@@ -36,8 +36,6 @@ const E_Dashboard = () => {
     <div className="employee-dashboard-page">
       <EmployeeSidebar />
       <main className="main-content">
-        <h1>Dashboard</h1>
-
         {loading && <p>Loading...</p>}
         {error && <p className="error-message">{error}</p>}
         
