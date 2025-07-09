@@ -1363,18 +1363,31 @@ app.get('/admin/analytics/kpis', (req, res) => {
         
         const progressSql = `
             SELECT
+                up.user_id,
                 mc.workstream_id,
-                COUNT(DISTINCT up.chapter_id) AS completed_chapters,
-                COUNT(DISTINCT CASE WHEN mc.title NOT LIKE '%Final Assessment%' THEN up.chapter_id ELSE NULL END) AS completed_regular_chapters
+                COUNT(DISTINCT up.chapter_id) AS completed_chapters
             FROM user_progress up
             JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
-            WHERE up.user_id = ? AND mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
-            GROUP BY mc.workstream_id
+            WHERE mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
+            GROUP BY up.user_id, mc.workstream_id
         `;
 
-        db.query(totalChaptersSql, [workstreamId], (err, totals) => {
+        const queryParams = workstreamId ? [workstreamId] : [];
+
+        db.query(totalChaptersSql, queryParams, (err, totals) => {
             if (err) return reject(err);
-            db.query(progressSql, [workstreamId], (err, progresses) => {
+            
+            if (totals.length === 0) {
+                db.query('SELECT COUNT(*) as total FROM users WHERE isAdmin = FALSE', (err, userResult) => {
+                    if (err) return reject(err);
+                    return resolve({ completed: 0, pending: userResult[0].total });
+                });
+                return;
+            }
+
+            const workstreamIds = totals.map(t => t.workstream_id);
+
+            db.query(progressSql, [workstreamIds], (err, progresses) => {
                 if (err) return reject(err);
                 
                 const userProgressMap = {}; // { userId: { workstreamId: progress } }
@@ -1387,7 +1400,6 @@ app.get('/admin/analytics/kpis', (req, res) => {
                 });
 
                 let completed = 0;
-                let pending = 0;
 
                 db.query('SELECT user_id FROM users WHERE isAdmin = FALSE', (err, users) => {
                     if(err) return reject(err);
@@ -1402,9 +1414,11 @@ app.get('/admin/analytics/kpis', (req, res) => {
                             }
                         });
 
-                        if(allCompleted) completed++; else pending++;
+                        if(allCompleted) completed++;
                     });
-                    resolve({ completed, pending });
+
+                    const totalNonAdminUsers = users.length;
+                    resolve({ completed, pending: totalNonAdminUsers - completed });
                 });
             });
         });
@@ -1428,21 +1442,36 @@ app.get('/admin/analytics/kpis', (req, res) => {
 app.get('/admin/analytics/engagement', (req, res) => {
     const { range = 'monthly' } = req.query;
     let startDate = new Date();
+    let groupBy = 'DATE'; // DATE, WEEK, MONTH, YEAR
+    let dateFormat = '%Y-%m-%d'; // Format for SQL grouping
 
     switch (range) {
-        case 'weekly': startDate.setDate(startDate.getDate() - 7); break;
-        case 'monthly': startDate.setMonth(startDate.getMonth() - 1); break;
-        case 'quarterly': startDate.setMonth(startDate.getMonth() - 3); break;
-        case 'yearly': startDate.setFullYear(startDate.getFullYear() - 1); break;
-        default: startDate.setMonth(startDate.getMonth() - 1);
+        case 'weekly': 
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case 'monthly': 
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+        case 'quarterly':
+            startDate.setMonth(startDate.getMonth() - 3);
+            groupBy = 'MONTH';
+            dateFormat = '%Y-%m';
+            break;
+        case 'yearly': 
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            groupBy = 'MONTH';
+            dateFormat = '%Y-%m';
+            break;
+        default: 
+            startDate.setMonth(startDate.getMonth() - 1);
     }
     
     const sql = `
-        SELECT DATE(completion_time) as date, COUNT(*) as value
+        SELECT DATE_FORMAT(completion_time, '${dateFormat}') as date, COUNT(*) as value
         FROM user_progress
         WHERE completion_time >= ?
-        GROUP BY DATE(completion_time)
-        ORDER BY date ASC;
+        GROUP BY 1
+        ORDER BY 1 ASC;
     `;
     db.query(sql, [startDate], (err, result) => {
         if (err) {
@@ -1456,14 +1485,23 @@ app.get('/admin/analytics/engagement', (req, res) => {
 // Get Assessment Tracker Data
 app.get('/admin/analytics/assessment-tracker', (req, res) => {
     const sql = `
-        SELECT 
+        SELECT
             a.title,
-            SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 >= 50 THEN 1 ELSE 0 END) as passed,
-            SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 < 50 THEN 1 ELSE 0 END) as failed
+            COUNT(DISTINCT CASE WHEN user_assessment_scores.percentage >= 50 THEN user_assessment_scores.user_id ELSE NULL END) AS passed,
+            COUNT(DISTINCT CASE WHEN user_assessment_scores.percentage < 50 THEN user_assessment_scores.user_id ELSE NULL END) AS failed
         FROM assessments a
-        JOIN (SELECT DISTINCT user_id, chapter_id FROM user_progress) up ON a.chapter_id = up.chapter_id
-        WHERE a.chapter_id IN (SELECT chapter_id FROM module_chapters WHERE title LIKE 'Final Assessment%')
-        GROUP BY a.assessment_id;
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        JOIN (
+            SELECT
+                q.assessment_id,
+                ans.user_id,
+                (SUM(ans.score) / (SELECT ast.total_points FROM assessments ast WHERE ast.assessment_id = q.assessment_id)) * 100 AS percentage
+            FROM answers ans
+            JOIN questions q ON ans.question_id = q.question_id
+            GROUP BY q.assessment_id, ans.user_id
+        ) AS user_assessment_scores ON a.assessment_id = user_assessment_scores.assessment_id
+        WHERE mc.title LIKE '%Final Assessment%' AND a.total_points > 0
+        GROUP BY a.assessment_id, a.title;
     `;
     db.query(sql, (err, results) => {
         if (err) {
@@ -1478,14 +1516,23 @@ app.get('/admin/analytics/assessment-tracker', (req, res) => {
 app.get('/admin/analytics/critical-areas', (req, res) => {
     const sql = `
         SELECT
-            mc.title,
-            (SUM(CASE WHEN ((SELECT SUM(ans.score) FROM answers ans WHERE ans.user_id = up.user_id AND ans.question_id IN (SELECT q.question_id FROM questions q WHERE q.assessment_id = a.assessment_id)) / a.total_points) * 100 < 50 THEN 1 ELSE 0 END) / COUNT(DISTINCT up.user_id)) * 100 as failure_rate
-        FROM assessments a
-        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-        JOIN (SELECT DISTINCT user_id, chapter_id FROM user_progress) up ON a.chapter_id = up.chapter_id
-        WHERE a.total_points > 0
-        GROUP BY a.assessment_id
-        ORDER BY failure_rate DESC
+            w.title AS workstream_title,
+            COUNT(DISTINCT user_scores.user_id) AS failed_users_count
+        FROM workstreams w
+        JOIN module_chapters mc ON w.workstream_id = mc.workstream_id
+        JOIN assessments a ON mc.chapter_id = a.chapter_id
+        JOIN (
+            SELECT
+                ans.user_id,
+                q.assessment_id,
+                (SUM(ans.score) / (SELECT ast.total_points FROM assessments ast WHERE ast.assessment_id = q.assessment_id)) * 100 AS percentage
+            FROM answers ans
+            JOIN questions q ON ans.question_id = q.question_id
+            GROUP BY ans.user_id, q.assessment_id
+        ) AS user_scores ON a.assessment_id = user_scores.assessment_id
+        WHERE mc.title LIKE '%Final Assessment%' AND a.total_points > 0 AND user_scores.percentage < 50
+        GROUP BY w.workstream_id, w.title
+        ORDER BY failed_users_count DESC
         LIMIT 5;
     `;
     db.query(sql, (err, results) => {
@@ -1493,7 +1540,7 @@ app.get('/admin/analytics/critical-areas', (req, res) => {
             console.error('Error fetching critical learning areas:', err);
             return res.status(500).json({ error: 'Failed to fetch critical learning areas.' });
         }
-        res.json(results.map(r => r.title));
+        res.json(results.map(r => r.workstream_title));
     });
 });
 

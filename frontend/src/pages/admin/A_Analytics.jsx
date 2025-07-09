@@ -21,6 +21,62 @@ const A_Analytics = () => {
     const [selectedWorkstream, setSelectedWorkstream] = useState('all');
     const [selectedTimeRange, setSelectedTimeRange] = useState('monthly');
 
+    const processEngagementData = (data, range) => {
+        const result = [];
+        const dataMap = new Map(data.map(item => [item.date, item.value]));
+        const now = new Date();
+
+        switch (range) {
+            case 'weekly':
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(now.getDate() - i);
+                    const dateString = d.toISOString().split('T')[0];
+                    result.push({
+                        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        value: dataMap.get(dateString) || 0
+                    });
+                }
+                break;
+            case 'monthly':
+                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                for (let i = 1; i <= daysInMonth; i++) {
+                     const d = new Date(now.getFullYear(), now.getMonth(), i);
+                     const dateString = d.toISOString().split('T')[0];
+                     result.push({
+                        date: `${i}`,
+                        value: dataMap.get(dateString) || 0
+                     });
+                }
+                break;
+            case 'quarterly':
+                 const currentQuarter = Math.floor(now.getMonth() / 3);
+                 for (let i = 2; i >= 0; i--) {
+                    const month = currentQuarter * 3 + i;
+                    const d = new Date(now.getFullYear(), month, 1);
+                    const monthString = d.toISOString().substring(0, 7);
+                    result.unshift({
+                        date: d.toLocaleDateString('en-US', { month: 'short' }),
+                        value: dataMap.get(monthString) || 0
+                    });
+                }
+                break;
+            case 'yearly':
+                for (let i = 0; i < 12; i++) {
+                    const d = new Date(now.getFullYear(), i, 1);
+                    const monthString = d.toISOString().substring(0, 7);
+                    result.push({
+                        date: d.toLocaleDateString('en-US', { month: 'short' }),
+                        value: dataMap.get(monthString) || 0
+                    });
+                }
+                break;
+            default:
+                return data;
+        }
+        return result;
+    }
+
     useEffect(() => {
         const fetchAllData = async () => {
             setLoading(true);
@@ -43,7 +99,7 @@ const A_Analytics = () => {
                 ]);
 
                 setKpis(kpisRes.data);
-                setEngagementData(engagementRes.data.map(d => ({ ...d, date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })));
+                setEngagementData(processEngagementData(engagementRes.data, selectedTimeRange));
                 setTopUsers(leaderboardRes.data.slice(0, 5));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
