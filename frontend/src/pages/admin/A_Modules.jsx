@@ -1041,7 +1041,8 @@ const A_Modules = () => {
                                 )}
                             </div>
                         </div>
-                        <div className="assessment-questions-right">
+
+                        <div className="questions-list-container">
                             <div className="questions-header">
                                 <h3>Questions</h3>
                                 <button className="btn-primary" onClick={() => handleOpenQuestionModal(null)}>+ Add Question</button>
@@ -1215,26 +1216,25 @@ const A_Modules = () => {
                     <p className="subtitle">Customize your Assessment</p>
                     
                     <div className="assessment-create-form-grid">
-                        <div className="form-card">
-                            <h4>Assign To</h4>
-                            <select 
-                                value={assessmentTarget} 
-                                onChange={(e) => setAssessmentTarget(e.target.value)} 
-                                className="form-control"
-                            >
-                                <option value="">Select an assignment...</option>
-                                <option value="workstream">Final Assessment for Workstream</option>
-                                {selectedWorkstream?.chapters
-                                    .filter(ch => !ch.assessments || ch.assessments.length === 0)
-                                    .map(chapter => (
-                                        <option key={chapter.chapter_id} value={chapter.chapter_id}>
-                                            Chapter: {chapter.title}
-                                        </option>
-                                ))}
-                            </select>
-                        </div>
-                        {/* Left Column: Assessment Details */}
                         <div className="assessment-details-section">
+                            <div className="edit-card">
+                                <h4>Assign To</h4>
+                                <select 
+                                    value={assessmentTarget} 
+                                    onChange={(e) => setAssessmentTarget(e.target.value)} 
+                                    className="form-control"
+                                >
+                                    <option value="">Select an assignment...</option>
+                                    <option value="workstream">Final Assessment for Workstream</option>
+                                    {selectedWorkstream?.chapters
+                                        .filter(ch => !ch.assessments || ch.assessments.length === 0)
+                                        .map(chapter => (
+                                            <option key={chapter.chapter_id} value={chapter.chapter_id}>
+                                                Chapter: {chapter.title}
+                                            </option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="edit-card">
                                 <label htmlFor="as-title">Assessment Title</label>
                                 <input

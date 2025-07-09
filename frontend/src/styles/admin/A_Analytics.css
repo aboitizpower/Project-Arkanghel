@@ -70,6 +70,12 @@
     margin-bottom: 0.25rem;
 }
 
+.custom-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .custom-card-title {
     font-size: 0.8rem;
     font-weight: 600;
@@ -112,12 +118,13 @@
 .user-progress-split {
     display: flex;
     justify-content: space-around;
-    align-items: center;
+    align-items: baseline;
     flex-grow: 1;
 }
 
 .user-progress-section {
     text-align: center;
+    flex-basis: 50%;
 }
 
 .user-progress-label {
@@ -178,6 +185,31 @@
     margin-bottom: 0.4rem;
     border-left: 3px solid #dc3545;
     font-size: 0.8rem;
+}
+
+.custom-card.kpi-card:has(.kpi-card-content) {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+}
+
+.kpi-card-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.kpi-card-content .custom-card-title {
+    margin-bottom: 0.25rem;
+}
+
+.kpi-card-content .custom-card-value {
+    line-height: 1;
+}
+
+.custom-card.kpi-card:has(.kpi-card-content) .custom-icon-box {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 1200px) {

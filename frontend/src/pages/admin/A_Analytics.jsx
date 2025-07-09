@@ -123,22 +123,31 @@ const A_Analytics = () => {
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
                     <div className="custom-card kpi-card">
-                        <div className="custom-card-header">
+                        <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
+                            <Users />
+                        </div>
+                        <div className="kpi-card-content">
                             <h3 className="custom-card-title">Total Users</h3>
-                            <div className="custom-icon-box" style={{ backgroundImage: 'linear-gradient(135deg, #667eea 10%, #764ba2 100%)' }}><Users /></div>
+                            <p className="custom-card-value">{kpis.totalUsers}</p>
                         </div>
-                        <p className="custom-card-value">{kpis.totalUsers}</p>
                     </div>
                     <div className="custom-card kpi-card">
-                        <div className="custom-card-header">
+                        <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
+                            <FileCheck />
+                        </div>
+                        <div className="kpi-card-content">
                             <h3 className="custom-card-title">Average Assessment Scores</h3>
-                            <div className="custom-icon-box" style={{ backgroundImage: 'linear-gradient(135deg, #42e695 10%, #3bb2b8 100%)' }}><FileCheck /></div>
+                            <p className="custom-card-value">{Math.round(kpis.averageScore)}%</p>
                         </div>
-                        <p className="custom-card-value">{Math.round(kpis.averageScore)}%</p>
                     </div>
                     <div className="custom-card kpi-card">
                         <div className="custom-card-header">
-                            <h3 className="custom-card-title">User Progress</h3>
+                            <div className="custom-card-header-left">
+                                <div className="custom-icon-box" style={{backgroundColor: '#0000FF'}}>
+                                    <BookOpenCheck />
+                                </div>
+                                <h3 className="custom-card-title">User Progress</h3>
+                            </div>
                             <div className="filter-container">
                                 <Filter size={14} />
                                 <select value={selectedWorkstream} onChange={(e) => setSelectedWorkstream(e.target.value)} className="workstream-filter">

@@ -1028,38 +1028,47 @@ app.put('/questions/:id', (req, res) => {
     });
 });
 
-// Delete Question
+// Delete Question (and its related answers)
 app.delete('/questions/:id', (req, res) => {
     const { id } = req.params;
 
     db.beginTransaction(err => {
-        if (err) { return res.status(500).json({ error: 'Database error.' }); }
+        if (err) {
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error starting transaction.' });
+        }
 
-        const getAssessmentIdSql = 'SELECT assessment_id FROM questions WHERE question_id = ?';
-        db.query(getAssessmentIdSql, [id], (err, results) => {
-            if (err || results.length === 0) {
-                return db.rollback(() => res.status(404).json({ error: 'Question not found.' }));
+        // First, delete answers associated with the question
+        const deleteAnswersSql = 'DELETE FROM answers WHERE question_id = ?';
+        db.query(deleteAnswersSql, [id], (err, result) => {
+            if (err) {
+                return db.rollback(() => {
+                    console.error('Error deleting answers for question:', err);
+                    res.status(500).json({ error: 'Failed to delete associated answers.' });
+                });
             }
-            const assessmentId = results[0].assessment_id;
 
-            const deleteSql = 'DELETE FROM questions WHERE question_id = ?';
-            db.query(deleteSql, [id], (err, result) => {
+            // Then, delete the question itself
+            const deleteQuestionSql = 'DELETE FROM questions WHERE question_id = ?';
+            db.query(deleteQuestionSql, [id], (err, result) => {
                 if (err) {
-                    return db.rollback(() => res.status(500).json({ error: err.message }));
+                    return db.rollback(() => {
+                        console.error('Error deleting question:', err);
+                        res.status(500).json({ error: 'Failed to delete the question.' });
+                    });
                 }
+                
                 if (result.affectedRows === 0) {
-                    return db.rollback(() => res.status(404).json({ error: 'Question not found during deletion.' }));
+                    return db.rollback(() => {
+                        res.status(404).json({ error: 'Question not found.' });
+                    });
                 }
 
-                const updatePointsSql = 'UPDATE assessments SET total_points = total_points - 1 WHERE assessment_id = ?';
-                db.query(updatePointsSql, [assessmentId], (err, updateResult) => {
+                db.commit(err => {
                     if (err) {
-                        return db.rollback(() => res.status(500).json({ error: 'Failed to update points.' }));
+                        return db.rollback(() => res.status(500).json({ error: 'Failed to commit transaction.' }));
                     }
-                    db.commit(err => {
-                        if (err) { return db.rollback(() => res.status(500).json({ error: 'DB commit error.'}))}
-                        res.json({ success: 'Question deleted successfully.' });
-                    });
+                    res.json({ success: 'Question deleted successfully!' });
                 });
             });
         });
