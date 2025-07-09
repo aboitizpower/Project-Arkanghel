@@ -25,9 +25,9 @@ const A_Leaderboard = () => {
     }, []);
 
     return (
-        <div className="a-leaderboard-container">
+        <div className="e-leaderboard-container">
             <AdminSidebar />
-            <main className="a-leaderboard-main-content">
+            <main className="e-leaderboard-main-content">
                 {isLoading ? (
                     <div className="loading-message">Loading leaderboard...</div>
                 ) : error ? (
