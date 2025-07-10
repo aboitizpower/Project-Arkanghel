@@ -235,8 +235,9 @@ body, html, #root {
   letter-spacing: 0.1px;
 }
 .auth-message.success {
-  background: #007BFF !important;
-  color: #fff !important;
+  background: rgba(0,123,255,0.13) !important;
+  border: 1.5px solid #007BFF !important;
+  color: #007BFF !important;
   font-family: 'Segoe UI', 'Open Sans', Arial, sans-serif !important;
   border-radius: 10px !important;
   box-shadow: 0 2px 12px rgba(0, 123, 255, 0.08);
