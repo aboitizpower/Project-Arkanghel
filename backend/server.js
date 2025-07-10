@@ -215,27 +215,70 @@ app.get('/workstreams/:id/complete', (req, res) => {
     });
 });
 
-// Update a workstream
+// Update a workstream and return the complete, updated object
 app.put('/workstreams/:id', upload.single('image'), (req, res) => {
     const { id } = req.params;
     const { title, description } = req.body;
-    let sql = 'UPDATE workstreams SET title = ?, description = ?';
-    const params = [title, description];
+
+    // 1. Update the workstream
+    let updateSql = 'UPDATE workstreams SET title = ?, description = ?';
+    const updateParams = [title, description];
 
     if (req.file) {
-        sql += ', image = ?, image_type = ?';
-        params.push(req.file.buffer);
-        params.push(req.file.mimetype);
+        updateSql += ', image = ?, image_type = ?';
+        updateParams.push(req.file.buffer);
+        updateParams.push(req.file.mimetype);
     }
+    updateSql += ' WHERE workstream_id = ?';
+    updateParams.push(id);
 
-    sql += ' WHERE workstream_id = ?';
-    params.push(id);
-
-    db.query(sql, params, (err, result) => {
+    db.query(updateSql, updateParams, (err, result) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: `Failed to update workstream: ${err.message}` });
         }
-        res.json({ success: 'Workstream updated successfully!' });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Workstream not found for update.' });
+        }
+
+        // 2. Fetch and return the complete workstream data (mimicking the /complete endpoint)
+        const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams WHERE workstream_id = ?';
+        db.query(workstreamSql, [id], (err, workstreamResults) => {
+            if (err) return res.status(500).json({ error: `Failed to fetch workstream after update: ${err.message}` });
+            if (workstreamResults.length === 0) return res.status(404).json({ error: 'Workstream not found after update.' });
+
+            const workstream = workstreamResults[0];
+            const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+
+            db.query(chaptersSql, [id], (err, chapters) => {
+                if (err) return res.status(500).json({ error: `Failed to fetch chapters after update: ${err.message}` });
+
+                const chapterIds = chapters.map(ch => ch.chapter_id);
+                if (chapterIds.length === 0) {
+                    return res.json({ ...workstream, chapters: [], image_url: workstream.image_type ? `/workstreams/${id}/image` : null });
+                }
+
+                const assessmentsSql = 'SELECT * FROM assessments WHERE chapter_id IN (?)';
+                db.query(assessmentsSql, [chapterIds], (err, assessments) => {
+                    if (err) return res.status(500).json({ error: `Failed to fetch assessments after update: ${err.message}` });
+
+                    const assessmentsByChapter = assessments.reduce((acc, assessment) => {
+                        (acc[assessment.chapter_id] = acc[assessment.chapter_id] || []).push(assessment);
+                        return acc;
+                    }, {});
+
+                    const chaptersWithAssessments = chapters.map(chapter => ({
+                        ...chapter,
+                        assessments: assessmentsByChapter[chapter.chapter_id] || []
+                    }));
+
+                    res.json({
+                        ...workstream,
+                        chapters: chaptersWithAssessments,
+                        image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                    });
+                });
+            });
+        });
     });
 });
 

@@ -1,7 +1,8 @@
 // File: components/WorkstreamEdit.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AdminSidebar from '../../components/AdminSidebar';
 import ChapterEdit from './ChapterEdit';
 import AssessmentEdit from './AssessmentEdit';
@@ -15,86 +16,137 @@ const WorkstreamEdit = () => {
   const { workstreamId } = useParams();
   const navigate = useNavigate();
   const [workstream, setWorkstream] = useState(null);
+  const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditing, setIsEditing] = useState({ title: false, description: false, image: false });
   const [editedTitle, setEditedTitle] = useState('');
-
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState('');
-
-  const [isEditingImage, setIsEditingImage] = useState(false);
   const [newImage, setNewImage] = useState(null);
 
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
 
   // Fetch workstream data
-  const fetchWorkstream = async () => {
+  const fetchWorkstream = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`);
-      console.log('Fetched workstream data:', response.data);
-      setWorkstream(response.data);
-      setEditedTitle(response.data.title);
-      setEditedDescription(response.data.description);
+      const data = response.data;
+      console.log('Fetched workstream data:', data);
+
+      if (data) {
+        setWorkstream(data);
+        setChapters(data.chapters || []);
+        setEditedTitle(data.title || '');
+        setEditedDescription(data.description || '');
+      } else {
+        // Handle case where API returns 200 OK but data is null (e.g., not found)
+        setError('Workstream not found.');
+        setWorkstream(null);
+      }
     } catch (err) {
       setError('Failed to fetch workstream');
       console.error('Error fetching workstream:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [workstreamId]);
 
   useEffect(() => {
     if (workstreamId) {
       fetchWorkstream();
     }
-  }, [workstreamId]);
+  }, [fetchWorkstream, workstreamId]);
 
-  const handleSaveTitle = async () => {
+  const handleSave = async (field) => {
+    if (!workstream) {
+      setError('Cannot save: workstream data is not available.');
+      return;
+    }
+
     try {
-      await axios.put(`${API_URL}/workstreams/${workstreamId}`, {
-        ...workstream,
-        title: editedTitle
-      });
-      fetchWorkstream();
-      setIsEditingTitle(false);
+      let payload;
+      const headers = { 'Content-Type': 'application/json' };
+
+      if (field === 'image') {
+        if (!newImage) {
+          return handleCancel('image');
+        }
+        payload = new FormData();
+        payload.append('title', workstream.title);
+        payload.append('description', workstream.description);
+        payload.append('image', newImage);
+        headers['Content-Type'] = 'multipart/form-data';
+      } else {
+        // Construct a clean payload with only the necessary fields
+        payload = {
+          title: field === 'title' ? editedTitle : workstream.title,
+          description: field === 'description' ? editedDescription : workstream.description,
+        };
+      }
+
+      const response = await axios.put(`${API_URL}/workstreams/${workstreamId}`, payload, { headers });
+
+      // Success: backend now returns the full updated workstream object.
+      // Use this data directly to update state, avoiding a race condition.
+      const updatedWorkstream = response.data;
+      if (updatedWorkstream) {
+        setWorkstream(updatedWorkstream);
+        setChapters(updatedWorkstream.chapters || []);
+        setEditedTitle(updatedWorkstream.title || '');
+        setEditedDescription(updatedWorkstream.description || '');
+      }
+
+      setIsEditing({ ...isEditing, [field]: false });
+      if (field === 'image') setNewImage(null);
+
     } catch (err) {
-      console.error('Failed to update title:', err);
+      console.error(`Failed to update ${field}:`, err);
+      setError(`Failed to update ${field}. Please try again.`);
     }
   };
 
-  const handleSaveDescription = async () => {
+  const handleCancel = (field) => {
+    setIsEditing({ ...isEditing, [field]: false });
+    // Reset fields to original values, only if workstream is loaded
+    if (workstream) {
+      if (field === 'title') setEditedTitle(workstream.title);
+      if (field === 'description') setEditedDescription(workstream.description);
+    }
+    if (field === 'image') setNewImage(null);
+  };
+
+  const handleReorderChapters = async (reorderedChapters) => {
     try {
-      await axios.put(`${API_URL}/workstreams/${workstreamId}`, {
-        ...workstream,
-        description: editedDescription
+      await axios.post(`${API_URL}/workstreams/${workstreamId}/reorder-chapters`, {
+        chapters: reorderedChapters.map((chapter, index) => ({
+          chapter_id: chapter.chapter_id,
+          order_index: index,
+        })),
       });
-      fetchWorkstream();
-      setIsEditingDescription(false);
+      // Optionally re-fetch to confirm changes, though optimistic update is usually enough
+      fetchWorkstream(); 
     } catch (err) {
-      console.error('Failed to update description:', err);
+      console.error('Failed to reorder chapters:', err);
+      // If the API call fails, you might want to revert the state
+      // For simplicity, we'll just log the error here
+      setError('Failed to save new chapter order.');
     }
   };
 
-  const handleSaveImage = async () => {
-    if (!newImage) return;
-    const formData = new FormData();
-    formData.append('title', workstream.title);
-    formData.append('description', workstream.description);
-    formData.append('image', newImage);
-    try {
-      await axios.put(`${API_URL}/workstreams/${workstreamId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      fetchWorkstream();
-      setIsEditingImage(false);
-    } catch (err) {
-      console.error('Failed to update image:', err);
-    }
+  const onDragEnd = (result) => {
+    const { source, destination } = result;
+    if (!destination) return; // Dropped outside the list
+
+    const reordered = Array.from(chapters);
+    const [moved] = reordered.splice(source.index, 1);
+    reordered.splice(destination.index, 0, moved);
+
+    setChapters(reordered);
+    handleReorderChapters(reordered);
   };
 
   if (isLoading) {
@@ -111,17 +163,70 @@ const WorkstreamEdit = () => {
     );
   }
 
-  if (error || !workstream) {
+  if (error) {
     return (
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
           <div className="error-message">
-            {error || 'Workstream not found'}
+            {error}
             <button onClick={() => navigate('/admin/modules')} className="btn-secondary">
               Back to Modules
             </button>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!workstream) {
+    // After loading, if there's no error but still no workstream, it means not found.
+    return (
+      <div className="workstream-edit-container">
+        <AdminSidebar />
+        <main className="workstream-edit-main-content">
+          <div className="error-message">
+            Workstream not found.
+            <button onClick={() => navigate('/admin/modules')} className="btn-secondary">
+              Back to Modules
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (selectedChapter) {
+    return (
+      <div className="workstream-edit-container">
+        <AdminSidebar />
+        <main className="workstream-edit-main-content">
+          <ChapterEdit 
+            chapter={selectedChapter} 
+            onCancel={() => setSelectedChapter(null)} 
+            onUpdated={() => {
+              setSelectedChapter(null);
+              fetchWorkstream();
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (selectedAssessment) {
+    return (
+      <div className="workstream-edit-container">
+        <AdminSidebar />
+        <main className="workstream-edit-main-content">
+          <AssessmentEdit 
+            assessment={selectedAssessment} 
+            onCancel={() => setSelectedAssessment(null)} 
+            onUpdated={() => {
+              setSelectedAssessment(null);
+              fetchWorkstream();
+            }}
+          />
         </main>
       </div>
     );
@@ -137,146 +242,410 @@ const WorkstreamEdit = () => {
           </button>
         </div>
         <div className="workstream-edit-page">
-          <h2>Edit Workstream</h2>
-
-          <div className="workstream-edit-content">
-            {/* Left Column - Current Content */}
-            <div className="workstream-edit-left">
+          <div className="workstream-edit-layout">
+            {/* Left Panel: Workstream Details */}
+            <div className="workstream-details-panel">
               <div className="edit-card workstream-info-card">
-                <h3 className="workstream-title">{workstream.title}</h3>
-                <p className="workstream-description">{workstream.description}</p>
-                <div className="divider" style={{ margin: '1.5rem 0 1.5rem 0' }}></div>
-                <div className="workstream-image-box">
-                  {workstream.image_url && (
-                    <img
-                      src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`}
-                      alt="Workstream"
-                      className="workstream-image"
-                    />
-                  )}
-                </div>
-                <div className="edit-btn-row">
-                  <button 
-                    className="edit-btn" 
-                    onClick={() => {
-                      setIsEditingTitle(true);
-                      setIsEditingDescription(true);
-                      setIsEditingImage(true);
-                    }}
-                  >
-                    <FaPencilAlt /> Edit
-                  </button>
-                </div>
-
-                {(isEditingTitle || isEditingDescription || isEditingImage) && (
-                  <div className="edit-modal-overlay">
-                    <div className="edit-modal">
-                      <label htmlFor="title" className="edit-label">Title</label>
-                      <input
-                        id="title"
+                
+                {/* Inline Title Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Title</label>
+                    {!isEditing.title && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, title: true })}>
+                        <FaPencilAlt /> Edit title
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.title ? (
+                    <div className="inline-edit-content">
+                      <input 
+                        type="text" 
                         value={editedTitle}
                         onChange={(e) => setEditedTitle(e.target.value)}
-                        className="form-control"
+                        className="inline-input"
                       />
-                      <label htmlFor="description" className="edit-label">Description</label>
-                      <textarea
-                        id="description"
-                        value={editedDescription}
-                        onChange={(e) => setEditedDescription(e.target.value)}
-                        className="form-control"
-                      />
-                      <label htmlFor="image" className="edit-label">Image</label>
-                      <div className="file-input-wrapper">
-                        <input type="file" accept="image/*" onChange={(e) => setNewImage(e.target.files[0])} />
-                      </div>
-                      <div className="edit-actions edit-actions-row">
-                        <button className="btn-save" onClick={async () => {
-                          await handleSaveTitle();
-                          await handleSaveDescription();
-                          await handleSaveImage();
-                          setIsEditingTitle(false);
-                          setIsEditingDescription(false);
-                          setIsEditingImage(false);
-                        }}>Save</button>
-                        <button className="btn-cancel" onClick={() => {
-                          setIsEditingTitle(false);
-                          setIsEditingDescription(false);
-                          setIsEditingImage(false);
-                          setEditedTitle(workstream.title);
-                          setEditedDescription(workstream.description);
-                          setNewImage(null);
-                        }}>Cancel</button>
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('title')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('title')}>Save</button>
                       </div>
                     </div>
+                  ) : (
+                    <p className="inline-value">{workstream.title}</p>
+                  )}
+                </div>
+
+                <div className="divider-horizontal"></div>
+
+                {/* Inline Description Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Description</label>
+                    {!isEditing.description && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, description: true })}>
+                        <FaPencilAlt /> Edit description
+                      </button>
+                    )}
                   </div>
-                )}
+                  {isEditing.description ? (
+                    <div className="inline-edit-content">
+                      <textarea 
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        className="inline-textarea"
+                      />
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('description')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('description')}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="inline-value">{workstream.description}</p>
+                  )}
+                </div>
+
+                <div className="divider-horizontal"></div>
+
+                {/* Inline Image Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Image</label>
+                    {!isEditing.image && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, image: true })}>
+                        <FaPencilAlt /> Edit image
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.image ? (
+                     <div className="inline-edit-content">
+                      <input 
+                        type="file" 
+                        onChange={(e) => setNewImage(e.target.files[0])}
+                        className="inline-input-file"
+                      />
+                      <div className="workstream-image-box">
+                        {newImage ? (
+                           <img src={URL.createObjectURL(newImage)} alt="New preview" className="workstream-image" />
+                        ) : workstream.image_url && (
+                          <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Current" className="workstream-image" />
+                        )}
+                      </div>
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('image')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('image')} disabled={!newImage}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="workstream-image-box">
+                      {workstream.image_url && (
+                        <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Workstream" className="workstream-image" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 
-            {/* Right Column - Management */}
-            <div className="workstream-edit-right">
+            {/* Upper Right Panel: Chapters */}
+            <div className="workstream-chapters-panel">
               <div className="edit-card section-card">
-                <div className="section-header">Chapters</div>
-                <button 
-                  className="btn-add" 
-                  onClick={() => navigate(`/admin/workstream/${workstreamId}/chapter/create`)}
-                >
-                  <FaPlus /> Add Chapter
-                </button>
+                <div className="section-header-container">
+                  <div className="section-header">Chapters</div>
+                  <button 
+                    className="btn-add" 
+                    onClick={() => navigate(`/admin/workstream/${workstreamId}/chapter/create`)}
+                  >
+                    <FaPlus /> Add
+                  </button>
+                </div>
                 <div className="divider"></div>
-                {workstream.chapters && workstream.chapters.length > 0 ? (
-                  workstream.chapters.map(ch => (
-                    <div key={ch.chapter_id} className="chapter-item">
-                      <span>{ch.title}</span>
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => setSelectedChapter(ch)}
-                        title="Edit Chapter"
+                <DragDropContext onDragEnd={onDragEnd}>
+                  <Droppable droppableId="chapters">
+                    {(provided) => (
+                      <div 
+                        className="content-list"
+                        {...provided.droppableProps} 
+                        ref={provided.innerRef}
                       >
-                        <FaPencilAlt />
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="empty-list">No chapters added yet</p>
-                )}
-              </div>
-
-              <div className="edit-card section-card">
-                <div className="section-header">All Assessments</div>
-                <button 
-                  className="btn-add" 
-                  onClick={() => navigate(`/admin/workstream/${workstreamId}/assessment/create`)}
-                >
-                  <FaPlus /> Add Assessment
-                </button>
-                <div className="divider"></div>
-                {workstream.chapters && workstream.chapters
-                  .flatMap(ch => ch.assessments || [])
-                  .length > 0 ? (
-                  workstream.chapters
-                    .flatMap(ch => ch.assessments || [])
-                    .map(assessment => (
-                      <div key={assessment.assessment_id} className="assessment-item">
-                        <span>{assessment.title}</span>
-                        <button 
-                          className="btn-icon" 
-                          onClick={() => setSelectedAssessment(assessment)}
-                          title="Edit Assessment"
-                        >
-                          <FaPencilAlt />
-                        </button>
+                        {chapters.length > 0 ? (
+                          chapters.map((ch, index) => (
+                            <Draggable key={ch.chapter_id} draggableId={String(ch.chapter_id)} index={index}>
+                              {(provided) => (
+                                <div 
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className="chapter-item"
+                                >
+                                  <span>{ch.title}</span>
+                                  <button 
+                                    className="btn-icon" 
+                                    onClick={() => setSelectedChapter(ch)}
+                                    title="Edit Chapter"
+                                  >
+                                    <FaPencilAlt />
+                                  </button>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))
+                        ) : (
+                          <p className="empty-list">No chapters yet.</p>
+                        )}
+                        {provided.placeholder}
                       </div>
-                    ))
-                ) : (
-                  <p className="empty-list">No assessments added yet</p>
-                )}
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+            </div>
+
+            {/* Lower Right Panel: Assessments */}
+            <div className="workstream-assessments-panel">
+              <div className="edit-card section-card">
+                <div className="section-header-container">
+                  <div className="section-header">Assessments</div>
+                  <button 
+                    className="btn-add" 
+                    onClick={() => navigate(`/admin/workstream/${workstreamId}/assessment/create`)}
+                  >
+                    <FaPlus /> Add
+                  </button>
+                </div>
+                <div className="divider"></div>
+                <div className="content-list">
+                  {workstream && workstream.chapters && workstream.chapters.flatMap(ch => ch.assessments || []).length > 0 ? (
+                    workstream.chapters
+                      .flatMap(ch => ch.assessments || [])
+                      .map(assessment => (
+                        <div key={assessment.assessment_id} className="assessment-item">
+                          <span>{assessment.title}</span>
+                          <button 
+                            className="btn-icon" 
+                            onClick={() => setSelectedAssessment(assessment)}
+                            title="Edit Assessment"
+                          >
+                            <FaPencilAlt />
+                          </button>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="empty-list">No assessments yet.</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </main>
+    </div>
+  );
 
-          {selectedChapter && (
-            <ChapterEdit
+
+
+  return (
+    <div className="workstream-edit-container">
+      <AdminSidebar />
+      <main className="workstream-edit-main-content">
+        <div className="workstream-edit-page">
+          <div className="workstream-edit-layout">
+            {/* Left Panel: Workstream Details */}
+            <div className="workstream-details-panel">
+              <div className="edit-card workstream-info-card">
+                
+                {/* Inline Title Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Title</label>
+                    {!isEditing.title && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, title: true })}>
+                        <FaPencilAlt /> Edit title
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.title ? (
+                    <div className="inline-edit-content">
+                      <input 
+                        type="text" 
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="inline-input"
+                      />
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('title')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('title')}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="inline-value">{workstream.title}</p>
+                  )}
+                </div>
+
+                <div className="divider-horizontal"></div>
+
+                {/* Inline Description Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Description</label>
+                    {!isEditing.description && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, description: true })}>
+                        <FaPencilAlt /> Edit description
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.description ? (
+                    <div className="inline-edit-content">
+                      <textarea 
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        className="inline-textarea"
+                      />
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('description')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('description')}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="inline-value">{workstream.description}</p>
+                  )}
+                </div>
+
+                <div className="divider-horizontal"></div>
+
+                {/* Inline Image Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Image</label>
+                    {!isEditing.image && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, image: true })}>
+                        <FaPencilAlt /> Edit image
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.image ? (
+                     <div className="inline-edit-content">
+                      <input 
+                        type="file" 
+                        onChange={(e) => setNewImage(e.target.files[0])}
+                        className="inline-input-file"
+                      />
+                      <div className="workstream-image-box">
+                        {newImage ? (
+                           <img src={URL.createObjectURL(newImage)} alt="New preview" className="workstream-image" />
+                        ) : workstream.image_url && (
+                          <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Current" className="workstream-image" />
+                        )}
+                      </div>
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('image')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('image')} disabled={!newImage}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="workstream-image-box">
+                      {workstream.image_url && (
+                        <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Workstream" className="workstream-image" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Upper Right Panel: Chapters */}
+            <div className="workstream-chapters-panel">
+              <div className="edit-card section-card">
+                <div className="section-header-container">
+                  <div className="section-header">Chapters</div>
+                  <button 
+                    className="btn-add" 
+                    onClick={() => navigate(`/admin/workstream/${workstreamId}/chapter/create`)}
+                  >
+                    <FaPlus /> Add
+                  </button>
+                </div>
+                <div className="divider"></div>
+                <DragDropContext onDragEnd={onDragEnd}>
+                  <Droppable droppableId="chapters">
+                    {(provided) => (
+                      <div 
+                        className="content-list"
+                        {...provided.droppableProps} 
+                        ref={provided.innerRef}
+                      >
+                        {chapters.length > 0 ? (
+                          chapters.map((ch, index) => (
+                            <Draggable key={ch.chapter_id} draggableId={String(ch.chapter_id)} index={index}>
+                              {(provided) => (
+                                <div 
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className="chapter-item"
+                                >
+                                  <span>{ch.title}</span>
+                                  <button 
+                                    className="btn-icon" 
+                                    onClick={() => setSelectedChapter(ch)}
+                                    title="Edit Chapter"
+                                  >
+                                    <FaPencilAlt />
+                                  </button>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))
+                        ) : (
+                          <p className="empty-list">No chapters yet.</p>
+                        )}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+            </div>
+
+            {/* Lower Right Panel: Assessments */}
+            <div className="workstream-assessments-panel">
+              <div className="edit-card section-card">
+                <div className="section-header-container">
+                  <div className="section-header">Assessments</div>
+                  <button 
+                    className="btn-add" 
+                    onClick={() => navigate(`/admin/workstream/${workstreamId}/assessment/create`)}
+                  >
+                    <FaPlus /> Add
+                  </button>
+                </div>
+                <div className="divider"></div>
+                <div className="content-list">
+                  {workstream && workstream.chapters && workstream.chapters.flatMap(ch => ch.assessments || []).length > 0 ? (
+                    workstream.chapters
+                      .flatMap(ch => ch.assessments || [])
+                      .map(assessment => (
+                        <div key={assessment.assessment_id} className="assessment-item">
+                          <span>{assessment.title}</span>
+                          <button 
+                            className="btn-icon" 
+                            onClick={() => setSelectedAssessment(assessment)}
+                            title="Edit Assessment"
+                          >
+                            <FaPencilAlt />
+                          </button>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="empty-list">No assessments yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          {selectedChapter ? (
+            <ChapterEdit 
               chapter={selectedChapter}
               onCancel={() => setSelectedChapter(null)}
               onUpdated={() => {
@@ -284,17 +653,10 @@ const WorkstreamEdit = () => {
                 fetchWorkstream();
               }}
             />
-          )}
-
-          {selectedAssessment && (
-            <AssessmentEdit
-              assessment={selectedAssessment}
-              onCancel={() => setSelectedAssessment(null)}
-              onUpdated={() => {
-                setSelectedAssessment(null);
-                fetchWorkstream();
-              }}
-            />
+          ) : (
+            <div className="workstream-edit-main-content">
+              {/* ... rest of the main view ... */}
+            </div>
           )}
         </div>
       </main>
