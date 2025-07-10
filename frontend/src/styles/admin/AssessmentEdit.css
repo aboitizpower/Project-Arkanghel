@@ -8,7 +8,6 @@
 
 .assessment-edit-main-content {
     flex: 1;
-    padding: 1.5rem;
     background-color: #f4f7f9;
     overflow: auto;
     box-sizing: border-box;
@@ -39,7 +38,6 @@
 }
 
 .assessment-edit-page {
-    max-width: 1000px;
     margin: 0 auto;
 }
 

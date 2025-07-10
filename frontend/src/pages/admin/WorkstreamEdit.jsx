@@ -39,7 +39,13 @@ const WorkstreamEdit = () => {
 
       if (data) {
         setWorkstream(data);
-        setChapters(data.chapters || []);
+        // Map chapters to include full URLs for video and PDF based on their existence
+        const chaptersWithUrls = (data.chapters || []).map(chapter => ({
+          ...chapter,
+          video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
+          pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
+        }));
+        setChapters(chaptersWithUrls);
         setEditedTitle(data.title || '');
         setEditedDescription(data.description || '');
       } else {
@@ -60,6 +66,30 @@ const WorkstreamEdit = () => {
       fetchWorkstream();
     }
   }, [fetchWorkstream, workstreamId]);
+
+  const handleDeleteChapter = async (chapterId) => {
+    if (window.confirm('Are you sure you want to delete this chapter? All associated assessments and user progress will also be deleted.')) {
+      try {
+        await axios.delete(`${API_URL}/chapters/${chapterId}`);
+        fetchWorkstream(); // Re-fetch workstream data to update the UI
+      } catch (err) {
+        console.error('Failed to delete chapter:', err);
+        setError('Failed to delete chapter. Please try again.');
+      }
+    }
+  };
+
+  const handleDeleteAssessment = async (assessmentId) => {
+    if (window.confirm('Are you sure you want to delete this assessment? All associated questions and answers will also be deleted.')) {
+      try {
+        await axios.delete(`${API_URL}/assessments/${assessmentId}`);
+        fetchWorkstream(); // Re-fetch workstream data to update the UI
+      } catch (err) {
+        console.error('Failed to delete assessment:', err);
+        setError('Failed to delete assessment. Please try again.');
+      }
+    }
+  };
 
   const handleSave = async (field) => {
     if (!workstream) {
@@ -171,7 +201,7 @@ const WorkstreamEdit = () => {
           <div className="error-message">
             {error}
             <button onClick={() => navigate('/admin/modules')} className="btn-secondary">
-              Back to Modules
+              Back to Workstreams
             </button>
           </div>
         </main>
@@ -379,13 +409,10 @@ const WorkstreamEdit = () => {
                                   className="chapter-item"
                                 >
                                   <span>{ch.title}</span>
-                                  <button 
-                                    className="btn-icon" 
-                                    onClick={() => setSelectedChapter(ch)}
-                                    title="Edit Chapter"
-                                  >
-                                    <FaPencilAlt />
-                                  </button>
+                                  <div className="chapter-actions">
+                                    <button className="btn-edit" onClick={() => setSelectedChapter(ch)}><FaPencilAlt /></button>
+                                    <button className="btn-delete" onClick={() => handleDeleteChapter(ch.chapter_id)}><FaTrash /></button>
+                                  </div>
                                 </div>
                               )}
                             </Draggable>
@@ -421,13 +448,10 @@ const WorkstreamEdit = () => {
                       .map(assessment => (
                         <div key={assessment.assessment_id} className="assessment-item">
                           <span>{assessment.title}</span>
-                          <button 
-                            className="btn-icon" 
-                            onClick={() => setSelectedAssessment(assessment)}
-                            title="Edit Assessment"
-                          >
-                            <FaPencilAlt />
-                          </button>
+                          <div className="assessment-actions">
+                            <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
+                            <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                          </div>
                         </div>
                       ))
                   ) : (
@@ -586,13 +610,10 @@ const WorkstreamEdit = () => {
                                   className="chapter-item"
                                 >
                                   <span>{ch.title}</span>
-                                  <button 
-                                    className="btn-icon" 
-                                    onClick={() => setSelectedChapter(ch)}
-                                    title="Edit Chapter"
-                                  >
-                                    <FaPencilAlt />
-                                  </button>
+                                  <div className="chapter-actions">
+                                    <button className="btn-edit" onClick={() => setSelectedChapter(ch)}><FaPencilAlt /></button>
+                                    <button className="btn-delete" onClick={() => handleDeleteChapter(ch.chapter_id)}><FaTrash /></button>
+                                  </div>
                                 </div>
                               )}
                             </Draggable>
@@ -628,13 +649,10 @@ const WorkstreamEdit = () => {
                       .map(assessment => (
                         <div key={assessment.assessment_id} className="assessment-item">
                           <span>{assessment.title}</span>
-                          <button 
-                            className="btn-icon" 
-                            onClick={() => setSelectedAssessment(assessment)}
-                            title="Edit Assessment"
-                          >
-                            <FaPencilAlt />
-                          </button>
+                          <div className="assessment-actions">
+                            <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
+                            <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                          </div>
                         </div>
                       ))
                   ) : (

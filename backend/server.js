@@ -166,7 +166,22 @@ app.get('/workstreams/:id/complete', (req, res) => {
         const workstream = workstreamResults[0];
         
         // Then get all chapters for this workstream
-        const chaptersSql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename, is_published FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+        const chaptersSql = `
+          SELECT 
+            chapter_id, 
+            workstream_id, 
+            title, 
+            content, 
+            order_index, 
+            is_published, 
+            video_filename, 
+            video_mime_type, 
+            pdf_filename, 
+            pdf_mime_type 
+          FROM module_chapters 
+          WHERE workstream_id = ? 
+          ORDER BY order_index ASC
+        `;
         db.query(chaptersSql, [id], (err, chapters) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
@@ -199,10 +214,12 @@ app.get('/workstreams/:id/complete', (req, res) => {
                     assessmentsByChapter[assessment.chapter_id].push(assessment);
                 });
                 
-                // Add assessments to their respective chapters
+                // Add assessments to their respective chapters and add video/pdf URLs
                 const chaptersWithAssessments = chapters.map(chapter => ({
                     ...chapter,
-                    assessments: assessmentsByChapter[chapter.chapter_id] || []
+                    assessments: assessmentsByChapter[chapter.chapter_id] || [],
+                    video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
+                    pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
                 }));
                 
                 res.json({
@@ -396,24 +413,73 @@ app.delete('/workstreams/:id', (req, res) => {
     });
 });
 
-// Update workstream publish status
+// Update chapter video
+app.put('/chapters/:id/video', upload.single('video'), (req, res) => {
+    const { id } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: 'No video file uploaded.' });
+    }
+
+    const video = req.file.buffer;
+    const video_type = req.file.mimetype;
+
+    const sql = 'UPDATE module_chapters SET video = ?, video_type = ? WHERE chapter_id = ?';
+    db.query(sql, [video, video_type, id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Failed to update video: ${err.message}` });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        res.json({ success: 'Video updated successfully!' });
+    });
+});
+
+// Update chapter PDF
+app.put('/chapters/:id/pdf', upload.single('pdf'), (req, res) => {
+    const { id } = req.params;
+    if (!req.file) {
+        return res.status(400).json({ error: 'No PDF file uploaded.' });
+    }
+
+    const pdf = req.file.buffer;
+    const pdf_type = req.file.mimetype;
+
+    const sql = 'UPDATE module_chapters SET pdf = ?, pdf_type = ? WHERE chapter_id = ?';
+    db.query(sql, [pdf, pdf_type, id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Failed to update PDF: ${err.message}` });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        res.json({ success: 'PDF updated successfully!' });
+    });
+});
+
+// Update chapter publish status
 app.put('/chapters/:id/publish', (req, res) => {
     const { id } = req.params;
     const { is_published } = req.body;
 
+    console.log(`Received publish toggle request for chapter ID: ${id}, new status: ${is_published}`);
+
     if (typeof is_published !== 'boolean') {
+        console.error('Invalid is_published value received:', is_published);
         return res.status(400).json({ error: 'Invalid is_published value. It must be a boolean.' });
     }
 
     const sql = 'UPDATE module_chapters SET is_published = ? WHERE chapter_id = ?';
     db.query(sql, [is_published, id], (err, result) => {
         if (err) {
-            console.error('Database error:', err);
+            console.error('Database error updating chapter publish state:', err);
             return res.status(500).json({ error: 'Failed to update chapter publish state.', details: err.message });
         }
         if (result.affectedRows === 0) {
+            console.warn(`Chapter not found for publish update: ${id}`);
             return res.status(404).json({ error: 'Chapter not found.' });
         }
+        console.log(`Chapter ID ${id} publish state updated to ${is_published} successfully.`);
         res.json({ success: true, message: 'Chapter publish state updated successfully.' });
     });
 });
@@ -633,11 +699,16 @@ app.get('/chapters/:id/pdf', (req, res) => {
     const { id } = req.params;
     const sql = 'SELECT pdf_file, pdf_filename, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
     db.query(sql, [id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error('Error fetching PDF for chapter:', err);
+            return res.status(500).json({ error: err.message });
+        }
         if (results.length === 0 || !results[0].pdf_file) {
+            console.warn(`PDF not found for chapter ID ${id}`);
             return res.status(404).send('PDF not found.');
         }
         const file = results[0];
+        console.log(`Serving PDF for chapter ID ${id}: filename=${file.pdf_filename}, mime_type=${file.pdf_mime_type}`);
         res.setHeader('Content-Type', file.pdf_mime_type);
         res.setHeader('Content-Disposition', `inline; filename="${file.pdf_filename}"`);
         res.send(file.pdf_file);
@@ -649,11 +720,16 @@ app.get('/chapters/:id/video', (req, res) => {
     const { id } = req.params;
     const sql = 'SELECT video_file, video_filename, video_mime_type FROM module_chapters WHERE chapter_id = ?';
     db.query(sql, [id], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error('Error fetching video for chapter:', err);
+            return res.status(500).json({ error: err.message });
+        }
         if (results.length === 0 || !results[0].video_file) {
+            console.warn(`Video not found for chapter ID ${id}`);
             return res.status(404).send('Video not found.');
         }
         const file = results[0];
+        console.log(`Serving video for chapter ID ${id}: filename=${file.video_filename}, mime_type=${file.video_mime_type}`);
         res.setHeader('Content-Type', file.video_mime_type);
         res.setHeader('Content-Disposition', `inline; filename="${file.video_filename}"`);
         res.send(file.video_file);
@@ -699,45 +775,67 @@ app.put('/chapters/:id/publish', (req, res) => {
     const { id } = req.params;
     const { is_published } = req.body;
 
-    if (is_published === undefined) {
-        return res.status(400).json({ error: 'is_published field is required.' });
+    console.log(`Received publish toggle request for chapter ID: ${id}, new status: ${is_published}`);
+
+    if (typeof is_published !== 'boolean') {
+        console.error('Invalid is_published value received:', is_published);
+        return res.status(400).json({ error: 'Invalid is_published value. It must be a boolean.' });
     }
 
     const sql = 'UPDATE module_chapters SET is_published = ? WHERE chapter_id = ?';
     db.query(sql, [is_published, id], (err, result) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            console.error('Database error updating chapter publish state:', err);
+            return res.status(500).json({ error: 'Failed to update chapter publish state.', details: err.message });
         }
         if (result.affectedRows === 0) {
+            console.warn(`Chapter not found for publish update: ${id}`);
             return res.status(404).json({ error: 'Chapter not found.' });
         }
-        res.json({ success: `Chapter ${is_published ? 'published' : 'unpublished'} successfully!` });
+        console.log(`Chapter ID ${id} publish state updated to ${is_published} successfully.`);
+        res.json({ success: true, message: 'Chapter publish state updated successfully.' });
     });
 });
 
 // Get chapter PDF file
 app.get('/chapters/:id/pdf', (req, res) => {
     const { id } = req.params;
-    const sql = 'SELECT pdf_file FROM module_chapters WHERE chapter_id = ?';
+    const sql = 'SELECT pdf_file, pdf_filename, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
     db.query(sql, [id], (err, results) => {
-        if (err || results.length === 0 || !results[0].pdf_file) {
-            return res.status(404).json({ error: 'PDF not found.' });
+        if (err) {
+            console.error('Error fetching PDF for chapter:', err);
+            return res.status(500).json({ error: err.message });
         }
-        res.setHeader('Content-Type', 'application/pdf');
-        res.send(results[0].pdf_file);
+        if (results.length === 0 || !results[0].pdf_file) {
+            console.warn(`PDF not found for chapter ID ${id}`);
+            return res.status(404).send('PDF not found.');
+        }
+        const file = results[0];
+        console.log(`Serving PDF for chapter ID ${id}: filename=${file.pdf_filename}, mime_type=${file.pdf_mime_type}`);
+        res.setHeader('Content-Type', file.pdf_mime_type);
+        res.setHeader('Content-Disposition', `inline; filename="${file.pdf_filename}"`);
+        res.send(file.pdf_file);
     });
 });
 
 // Get chapter video file
 app.get('/chapters/:id/video', (req, res) => {
     const { id } = req.params;
-    const sql = 'SELECT video_file FROM module_chapters WHERE chapter_id = ?';
+    const sql = 'SELECT video_file, video_filename, video_mime_type FROM module_chapters WHERE chapter_id = ?';
     db.query(sql, [id], (err, results) => {
-        if (err || results.length === 0 || !results[0].video_file) {
-            return res.status(404).json({ error: 'Video not found.' });
+        if (err) {
+            console.error('Error fetching video for chapter:', err);
+            return res.status(500).json({ error: err.message });
         }
-        res.setHeader('Content-Type', 'video/mp4'); // Adjust content type if needed
-        res.send(results[0].video_file);
+        if (results.length === 0 || !results[0].video_file) {
+            console.warn(`Video not found for chapter ID ${id}`);
+            return res.status(404).send('Video not found.');
+        }
+        const file = results[0];
+        console.log(`Serving video for chapter ID ${id}: filename=${file.video_filename}, mime_type=${file.video_mime_type}`);
+        res.setHeader('Content-Type', file.video_mime_type);
+        res.setHeader('Content-Disposition', `inline; filename="${file.video_filename}"`);
+        res.send(file.video_file);
     });
 });
 
