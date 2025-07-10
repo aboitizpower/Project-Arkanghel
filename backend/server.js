@@ -118,7 +118,17 @@ app.post('/workstreams', upload.single('image'), (req, res) => {
 
 // Read all workstreams (for admin)
 app.get('/workstreams', (req, res) => {
-    const sql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams';
+    const sql = `
+        SELECT 
+            w.workstream_id, 
+            w.title, 
+            w.description, 
+            w.image_type, 
+            w.created_at, 
+            w.is_published,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) AS chapters_count
+        FROM workstreams w
+    `;
     db.query(sql, (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -1883,6 +1893,41 @@ app.get('/employee/dashboard/:userId', (req, res) => {
                 },
                 workstreams: workstreamsWithProgress
             });
+        });
+    });
+});
+
+// User-Workstream Permissions API
+// Get workstream permissions for a user
+app.get('/users/:id/workstreams', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT workstream_id FROM user_workstream_permissions WHERE user_id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        // If empty, means all workstreams are allowed
+        res.json({ workstream_ids: results.map(r => r.workstream_id) });
+    });
+});
+
+// Set workstream permissions for a user
+app.put('/users/:id/workstreams', (req, res) => {
+    const { id } = req.params;
+    const { workstream_ids } = req.body; // array of workstream IDs, empty = all
+    if (!Array.isArray(workstream_ids)) {
+        return res.status(400).json({ error: 'workstream_ids must be an array' });
+    }
+    // Remove all existing permissions
+    db.query('DELETE FROM user_workstream_permissions WHERE user_id = ?', [id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (workstream_ids.length === 0) {
+            // All workstreams allowed by default
+            return res.json({ success: true });
+        }
+        // Insert new permissions
+        const values = workstream_ids.map(wid => [id, wid]);
+        db.query('INSERT INTO user_workstream_permissions (user_id, workstream_id) VALUES ?', [values], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true });
         });
     });
 });
