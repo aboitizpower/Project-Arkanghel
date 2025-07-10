@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
-import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock } from 'react-icons/fa';
+import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const API_URL = 'http://localhost:8081';
 
@@ -20,6 +20,10 @@ const E_Modules = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [userId, setUserId] = useState(null);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const workstreamsPerPage = 8;
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -276,61 +280,88 @@ const E_Modules = () => {
         }
     };
 
-    const renderWorkstreamView = () => (
-        <div className="page-container">
-            <div className="grid-container-ws">
-                {workstreams.map((ws) => {
-                    const progress = Math.round(ws.progress || 0);
-                    const isCompleted = progress === 100;
-                    const hasContent = ws.chapters_count > 0;
+    const renderWorkstreamView = () => {
+        const startIndex = (currentPage - 1) * workstreamsPerPage;
+        const endIndex = startIndex + workstreamsPerPage;
+        const currentWorkstreams = workstreams.slice(startIndex, endIndex);
 
-                    let actionButton;
-                    if (isCompleted) {
-                        actionButton = <button className="action-btn completed">Completed</button>;
-                    } else if (ws.has_final_assessment && ws.all_regular_chapters_completed) {
-                        actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Take Final Assessment</button>;
-                    } else if (hasContent) {
-                        actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
-                    } else {
-                        actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
-                    }
+        return (
+            <div className="page-container">
+                <div className="grid-container-ws">
+                    {currentWorkstreams.map((ws) => {
+                        const progress = Math.round(ws.progress || 0);
+                        const isCompleted = progress === 100;
+                        const hasContent = ws.chapters_count > 0;
 
-                    return (
-                        <div key={ws.workstream_id} className="card-ws">
-                            <div className="card-ws-image-container" onClick={() => hasContent && handleSelectWorkstream(ws)}>
-                                {ws.image_type ? 
-                                    <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
-                                    <div className="card-ws-image-placeholder"></div>
-                                }
+                        let actionButton;
+                        if (isCompleted) {
+                            actionButton = <button className="action-btn completed">Completed</button>;
+                        } else if (ws.has_final_assessment && ws.all_regular_chapters_completed) {
+                            actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Take Final Assessment</button>;
+                        } else if (hasContent) {
+                            actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
+                        } else {
+                            actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
+                        }
+
+                        return (
+                            <div key={ws.workstream_id} className="card-ws">
+                                <div className="card-ws-image-container" onClick={() => hasContent && handleSelectWorkstream(ws)}>
+                                    {ws.image_type ? 
+                                        <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
+                                        <div className="card-ws-image-placeholder"></div>
+                                    }
+                                </div>
+                                <div className="card-ws-content">
+                                    <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
+                                    <div className="card-ws-stats">
+                                        <span>{ws.chapters_count || 0} Chapters</span>
+                                        <span>•</span>
+                                        <span>{ws.assessments_count || 0} Assessments</span>
+                                    </div>
+                                    <div className="card-ws-progress">
+                                         <span className="progress-label">Progress</span>
+                                         <span className="progress-percentage">{progress}%</span>
+                                    </div>
+                                    <div className="progress-bar-container">
+                                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                    <div className="card-ws-action">
+                                        {actionButton}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="card-ws-content">
-                                <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
-                                <div className="card-ws-stats">
-                                    <span>{ws.chapters_count || 0} Chapters</span>
-                                    <span>•</span>
-                                    <span>{ws.assessments_count || 0} Assessments</span>
-                                </div>
-                                <div className="card-ws-progress">
-                                     <span className="progress-label">Progress</span>
-                                     <span className="progress-percentage">{progress}%</span>
-                                </div>
-                                <div className="progress-bar-container">
-                                    <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                                </div>
-                                <div className="card-ws-action">
-                                    {actionButton}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="pagination-controls">
+                    <button 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="pagination-btn"
+                    >
+                        <FaChevronLeft /> Previous
+                    </button>
+                    <span className="page-info">
+                        Page {currentPage} of {Math.ceil(workstreams.length / workstreamsPerPage)}
+                    </span>
+                    <button 
+                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(workstreams.length / workstreamsPerPage), prev + 1))}
+                        disabled={currentPage === Math.ceil(workstreams.length / workstreamsPerPage)}
+                        className="pagination-btn"
+                    >
+                        Next <FaChevronRight />
+                    </button>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderModuleView = () => {
         if (!selectedWorkstream || !selectedChapter) {
-            return <div>Loading module...</div>; // Or some other loading state
+            return <div>Loading module...</div>; 
         }
 
         const isNextButtonDisabled = !!assessmentForCurrentChapter && !isAssessmentPassed;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Dashboard.css'; // New CSS file
-import { FaCheckCircle, FaHourglassHalf } from 'react-icons/fa';
+import { FaCheckCircle, FaHourglassHalf, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const API_URL = 'http://localhost:8081';
 
@@ -11,6 +11,10 @@ const E_Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const userId = localStorage.getItem('userId');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const workstreamsPerPage = 8;
 
   useEffect(() => {
     if (userId) {
@@ -58,29 +62,58 @@ const E_Dashboard = () => {
               </div>
             </div>
 
-            <div className="workstream-grid">
-              {dashboardData.workstreams.map(ws => (
-                <div key={ws.workstream_id} className="workstream-card-static">
-                  <div className="workstream-card-image">
-                    {ws.image_url ? (
-                      <img src={`${API_URL}${ws.image_url}`} alt={ws.title} />
-                    ) : (
-                      <div className="image-placeholder"></div>
-                    )}
-                  </div>
-                  <div className="workstream-card-content">
-                    <h3>{ws.title}</h3>
-                    <p>{ws.total_chapters} Modules</p>
-                    <div className="progress-bar-container">
-                      <div 
-                        className="progress-bar"
-                        style={{ width: `${ws.progress}%`}}
-                      ></div>
+            {(() => {
+                const startIndex = (currentPage - 1) * workstreamsPerPage;
+                const endIndex = startIndex + workstreamsPerPage;
+                const currentWorkstreams = dashboardData.workstreams.slice(startIndex, endIndex);
+
+                return (
+                    <div className="workstream-grid">
+                        {currentWorkstreams.map(ws => (
+                            <div key={ws.workstream_id} className="workstream-card-static">
+                                <div className="workstream-card-image">
+                                    {ws.image_url ? (
+                                        <img src={`${API_URL}${ws.image_url}`} alt={ws.title} />
+                                    ) : (
+                                        <div className="image-placeholder"></div>
+                                    )}
+                                </div>
+                                <div className="workstream-card-content">
+                                    <h3>{ws.title}</h3>
+                                    <p>{ws.total_chapters} Modules</p>
+                                    <div className="progress-bar-container">
+                                        <div 
+                                            className="progress-bar"
+                                            style={{ width: `${ws.progress}%`}}
+                                        ></div>
+                                    </div>
+                                    <p className="progress-text">{Math.round(ws.progress)}% Complete</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                    <p className="progress-text">{Math.round(ws.progress)}% Complete</p>
-                  </div>
-                </div>
-              ))}
+                );
+            })()}
+
+            {/* Pagination Controls */}
+            <div className="pagination-controls">
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="pagination-btn"
+                >
+                    <FaChevronLeft /> Previous
+                </button>
+                <span className="page-info">
+                    Page {currentPage} of {Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)}
+                </span>
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(dashboardData.workstreams.length / workstreamsPerPage), prev + 1))}
+                    disabled={currentPage === Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)}
+                    className="pagination-btn"
+                >
+                    Next <FaChevronRight />
+                </button>
             </div>
           </>
         )}

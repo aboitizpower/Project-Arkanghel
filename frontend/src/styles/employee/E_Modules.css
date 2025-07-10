@@ -1,6 +1,10 @@
 .page-container {
     padding: 2rem;
     background-color: #f4f7f6;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow page-container to grow and fill space */
+    height: 100%; /* Ensure it takes full available height */
 }
 
 .error-message {
@@ -201,18 +205,26 @@
 /* New Workstream Card Styles */
 .grid-container-ws {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); /* Even smaller min-width for 4+ cards */
-    gap: 1rem; /* Tighter gap */
+    grid-template-columns: repeat(4, 1fr); /* Force 4 cards per row */
+    gap: 0.5rem; /* Smaller gap */
+    justify-items: center;
+    align-content: flex-start; /* Align grid content to the top */
+    flex-grow: 1; /* Allow grid to grow and fill available space */
+    min-height: 400px; /* Example: adjust based on card height for 2 rows */
 }
 
 .card-ws {
+    width: 100%;
+    max-width: 420px; 
+    min-width: 260px; 
     background-color: #fff;
-    border-radius: 8px; /* Tighter radius */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: all 0.3s ease;
+    margin: 0 auto;
 }
 
 .card-ws:hover {
@@ -222,7 +234,7 @@
 
 .card-ws-image-container {
     width: 100%;
-    padding-top: 45%; /* Shorter image container */
+    padding-top: 50%; /* Slightly taller image area */
     position: relative;
     cursor: pointer;
 }
@@ -246,25 +258,28 @@
 }
 
 .card-ws-content {
-    padding: 0.8rem;
+    padding: 0.8rem; 
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    padding-bottom: 0.5rem;
 }
 
 .card-ws-title {
-    font-size: 0.9rem; /* Smaller title */
+    font-size: 0.9rem; 
     font-weight: 600;
     color: #2c3e50;
     margin-bottom: 0.2rem;
+    /* Original padding will be inherited from .card-ws-content */
 }
 
 .card-ws-stats {
-    font-size: 0.7rem; /* Smaller stats */
+    font-size: 0.7rem; 
     color: #7f8c8d;
     margin-bottom: 0.5rem;
     display: flex;
     gap: 0.75rem;
+    /* Original padding will be inherited from .card-ws-content */
 }
 
 .card-ws-stats span {
@@ -279,28 +294,32 @@
     margin-top: 0.5rem;
     font-size: 0.75rem;
     color: #6c757d;
+    /* Original padding will be inherited from .card-ws-content */
 }
 
-/* Make progress bar container span full width, ignoring card padding */
 .progress-bar-container {
-    height: 6px;
+    height: 8px;
     background-color: #e9ecef;
     border-radius: 6px;
     overflow: hidden;
-    margin-top: 0.25rem;
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
+    width: 100%; /* Changed to 100% to respect parent padding */
+    margin: 0.25rem 0 0.5rem 0; /* Remove negative margins */
+    box-sizing: border-box;
+    padding: 0; 
 }
 
 .progress-bar {
     height: 100%;
     border-radius: inherit;
     transition: width 0.3s;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .card-ws-action {
     margin-top: auto;
+    /* Original padding will be inherited from .card-ws-content, or set here if needed for button */
 }
 
 .action-btn {
@@ -347,6 +366,8 @@
     flex-grow: 1;
     overflow-y: auto;
     background-color: #f4f7f9;
+    display: flex; /* Make main-content a flex container */
+    flex-direction: column; /* Arrange children in a column */
 }
 
 .main-content.module-view-active {
@@ -593,4 +614,44 @@
     padding: 1rem;
     border-top: 1px solid #e9ecef;
     margin-top: auto; /* Pushes it to the bottom */
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    justify-content: flex-end; /* Align to the right */
+    align-items: center;
+    margin-top: auto; /* Push to the bottom */
+    gap: 1rem;
+    padding-right: 0.8rem; 
+    padding-bottom: 2rem; /* Add some padding from the very bottom edge */
+}
+
+.pagination-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem; /* Slightly reduced horizontal padding for buttons */
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.pagination-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 1rem;
+    color: #333;
+    font-weight: 500;
 }

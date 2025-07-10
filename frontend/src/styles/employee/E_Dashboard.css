@@ -9,6 +9,14 @@
 .employee-dashboard-page .main-content {
   flex: 1;
   padding: 2rem;
+  display: flex; /* Make main-content a flex container */
+  flex-direction: column; /* Arrange children in a column */
+  overflow-y: auto; /* Add this to enable internal scrolling if content exceeds height */
+}
+
+/* Ensure the content within main-content can grow */
+.employee-dashboard-page .main-content > div:first-child {
+    flex-grow: 1; /* This targets the <> fragment's div wrapper */
 }
 
 .employee-dashboard-page h1 {
@@ -31,7 +39,8 @@
   background-color: #ffffff;
   padding: 1rem; /* Reduced padding */
   border-radius: 10px;
-  flex: 1;
+  flex: 1; /* Allow cards to grow and share space */
+  height: 90px; /* Smaller height */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s;
 }
@@ -68,69 +77,134 @@
 
 /* Workstream Grid */
 .workstream-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Match learning modules: 4 per row */
+    gap: 0.5rem; /* Match learning modules gap */
+    justify-items: center;
+    align-content: flex-start; /* Align grid content to the top */
+    flex-grow: 1; /* Allow grid to grow and fill available space */
+    min-height: 400px; /* Example: adjust based on card height for 2 rows */
 }
 
 .workstream-card-static {
-  background-color: #ffffff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
+    width: 100%;
+    max-width: 420px;
+    min-width: 260px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    margin: 0 auto;
 }
 
 .workstream-card-image {
-  height: 120px; /* Shorter image */
-  background-color: #e2e8f0;
+    width: 100%;
+    padding-top: 50%; /* Match learning modules image ratio */
+    position: relative;
+    background-color: #e2e8f0;
+    height: unset;
 }
 
-.workstream-card-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.workstream-card-image img, .workstream-card-image .image-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .workstream-card-content {
-  padding: 0.8rem; /* Tighter padding */
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
+    padding: 0.8rem; 
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding-bottom: 0.5rem;
 }
 
 .workstream-card-content h3 {
-  font-size: 0.9rem; /* Smaller font */
+  font-size: 0.9rem; 
   font-weight: 700;
   margin: 0 0 0.25rem 0;
   color: #1a202c;
+  /* Original padding will be inherited from .workstream-card-content */
 }
 
 .workstream-card-content p {
-  margin: 0 0 0.5rem 0; /* Reduced margin */
-  font-size: 0.8rem; /* Smaller font */
+  margin: 0 0 0.5rem 0; 
+  font-size: 0.8rem; 
   color: #718096;
+  /* Original padding will be inherited from .workstream-card-content */
 }
 
 .progress-bar-container {
-  width: 100%;
-  background-color: #e2e8f0;
-  border-radius: 6px; /* Tighter radius */
-  height: 6px; /* Thinner bar */
-  margin-bottom: 0.25rem;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+    width: 100%; /* Changed to 100% to respect parent padding */
+    margin: 0.25rem 0 0.5rem 0; /* Remove negative margins */
+    box-sizing: border-box;
+    padding: 0; 
 }
 
 .progress-bar {
-  height: 100%;
-  background-color: #3b82f6;
-  border-radius: 6px; /* Tighter radius */
-  transition: width 0.5s ease-in-out;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.3s;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    background-color: #3b82f6;
 }
 
 .progress-text {
-  font-size: 0.75rem; /* Smaller font */
+  font-size: 0.75rem;
   color: #4a5568;
   font-weight: 600;
   align-self: flex-end;
+  /* Original padding will be inherited from .workstream-card-content */
+} 
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    justify-content: flex-end; /* Align to the right */
+    align-items: center;
+    margin-top: auto; /* Push to the bottom */
+    gap: 1rem;
+    padding-right: 0.8rem; 
+    padding-bottom: 2rem; /* Add some padding from the very bottom edge */
+}
+
+.pagination-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem; /* Slightly reduced horizontal padding for buttons */
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.pagination-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 1rem;
+    color: #333;
+    font-weight: 500;
 } 

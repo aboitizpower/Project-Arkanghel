@@ -79,7 +79,7 @@
     gap: 15px;
 }
 
-.progress-bar-container {
+.leaderboard-table-container .progress-bar-container {
     width: 100%;
     max-width: 200px;
     height: 10px;
