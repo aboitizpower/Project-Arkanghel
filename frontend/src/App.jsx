@@ -16,6 +16,13 @@ import A_Assessment from './pages/admin/A_Assessment';
 import A_Users from './pages/admin/A_Users';
 import A_Leaderboard from './pages/admin/A_Leaderboard';
 
+import WorkstreamCreate from './pages/admin/WorkstreamCreate';
+import WorkstreamEdit from './pages/admin/WorkstreamEdit';
+import ChapterCreate from './pages/admin/ChapterCreate';
+import ChapterEdit from './pages/admin/ChapterEdit';
+import AssessmentCreate from './pages/admin/AssessmentCreate';
+import AssessmentEdit from './pages/admin/AssessmentEdit';
+
 export default function App() {
     return (
         <Router>
@@ -36,6 +43,14 @@ export default function App() {
                 <Route path="/admin/assessment" element={<A_Assessment />} />
                 <Route path="/admin/users" element={<A_Users />} />
                 <Route path="/admin/leaderboard" element={<A_Leaderboard />} />
+
+                {/* Admin Workstream/Chapter/Assessment CRUD Routes */}
+                <Route path="/admin/workstream/create" element={<WorkstreamCreate />} />
+                <Route path="/admin/workstream/:workstreamId/edit" element={<WorkstreamEdit />} />
+                <Route path="/admin/workstream/:workstreamId/chapter/create" element={<ChapterCreate />} />
+                <Route path="/admin/workstream/:workstreamId/chapter/:chapterId/edit" element={<ChapterEdit />} />
+                <Route path="/admin/workstream/:workstreamId/assessment/create" element={<AssessmentCreate />} />
+                <Route path="/admin/assessment/:assessmentId/edit" element={<AssessmentEdit />} />
 
                 <Route path="*" element={<NotFound />} />
             </Routes>

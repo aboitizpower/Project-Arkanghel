@@ -149,6 +149,72 @@ app.get('/workstreams/:id', (req, res) => {
     });
 });
 
+// Get complete workstream data with chapters and assessments (for admin)
+app.get('/workstreams/:id/complete', (req, res) => {
+    const { id } = req.params;
+    
+    // First get the workstream data
+    const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams WHERE workstream_id = ?';
+    db.query(workstreamSql, [id], (err, workstreamResults) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (workstreamResults.length === 0) {
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+        
+        const workstream = workstreamResults[0];
+        
+        // Then get all chapters for this workstream
+        const chaptersSql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename, is_published FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+        db.query(chaptersSql, [id], (err, chapters) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            // For each chapter, get its assessments
+            const chapterIds = chapters.map(ch => ch.chapter_id);
+            
+            if (chapterIds.length === 0) {
+                // No chapters, return workstream with empty chapters array
+                return res.json({
+                    ...workstream,
+                    chapters: [],
+                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                });
+            }
+            
+            const assessmentsSql = 'SELECT assessment_id, chapter_id, title, total_points FROM assessments WHERE chapter_id IN (?) ORDER BY assessment_id ASC';
+            db.query(assessmentsSql, [chapterIds], (err, assessments) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                
+                // Group assessments by chapter
+                const assessmentsByChapter = {};
+                assessments.forEach(assessment => {
+                    if (!assessmentsByChapter[assessment.chapter_id]) {
+                        assessmentsByChapter[assessment.chapter_id] = [];
+                    }
+                    assessmentsByChapter[assessment.chapter_id].push(assessment);
+                });
+                
+                // Add assessments to their respective chapters
+                const chaptersWithAssessments = chapters.map(chapter => ({
+                    ...chapter,
+                    assessments: assessmentsByChapter[chapter.chapter_id] || []
+                }));
+                
+                res.json({
+                    ...workstream,
+                    chapters: chaptersWithAssessments,
+                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                });
+            });
+        });
+    });
+});
+
 // Update a workstream
 app.put('/workstreams/:id', upload.single('image'), (req, res) => {
     const { id } = req.params;

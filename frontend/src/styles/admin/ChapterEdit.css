@@ -1,0 +1,295 @@
+/* ChapterEdit.css */
+
+.chapter-edit-container {
+    display: flex;
+    min-height: 100vh;
+    background: #f8fafc;
+}
+
+.chapter-edit-main-content {
+    flex: 1;
+    padding: 1.5rem;
+    background-color: #f4f7f9;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+.chapter-edit-header {
+    margin-bottom: 1.5rem;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    margin-bottom: 1rem;
+}
+
+.back-button:hover {
+    background-color: #f1f5f9;
+}
+
+.chapter-edit-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.chapter-edit-page h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #1e293b;
+}
+
+.chapter-edit-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.chapter-edit-left,
+.chapter-edit-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.edit-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.edit-card h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.edit-card p {
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.edit-card video {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.edit-card button {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.edit-card button:hover {
+    background-color: #f0f9ff;
+}
+
+.edit-card input,
+.edit-card textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-card input:focus,
+.edit-card textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-card textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.btn-save {
+    background-color: #10b981;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-save:hover {
+    background-color: #059669;
+}
+
+.btn-cancel {
+    background-color: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-cancel:hover {
+    background-color: #4b5563;
+}
+
+.assessments-list {
+    margin-top: 1rem;
+}
+
+.assessment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.assessment-item span {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.assessment-item .btn-icon {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: color 0.2s ease;
+}
+
+.assessment-item .btn-icon:hover {
+    color: #374151;
+    background-color: #f3f4f6;
+}
+
+.btn-add {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.btn-add:hover {
+    background-color: #2563eb;
+}
+
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.file-input-wrapper input[type="file"] {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+.file-input-wrapper input[type="file"]::-webkit-file-upload-button {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.file-input-wrapper input[type="file"]::-webkit-file-upload-button:hover {
+    background: #e5e7eb;
+}
+
+.description-card {
+    flex-grow: 1;
+}
+
+.description-card .editing-view,
+.description-card .display-view {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.description-editor {
+    flex-grow: 1;
+    resize: none;
+    min-height: 200px;
+}
+
+.description-display {
+    flex-grow: 1;
+    overflow-y: auto;
+    line-height: 1.6;
+    margin: 0;
+    max-height: 300px;
+}
+
+@media (max-width: 1200px) {
+    .chapter-edit-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .chapter-edit-page {
+        margin: 1rem;
+    }
+    
+    .edit-card {
+        padding: 1rem;
+    }
+    
+    .chapter-edit-page h2 {
+        font-size: 1.75rem;
+    }
+    
+    .edit-actions {
+        flex-direction: column;
+    }
+} 
