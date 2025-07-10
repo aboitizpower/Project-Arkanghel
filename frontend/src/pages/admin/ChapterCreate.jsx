@@ -13,6 +13,7 @@ const ChapterCreate = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [video, setVideo] = useState(null);
+  const [pdf, setPdf] = useState(null);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -23,11 +24,13 @@ const ChapterCreate = () => {
     setError(null);
     try {
       const formData = new FormData();
+      formData.append('workstream_id', workstreamId);
       formData.append('title', title);
       formData.append('content', content);
-      if (video) formData.append('video', video);
+      if (video) formData.append('video_file', video);
+      if (pdf) formData.append('pdf_file', pdf);
 
-      await axios.post(`${API_URL}/workstreams/${workstreamId}/chapters`, formData, {
+      await axios.post(`${API_URL}/chapters`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       navigate(`/admin/workstream/${workstreamId}/edit`);
@@ -104,6 +107,26 @@ const ChapterCreate = () => {
                     Remove Video
                   </button>
                 </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="chapter-pdf">Chapter PDF</label>
+              <input
+                id="chapter-pdf"
+                type="file"
+                onChange={(e) => setPdf(e.target.files[0])}
+                className="form-control"
+                accept=".pdf"
+              />
+            </div>
+
+            {pdf && (
+              <div className="pdf-preview">
+                <p>Selected: {pdf.name}</p>
+                <button type="button" className="remove-pdf" onClick={() => setPdf(null)}>
+                  Remove PDF
+                </button>
               </div>
             )}
 
