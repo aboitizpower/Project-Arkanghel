@@ -235,12 +235,36 @@ body, html, #root {
   letter-spacing: 0.1px;
 }
 .auth-message.success {
-  background: #21e6c1;
-  color: #0a1323;
+  background: rgba(0,123,255,0.13) !important;
+  border: 1.5px solid #007BFF !important;
+  color: #007BFF !important;
+  font-family: 'Segoe UI', 'Open Sans', Arial, sans-serif !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 12px rgba(0, 123, 255, 0.08);
+  padding: 14px 18px !important;
+  margin-top: 18px !important;
+  margin-bottom: 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  display: block;
+  text-align: center;
 }
 .auth-message.error {
-  background: #e84545;
-  color: #fff;
+  background: rgba(232,69,69,0.12) !important;
+  border: 1.5px solid #e84545 !important;
+  color: #e84545 !important;
+  font-family: 'Segoe UI', 'Open Sans', Arial, sans-serif !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 12px rgba(232, 69, 69, 0.12);
+  padding: 14px 18px !important;
+  margin-top: 18px !important;
+  margin-bottom: 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  display: block;
+  text-align: center;
 }
 /* Animation classes */
 .slide-in-left {
