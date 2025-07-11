@@ -1,0 +1,208 @@
+/* Employee Sidebar Styles */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+.sidebar {
+  width: 240px;
+  min-width: 180px;
+  background: #f9f9f9;
+  color: #fff;
+  height: 95dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 2rem 0 1rem 0;
+  box-shadow: 2px 0 16px rgba(7, 14, 27, 0.10);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.sidebar-header {
+  width: 100%;
+  margin-top: -50px;
+  padding-top: 0;
+}
+
+.sidebar-logo-img {
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  display: block;
+  margin: 0 auto 1.1em auto;
+  padding: 0;
+  object-fit: contain;
+  height: 160px;
+  box-shadow: none;
+  background: none;
+  border: none;
+}
+
+.sidebar-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 2.5em;
+  padding-top: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sidebar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 0.85em 1.2em 0.85em 1.5em;
+  color: #8c8c8c;
+  text-decoration: none;
+  font-size: 1.08rem;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-weight: 500;
+  border-radius: 7px;
+  margin-bottom: 0.3em;
+  transition: background 0.18s, color 0.18s, border-left 0.18s;
+  background: transparent;
+  border-left: 4px solid transparent;
+  box-shadow: none;
+  letter-spacing: 0.01em;
+}
+
+.sidebar-link.active {
+  background: #f4f8ff;
+  color: #254EDB;
+  border-left: 4px solid #254EDB;
+  font-weight: 600;
+}
+
+.sidebar-link:hover:not(.active) {
+  background: #f2f2f7;
+  color: #254EDB;
+}
+
+.sidebar-icon {
+  font-size: 1.25em;
+  margin-right: 0.7em;
+  color: inherit;
+  transition: color 0.18s;
+}
+
+.sidebar-avatar-name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3em;
+  margin-bottom: 0;
+  margin-top: 0.5em;
+  justify-content: flex-start;
+  text-align: left;
+  margin-left: 0;
+  width: 100%;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: 0.1em;
+  text-align: left;
+  margin-bottom: 0;
+}
+
+.sidebar-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #254EDB;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(7, 14, 27, 0.10);
+}
+
+.sidebar-user-name {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 0.2em;
+  text-align: left;
+}
+
+.sidebar-role {
+  font-size: 0.93rem;
+  color: #b0b8c9;
+  margin-top: -2px;
+  margin-bottom: 0.6em;
+  text-align: left;
+  font-weight: 500;
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  background: #fff;
+  color: #254EDB;
+  border: 2px solid #254EDB;
+  border-radius: 8px;
+  padding: 0.85em 1em;
+  font-size: 1.08rem;
+  font-weight: 700;
+  font-family: 'Poppins', Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+  justify-content: center;
+  margin-top: -10%;
+  margin-left: 0;
+  margin-right: 0;
+  box-shadow: 0 2px 8px rgba(7, 14, 27, 0.06);
+  box-sizing: border-box;
+}
+
+.sidebar-logout-btn .sidebar-icon {
+  color: #254EDB;
+  transition: color 0.18s;
+}
+
+.sidebar-logout-btn:hover {
+  background: #254EDB;
+  color: #fff;
+  border-color: #254EDB;
+}
+
+.sidebar-logout-btn:hover .sidebar-icon {
+  color: #fff;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  margin-top: 0.4em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Add any employee-specific styles below */

@@ -1,7 +1,8 @@
 import React from 'react';
+import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
-import '../styles/Sidebar.css';
+import '../styles/EmployeeSidebar.css';
 
 const EmployeeSidebar = () => {
   const navigate = useNavigate();
@@ -20,9 +21,8 @@ const EmployeeSidebar = () => {
   return (
     <nav className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-app-title">Project Arkanghel</div>
-        <div className="sidebar-portal-title">Employee Portal</div>
-      </div>
+  <img src={loginLogo} alt="Logo" className="sidebar-logo-img" />
+</div>
       <hr className="sidebar-divider" />
       <div className="sidebar-content">
         <ul className="sidebar-list">
@@ -50,13 +50,17 @@ const EmployeeSidebar = () => {
       </div>
       <div className="sidebar-footer">
         <div className="sidebar-avatar-name">
-          <div className="sidebar-avatar">{initials || <FaUserCircle />}</div>
-          <div className="sidebar-user-name">{fullName}</div>
-        </div>
+  <div className="sidebar-avatar">{initials || <FaUserCircle />}</div>
+  <div className="sidebar-user-info">
+    <div className="sidebar-user-name">{fullName}</div>
+    <div className="sidebar-role">Employee</div>
+  </div>
+</div>
         <button className="sidebar-logout-btn" onClick={handleLogout}>
           <FaSignOutAlt className="sidebar-icon" /> Logout
         </button>
       </div>
+      
     </nav>
   );
 };

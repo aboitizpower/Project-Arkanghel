@@ -1,7 +1,8 @@
 import React from 'react';
+import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
-import '../styles/Sidebar.css';
+import '../styles/AdminSidebar.css';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
@@ -20,8 +21,7 @@ const AdminSidebar = () => {
   return (
     <nav className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-app-title">Project Arkanghel</div>
-        <div className="sidebar-portal-title">Admin Portal</div>
+        <img src={loginLogo} alt="Logo" className="sidebar-logo-img" />
       </div>
       <hr className="sidebar-divider" />
       <div className="sidebar-content">
@@ -50,9 +50,12 @@ const AdminSidebar = () => {
       </div>
       <div className="sidebar-footer">
         <div className="sidebar-avatar-name">
-          <div className="sidebar-avatar">{initials || <FaUserCircle />}</div>
-          <div className="sidebar-user-name">{fullName}</div>
-        </div>
+  <div className="sidebar-avatar">{initials || <FaUserCircle />}</div>
+  <div className="sidebar-user-info">
+    <div className="sidebar-user-name">{fullName}</div>
+    <div className="sidebar-role">Admin</div>
+  </div>
+</div>
         <button className="sidebar-logout-btn" onClick={handleLogout}>
           <FaSignOutAlt className="sidebar-icon" /> Logout
         </button>
