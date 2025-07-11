@@ -89,7 +89,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
   return (
     <div className="assessment-edit-container">
-      <AdminSidebar />
       <main className="assessment-edit-main-content">
         <div className="assessment-edit-header">
           <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>

@@ -1,16 +1,26 @@
 /* ChapterCreate.css */
 
+html,
+body,
+#root {
+    height: 100%; /* Ensure full height for these elements */
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Disable scrolling for the entire page */
+}
+
 .chapter-create-container {
     display: flex;
-    min-height: 100vh;
+    min-height: 100vh; /* Use 100vh to ensure it covers the viewport height */
     background: #f8fafc;
+    overflow: hidden; /* Prevent internal overflow of this container */
 }
 
 .chapter-create-main-content {
     flex: 1;
     padding: 1.5rem;
     background-color: #f4f7f9;
-    overflow: auto;
+    overflow: hidden; /* Ensure content inside does not overflow main content area */
     box-sizing: border-box;
 }
 
@@ -45,6 +55,8 @@
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     padding: 2rem;
+    max-height: calc(100vh - 3rem - 3rem); /* Adjust based on header/footer/margin, e.g., viewport height minus total vertical padding/margin */
+    overflow-y: auto; /* Enable vertical scrolling only for this section if content overflows */
 }
 
 .chapter-create-page h2 {
@@ -179,11 +191,14 @@ textarea.form-control {
     background: #f9fafb;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
+    overflow: hidden; /* Ensure content inside does not overflow */
 }
 
 .video-preview video {
     width: 100%;
-    max-width: 400px;
+    max-width: 100%; /* Ensure video scales within its container */
+    max-height: 300px; /* Limit height to prevent excessive vertical space */
+    object-fit: contain; /* Ensure the video fits within the bounds without cropping */
     border-radius: 6px;
 }
 
@@ -205,6 +220,41 @@ textarea.form-control {
 }
 
 .remove-video:hover {
+    background-color: #fef2f2;
+}
+
+.pdf-preview {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex; /* Use flex to align text and button */
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.pdf-preview p {
+    flex: 1; /* Allow text to take available space */
+    font-size: 0.875rem;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis for long filenames */
+    white-space: nowrap; /* Prevent wrapping of filename */
+}
+
+.remove-pdf {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.remove-pdf:hover {
     background-color: #fef2f2;
 }
 

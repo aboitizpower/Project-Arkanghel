@@ -1,181 +1,193 @@
 // File: components/ChapterEdit.jsx
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AdminSidebar from '../../components/AdminSidebar';
+import { FaPencilAlt, FaRegFilePdf, FaVideo, FaBookOpen, FaSave, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import '../../styles/admin/ChapterEdit.css';
 
 const API_URL = 'http://localhost:8081';
 
 const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(chapter.title);
-
-  const [isEditingContent, setIsEditingContent] = useState(false);
   const [editedContent, setEditedContent] = useState(chapter.content);
-
-  const [isEditingVideo, setIsEditingVideo] = useState(false);
   const [newVideo, setNewVideo] = useState(null);
-
+  const [newPdf, setNewPdf] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const [isPublished, setIsPublished] = useState(chapter.is_published);
 
-  const handleSaveTitle = async () => {
+  const [isEditing, setIsEditing] = useState({ title: false, content: false, video: false, pdf: false });
+
+  const handleSave = async (field) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await axios.put(`${API_URL}/chapters/${chapter.chapter_id}`, {
-        ...chapter,
-        title: editedTitle
-      });
-      if (onUpdated) onUpdated();
-      setIsEditingTitle(false);
+      let payload = {};
+      let url = `${API_URL}/chapters/${chapter.chapter_id}`;
+      let headers = { 'Content-Type': 'application/json' };
+
+      if (field === 'title') {
+        payload = { title: editedTitle };
+      } else if (field === 'content') {
+        payload = { content: editedContent };
+      } else if (field === 'video' && newVideo) {
+        const formData = new FormData();
+        formData.append('video_file', newVideo);
+        payload = formData;
+        url = `${API_URL}/chapters/${chapter.chapter_id}/upload-video`;
+        headers = { 'Content-Type': 'multipart/form-data' };
+      } else if (field === 'pdf' && newPdf) {
+        const formData = new FormData();
+        formData.append('pdf_file', newPdf);
+        payload = formData;
+        url = `${API_URL}/chapters/${chapter.chapter_id}/upload-pdf`;
+        headers = { 'Content-Type': 'multipart/form-data' };
+      } else {
+        setIsSubmitting(false);
+        return; // Nothing to save
+      }
+
+      await axios.post(url, payload, { headers });
+      setIsEditing(prev => ({ ...prev, [field]: false }));
+      onUpdated(); // Refresh data in parent
+
     } catch (err) {
-      setError('Failed to update title');
-      console.error(err);
+      setError(`Failed to save ${field}.`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSaveContent = async () => {
+  const handlePublishToggle = async () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await axios.put(`${API_URL}/chapters/${chapter.chapter_id}`, {
-        ...chapter,
-        content: editedContent
-      });
-      if (onUpdated) onUpdated();
-      setIsEditingContent(false);
+      const newPublishStatus = !isPublished;
+      await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus });
+      setIsPublished(newPublishStatus);
+      // No longer calling onUpdated() here to prevent navigating back to workstream edit
+      // onUpdated(); 
     } catch (err) {
-      setError('Failed to update content');
-      console.error(err);
+      console.error('Error toggling publish status:', err);
+      setError('Failed to update publish status.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSaveVideo = async () => {
-    if (!newVideo) return;
-    setIsSubmitting(true);
-    setError(null);
-    const formData = new FormData();
-    formData.append('title', chapter.title);
-    formData.append('content', chapter.content);
-    formData.append('video', newVideo);
-    try {
-      await axios.put(`${API_URL}/chapters/${chapter.chapter_id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      if (onUpdated) onUpdated();
-      setIsEditingVideo(false);
-    } catch (err) {
-      setError('Failed to update video');
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCancel = (field) => {
+    setIsEditing(prev => ({ ...prev, [field]: false }));
+    // Reset state if needed
+    if (field === 'title') setEditedTitle(chapter.title);
+    if (field === 'content') setEditedContent(chapter.content);
+    if (field === 'video') setNewVideo(null);
+    if (field === 'pdf') setNewPdf(null);
   };
 
   return (
-    <div className="chapter-edit-container">
-      <AdminSidebar />
-      <main className="chapter-edit-main-content">
-        <div className="chapter-edit-header">
-          <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>
-            &larr; Back
-          </button>
+    <div className="module-chapter-creation">
+      <div className="page-header">
+        <button className="back-button" onClick={onCancel}>&larr; Back to module setup</button>
+        <div className="header-center">
+  
         </div>
-        <div className="chapter-edit-page">
-          <h2>Edit Chapter</h2>
+        <button 
+          className={`btn-${isPublished ? 'unpublish' : 'publish'}`} 
+          onClick={handlePublishToggle} 
+          disabled={isSubmitting}
+        >
+          {isPublished ? 'Unpublish' : 'Publish'}
+        </button>
+      </div>
 
-          <div className="chapter-edit-content">
-            <div className="chapter-edit-left">
-              <div className="edit-card">
-                <h4>Title</h4>
-                {isEditingTitle ? (
-                  <>
-                    <input
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="form-control"
-                    />
-                    <div className="edit-actions">
-                      <button className="btn-save" onClick={handleSaveTitle} disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : 'Save'}
-                      </button>
-                      <button className="btn-cancel" onClick={() => setIsEditingTitle(false)}>Cancel</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p>{chapter.title}</p>
-                    <button onClick={() => setIsEditingTitle(true)}>Edit</button>
-                  </>
-                )}
+      <div className="customize-chapter-section">
+        <div className="chapter-layout-grid">
+          {/* Left Column */}
+          <div className="chapter-details-column">
+            <div className="edit-card-modern">
+              <div className="edit-card-header">
+                <h3>Chapter Title</h3>
+                {!isEditing.title && <button className="btn-inline-edit" onClick={() => setIsEditing(prev => ({ ...prev, title: true }))}><FaPencilAlt /> Edit title</button>}
               </div>
-
-              <div className="edit-card">
-                <h4>Video</h4>
-                {isEditingVideo ? (
-                  <>
-                    <div className="file-input-wrapper">
-                      <input type="file" accept="video/*" onChange={(e) => setNewVideo(e.target.files[0])} />
+              <div className="edit-card-body">
+                {isEditing.title ? (
+                  <div className="inline-edit-content">
+                    <input type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="inline-input" />
+                    <div className="inline-edit-actions">
+                      <button className="btn-cancel" onClick={() => handleCancel('title')}><FaTimes /> Cancel</button>
+                      <button className="btn-save" onClick={() => handleSave('title')} disabled={isSubmitting}><FaSave /> Save</button>
                     </div>
-                    <div className="edit-actions">
-                      <button className="btn-save" onClick={handleSaveVideo} disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : 'Save'}
-                      </button>
-                      <button className="btn-cancel" onClick={() => setIsEditingVideo(false)}>Cancel</button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {chapter.video_url && (
-                      <video controls>
-                        <source src={`http://localhost:8081${chapter.video_url}`} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
-                    )}
-                    <button onClick={() => setIsEditingVideo(true)}>Change Video</button>
-                  </>
-                )}
+                  </div>
+                ) : <p>{chapter.title}</p>}
               </div>
             </div>
-
-            <div className="chapter-edit-right">
-              <div className="edit-card description-card">
-                <h4>Content</h4>
-                {isEditingContent ? (
-                  <div className="editing-view">
-                    <textarea
-                      value={editedContent}
-                      onChange={(e) => setEditedContent(e.target.value)}
-                      className="form-control description-editor"
-                    />
-                    <div className="edit-actions">
-                      <button className="btn-save" onClick={handleSaveContent} disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : 'Save'}
-                      </button>
-                      <button className="btn-cancel" onClick={() => setIsEditingContent(false)}>Cancel</button>
+            <div className="edit-card-modern">
+              <div className="edit-card-header">
+                <h3>Description</h3>
+                {!isEditing.content && <button className="btn-inline-edit" onClick={() => setIsEditing(prev => ({ ...prev, content: true }))}><FaPencilAlt /> Edit description</button>}
+              </div>
+              <div className="edit-card-body">
+                {isEditing.content ? (
+                  <div className="inline-edit-content">
+                    <textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="inline-textarea" />
+                    <div className="inline-edit-actions">
+                      <button className="btn-cancel" onClick={() => handleCancel('content')}><FaTimes /> Cancel</button>
+                      <button className="btn-save" onClick={() => handleSave('content')} disabled={isSubmitting}><FaSave /> Save</button>
                     </div>
                   </div>
-                ) : (
-                  <div className="display-view">
-                    <p className="description-display">{chapter.content}</p>
-                    <button onClick={() => setIsEditingContent(true)}>Edit</button>
-                  </div>
-                )}
+                ) : <p>{chapter.content || 'No description provided.'}</p>}
               </div>
             </div>
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {/* Right Column */}
+          <div className="chapter-media-column">
+            <div className="edit-card-modern">
+              <div className="edit-card-header">
+                <h3>Chapter Video</h3>
+                {!isEditing.video && <button className="btn-inline-edit" onClick={() => setIsEditing(prev => ({ ...prev, video: true }))}><FaPencilAlt /> Edit video</button>}
+              </div>
+              <div className="edit-card-body">
+                {isEditing.video ? (
+                  <div className="inline-edit-content">
+                    <input type="file" accept="video/*" onChange={(e) => setNewVideo(e.target.files[0])} className="inline-input-file" />
+                    <div className="inline-edit-actions">
+                      <button className="btn-cancel" onClick={() => handleCancel('video')}><FaTimes /> Cancel</button>
+                      <button className="btn-save" onClick={() => handleSave('video')} disabled={!newVideo || isSubmitting}><FaSave /> Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  chapter.video_url ? (
+                    <video src={`${API_URL}${chapter.video_url}`} controls className="video-preview" />
+                  ) : <p>No video uploaded.</p>
+                )}
+              </div>
+            </div>
+            <div className="edit-card-modern">
+              <div className="edit-card-header">
+                <h3>PDF Attachment</h3>
+                {!isEditing.pdf && <button className="btn-inline-edit" onClick={() => setIsEditing(prev => ({ ...prev, pdf: true }))}><FaPencilAlt /> Edit PDF</button>}
+              </div>
+              <div className="edit-card-body">
+                {isEditing.pdf ? (
+                  <div className="inline-edit-content">
+                    <input type="file" accept=".pdf" onChange={(e) => setNewPdf(e.target.files[0])} className="inline-input-file" />
+                    <div className="inline-edit-actions">
+                      <button className="btn-cancel" onClick={() => handleCancel('pdf')}><FaTimes /> Cancel</button>
+                      <button className="btn-save" onClick={() => handleSave('pdf')} disabled={!newPdf || isSubmitting}><FaSave /> Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  chapter.pdf_url ? (
+                    <a href={`${API_URL}${chapter.pdf_url}`} target="_blank" rel="noopener noreferrer">View PDF</a>
+                  ) : <p>No PDF uploaded.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
+        {error && <div className="error-message">{error}</div>}
+      </div>
     </div>
   );
 };
