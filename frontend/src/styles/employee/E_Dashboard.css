@@ -16,7 +16,7 @@
 
 /* Ensure the content within main-content can grow */
 .employee-dashboard-page .main-content > div:first-child {
-    flex-grow: 1; /* This targets the <> fragment's div wrapper */
+    flex-grow: 0.2; /* This targets the <> fragment's div wrapper */
 }
 
 .employee-dashboard-page h1 {
@@ -29,8 +29,7 @@
 /* KPI Cards */
 .kpi-container {
   display: flex;
-  gap: 1.5rem; /* Reduced gap */
-  margin-bottom: 2rem; /* Reduced margin */
+  gap: 1.5rem;
 }
 
 .kpi-card {

@@ -96,25 +96,35 @@ const E_Dashboard = () => {
             })()}
 
             {/* Pagination Controls */}
-            <div className="pagination-controls">
-                <button 
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="pagination-btn"
-                >
-                    <FaChevronLeft /> Previous
-                </button>
-                <span className="page-info">
-                    Page {currentPage} of {Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)}
-                </span>
-                <button 
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(dashboardData.workstreams.length / workstreamsPerPage), prev + 1))}
-                    disabled={currentPage === Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)}
-                    className="pagination-btn"
-                >
-                    Next <FaChevronRight />
-                </button>
-            </div>
+            {Math.ceil(dashboardData.workstreams.length / workstreamsPerPage) > 1 && (
+                <div className="pagination-wrapper">
+                    <div className="pagination-container">
+                        <button 
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="pagination-btn"
+                        >
+                            &laquo;
+                        </button>
+                        {[...Array(Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)).keys()].map(number => (
+                            <button 
+                                key={number + 1}
+                                onClick={() => setCurrentPage(number + 1)}
+                                className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
+                            >
+                                {number + 1}
+                            </button>
+                        ))}
+                        <button 
+                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(dashboardData.workstreams.length / workstreamsPerPage), prev + 1))}
+                            disabled={currentPage === Math.ceil(dashboardData.workstreams.length / workstreamsPerPage)}
+                            className="pagination-btn"
+                        >
+                            &raquo;
+                        </button>
+                    </div>
+                </div>
+            )}
           </>
         )}
       </main>

@@ -79,7 +79,7 @@
     gap: 15px;
 }
 
-.leaderboard-table-container .progress-bar-container {
+.e-leaderboard-main-content .progress-bar-container {
     width: 100%;
     max-width: 200px;
     height: 10px;
@@ -88,14 +88,14 @@
     overflow: hidden;
 }
 
-.progress-bar {
+.e-leaderboard-main-content .progress-bar {
     height: 100%;
     background-color: #28a745;
     border-radius: 5px;
     transition: width 0.4s ease;
 }
 
-.progress-text {
+.e-leaderboard-main-content .progress-text {
     font-weight: 500;
     font-size: 0.9rem;
     color: #333;

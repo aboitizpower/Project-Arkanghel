@@ -16,7 +16,6 @@
 
 .progress-col, .progress-cell {
   text-align: left;
-  min-width: 220px;
 }
 
 .status-col, .status-cell {
@@ -36,7 +35,6 @@
   border-radius: 8px;
   height: 16px;
   width: 100%;
-  max-width: 220px;
   margin-bottom: 0.2rem;
   overflow: hidden;
   position: relative;
