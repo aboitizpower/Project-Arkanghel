@@ -1,39 +1,153 @@
-/* Register Page Styles */
-.register-bg {
+/* Register Page Styles - now matches Login Page */
+
+/* Use login-bg for split panel background */
+.register-bg,
+.login-bg {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6;
+  background-size: cover;
+  background-attachment: fixed;
 }
-.register-card {
+
+/* Panel and card styles */
+.register-panel,
+.login-panel {
+  max-width: 420px;
+  width: 100%;
+  padding: 0;
+  box-shadow: 0 4px 32px rgba(7, 14, 27, 0.10), 0 2px 8px rgba(0,0,0,0.04);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
   background: #fff;
+  border-radius: 12px;
+}
+
+.register-card,
+.login-card {
+  background: #2563eb;
   padding: 2.5rem 2rem;
   border-radius: 12px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.08);
   width: 100%;
-  max-width: 400px;
+  max-width: 350px;
 }
-.register-title {
+
+.register-logo-container,
+
+.register-logo,
+.login-logo {
+  display: block;
+  width: 90%;
+  max-width: 310px;
+  height: auto;
+  margin-top: 4px;
+  object-fit: contain;
+}
+
+.register-form-center,
+.login-form-center {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -20px;
+  height: 50%;
+}
+
+.register-title,
+.login-title {
   text-align: center;
-  margin-bottom: 24px;
+  margin-top: -20px;
+  font-size: 2rem;
 }
-.register-field {
-  margin-bottom: 16px;
+
+.register-message,
+.login-message {
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  text-align: center;
+  font-size: 14px;
+}
+.register-message.success,
+.login-message.success {
+  background: #dcfce7;
+  color: #2563eb;
+}
+.register-message.error,
+.login-message.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.register-field,
+.login-field,
+.auth-field,
+.login-form-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 3px !important;
   position: relative;
 }
-.register-input {
+.register-field label,
+.login-field label,
+.auth-field label,
+.login-form-field label {
   width: 100%;
+  text-align: left;
+  display: block;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 3px !important;
+  margin-top: 0;
+  letter-spacing: 0.01em;
+}
+
+.register-input,
+.login-input,
+.auth-input {
+  width: 300px;
+  max-width: 100%;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: 12px;
   border: 1px solid #d1d5db;
-  margin-bottom: 8px;
   font-size: 16px;
+  box-sizing: border-box;
+  margin-bottom: 0 !important;
+  transition: border-color 0.3s;
 }
-.register-password-field .register-input {
+
+/* Make only the name inputs narrower in the register form */
+#register-first-name,
+#register-last-name {
+  width: 90px !important;
+  min-width: 0;
+  margin-bottom: 2px;
+  display: inline-block;
+}
+
+/* Reduce gap between stacked name fields */
+.register-name-fields .auth-field {
+  margin-bottom: 3px !important;
+}
+
+
+.register-password-field .register-input,
+.login-password-field .login-input {
   margin-bottom: 0;
+  border-radius: 12px;
 }
-.register-password-toggle {
+
+.register-password-toggle,
+.login-password-toggle {
   position: absolute;
   right: 10px;
   top: 10px;
@@ -42,11 +156,13 @@
   font-size: 18px;
   user-select: none;
 }
-.register-btn {
-  width: 100%;
+
+.register-btn,
+.login-btn {
+  width: 60%;
   padding: 10px;
-  border-radius: 6px;
-  background: #16a34a;
+  border-radius: 18px;
+  background: #1d4ed8;
   color: #fff;
   border: none;
   font-weight: 600;
@@ -55,30 +171,115 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-.register-btn:hover {
-  background: #15803d;
+.login-btn {
+  background: #2563eb;
 }
-.register-link-container {
+.login-btn:hover {
+  background: #1d4ed8;
+}
+.register-btn:hover {
+  background: #fff !important;
+}
+
+.register-link-container,
+.login-link-container {
   text-align: center;
   margin: 12px 0;
 }
-.register-link {
-  color: #2563eb;
-  text-decoration: underline;
+.register-link,
+.login-link {
+  color: #fff;
+  text-decoration: none;
   cursor: pointer;
 }
-.register-message {
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 8px;
-  text-align: center;
-  font-size: 14px;
+
+/* Make the Login button in the register panel white on hover */
+.register-link-btn {
+  width: 60%;
+  min-width: 120px;
+  padding: 10px 0;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 18px;
+  font-weight: 700;
+  font-size: 1.08rem;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+  transition: background 0.2s, color 0.2s;
+  outline: none;
+  cursor: pointer;
+  margin: 0 auto 8px auto;
+  display: block;
+  text-decoration: none;
 }
-.register-message.success {
-  background: #dcfce7;
-  color: #166534;
+.register-link-btn:hover {
+  color: #fff !important;
+  background: #1d4ed8 !important;
+  text-decoration: none;
 }
-.register-message.error {
-  background: #fee2e2;
-  color: #b91c1c;
-} 
+.register-link-btn:hover {
+  color: #2563eb !important;
+  background: #fff !important;
+}
+
+
+/* Panel split background and overlay for both pages */
+.split-bg-panel {
+  position: relative;
+  height: 100vh;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: -4px 0 32px rgba(7, 14, 27, 0.10);
+}
+.login-bg-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.18);
+  z-index: 2;
+}
+
+.login-bg-register-link {
+  position: absolute;
+  top: 32px;
+  right: 32px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: auto;
+  font-size: 0.8rem;
+}
+@media (max-width: 900px) {
+  .login-bg-register-link {
+    top: 14px;
+    right: 10px;
+  }
+}
+
+.login-bg-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  margin-top: -180px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.auth-welcome-title {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.16);
+  margin-bottom: 10px;
+}
+.auth-welcome-desc {
+  font-size: 1rem;
+  color: #e5e7eb;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  margin-bottom: 0;
+}
