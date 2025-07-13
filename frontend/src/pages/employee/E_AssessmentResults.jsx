@@ -11,6 +11,10 @@ const E_AssessmentResults = () => {
     const [error, setError] = useState('');
     const userId = localStorage.getItem('userId');
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const resultsPerPage = 10; // You can adjust this number
+
     useEffect(() => {
         if (!userId) {
             setError('You must be logged in to view assessment results.');
@@ -30,39 +34,70 @@ const E_AssessmentResults = () => {
             });
     }, [userId]);
 
-    if (loading) {
-        return <div>Loading...</div>;
-    }
+    // Get current results for pagination
+    const indexOfLastResult = currentPage * resultsPerPage;
+    const indexOfFirstResult = indexOfLastResult - resultsPerPage;
+    const currentResults = results.slice(indexOfFirstResult, indexOfLastResult);
 
-    if (error) {
-        return <div className="error-message">{error}</div>;
-    }
+    // Change page
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     return (
-        <div className="e-assessment-results-container">
+        <div className="page-layout">
             <EmployeeSidebar />
-            <main className="page-container">
-                {results.length > 0 ? (
-                    <table className="results-table">
-                        <thead>
-                            <tr>
-                                <th>Assessment Title</th>
-                                <th>Your Score</th>
-                                <th>Total Questions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {results.map(result => (
-                                <tr key={result.assessment_id}>
-                                    <td>{result.title}</td>
-                                    <td>{result.user_score}</td>
-                                    <td>{result.total_questions}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            <main className="main-content">
+                <div className="page-header">
+                    <h1 className="page-title">Assessment Results</h1>
+                </div>
+
+                {loading ? (
+                    <div className="loading-message">Loading results...</div>
+                ) : error ? (
+                    <div className="error-message">{error}</div>
                 ) : (
-                    <p>You have not completed any assessments yet.</p>
+                    <div className="table-container">
+                        {results.length > 0 ? (
+                            <div>
+                                <table className="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Assessment Title</th>
+                                            <th>Your Score</th>
+                                            <th>Total Questions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentResults.map(result => (
+                                            <tr key={result.assessment_id}>
+                                                <td>{result.title}</td>
+                                                <td>{result.user_score}</td>
+                                                <td>{result.total_questions}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <div className="pagination-controls">
+                                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+                                        &laquo;
+                                    </button>
+                                    {Array.from({ length: Math.ceil(results.length / resultsPerPage) }, (_, i) => (
+                                        <button
+                                            key={i + 1}
+                                            onClick={() => paginate(i + 1)}
+                                            className={currentPage === i + 1 ? 'active' : ''}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
+                                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(results.length / resultsPerPage)}>
+                                        &raquo;
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <p>You have not completed any assessments yet.</p>
+                        )}
+                    </div>
                 )}
             </main>
         </div>

@@ -501,7 +501,7 @@ const E_Modules = () => {
     return (
         <div className="e-modules-page">
             {!selectedWorkstream && <EmployeeSidebar />}
-            <main className={`main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
+            <main className={`modules-main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
                 {error && <p className="error-message">{error}</p>}
                 {isLoading && <p>Loading...</p>}
                 {!isLoading && !error && (

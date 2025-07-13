@@ -1,10 +1,22 @@
+/* E_Modules.css */
+.e-modules-page {
+  display: flex;
+  min-height: 100vh;
+}
+
+.modules-main-content {
+  flex: 1;
+  overflow-y: hidden;
+  background-color: #f4f7f6; /* Match background */
+  padding: 0 !important; /* Override any inherited padding */
+}
+
 .page-container {
-    padding: 2rem;
-    background-color: #f4f7f6;
+    padding: 1rem; /* Remove padding from the container */
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Allow page-container to grow and fill space */
-    height: 100%; /* Ensure it takes full available height */
+    flex-grow: 1;
+    height: 95%;
 }
 
 .error-message {
@@ -66,7 +78,8 @@
 .grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
+    gap: 1.5rem;
+    padding: 1.5rem;
 }
 
 .card {
@@ -368,6 +381,7 @@
     background-color: #f4f7f9;
     display: flex; /* Make main-content a flex container */
     flex-direction: column; /* Arrange children in a column */
+    padding: 0rem;
 }
 
 .main-content.module-view-active {
