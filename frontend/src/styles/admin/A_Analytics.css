@@ -77,7 +77,7 @@
 }
 
 .custom-card-title {
-    font-size: 0.8rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #495057;
 }
@@ -120,16 +120,17 @@
     justify-content: space-around;
     align-items: baseline;
     flex-grow: 1;
+    width: 100%;
 }
 
 .user-progress-section {
     text-align: center;
-    flex-basis: 50%;
 }
 
 .user-progress-label {
     font-size: 0.7rem;
     color: #6c757d;
+    margin: 0rem;
     text-transform: uppercase;
 }
 
@@ -187,19 +188,25 @@
     font-size: 0.8rem;
 }
 
-.custom-card.kpi-card:has(.kpi-card-content) {
-    flex-direction: row;
+.kpi-card-body {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 1rem;
+    width: 100%;
+}
+
+.custom-card.kpi-card .custom-card-header {
+    width: 100%;
+}
+
+.custom-card.kpi-card {
+    align-items: flex-start;
 }
 
 .kpi-card-content {
     display: flex;
     flex-direction: column;
-}
-
-.kpi-card-content .custom-card-title {
-    margin-bottom: 0.25rem;
 }
 
 .kpi-card-content .custom-card-value {

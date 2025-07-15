@@ -26,12 +26,27 @@ const A_Analytics = () => {
         const dataMap = new Map(data.map(item => [item.date, item.value]));
         const now = new Date();
 
+        // Helper to format date as YYYY-MM-DD without timezone shift
+        const toLocalDateString = (date) => {
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        // Helper to format date as YYYY-MM
+        const toLocalMonthString = (date) => {
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            return `${year}-${month}`;
+        };
+
         switch (range) {
             case 'weekly':
                 for (let i = 6; i >= 0; i--) {
                     const d = new Date();
                     d.setDate(now.getDate() - i);
-                    const dateString = d.toISOString().split('T')[0];
+                    const dateString = toLocalDateString(d);
                     result.push({
                         date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                         value: dataMap.get(dateString) || 0
@@ -42,7 +57,7 @@ const A_Analytics = () => {
                 const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
                 for (let i = 1; i <= daysInMonth; i++) {
                      const d = new Date(now.getFullYear(), now.getMonth(), i);
-                     const dateString = d.toISOString().split('T')[0];
+                     const dateString = toLocalDateString(d);
                      result.push({
                         date: `${i}`,
                         value: dataMap.get(dateString) || 0
@@ -54,7 +69,7 @@ const A_Analytics = () => {
                  for (let i = 2; i >= 0; i--) {
                     const month = currentQuarter * 3 + i;
                     const d = new Date(now.getFullYear(), month, 1);
-                    const monthString = d.toISOString().substring(0, 7);
+                    const monthString = toLocalMonthString(d);
                     result.unshift({
                         date: d.toLocaleDateString('en-US', { month: 'short' }),
                         value: dataMap.get(monthString) || 0
@@ -64,7 +79,7 @@ const A_Analytics = () => {
             case 'yearly':
                 for (let i = 0; i < 12; i++) {
                     const d = new Date(now.getFullYear(), i, 1);
-                    const monthString = d.toISOString().substring(0, 7);
+                    const monthString = toLocalMonthString(d);
                     result.push({
                         date: d.toLocaleDateString('en-US', { month: 'short' }),
                         value: dataMap.get(monthString) || 0
@@ -123,27 +138,35 @@ const A_Analytics = () => {
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
                     <div className="custom-card kpi-card">
-                        <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
-                            <Users />
+                        <div className="custom-card-header">
+                            <div className="custom-card-header-left">
+                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
+                                    <Users />
+                                </div>
+                                <h3 className="custom-card-title">Total Users</h3>
+                            </div>
                         </div>
-                        <div className="kpi-card-content">
-                            <h3 className="custom-card-title">Total Users</h3>
-                            <p className="custom-card-value">{kpis.totalUsers}</p>
+                        <div className="kpi-card-body">
+                             <p className="custom-card-value">{kpis.totalUsers}</p>
                         </div>
                     </div>
                     <div className="custom-card kpi-card">
-                        <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
-                            <FileCheck />
+                        <div className="custom-card-header">
+                            <div className="custom-card-header-left">
+                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
+                                    <FileCheck />
+                                </div>
+                                <h3 className="custom-card-title">Average Assessment Scores</h3>
+                            </div>
                         </div>
-                        <div className="kpi-card-content">
-                            <h3 className="custom-card-title">Average Assessment Scores</h3>
+                        <div className="kpi-card-body">
                             <p className="custom-card-value">{Math.round(kpis.averageScore)}%</p>
                         </div>
                     </div>
                     <div className="custom-card kpi-card">
                         <div className="custom-card-header">
                             <div className="custom-card-header-left">
-                                <div className="custom-icon-box" style={{backgroundColor: '#0000FF'}}>
+                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
                                     <BookOpenCheck />
                                 </div>
                                 <h3 className="custom-card-title">User Progress</h3>
@@ -156,14 +179,16 @@ const A_Analytics = () => {
                                 </select>
                             </div>
                         </div>
-                        <div className="user-progress-split">
-                            <div className="user-progress-section">
-                                <p className="user-progress-label">Completed</p>
-                                <p className="custom-card-value" style={{ color: '#28a745' }}>{kpis.userProgress.completed}</p>
-                            </div>
-                            <div className="user-progress-section">
-                                <p className="user-progress-label">Pending</p>
-                                <p className="custom-card-value" style={{ color: '#fd7e14' }}>{kpis.userProgress.pending}</p>
+                        <div className='kpi-card-body'>
+                            <div className="user-progress-split">
+                                <div className="user-progress-section">
+                                    <p className="user-progress-label">Completed</p>
+                                    <p className="custom-card-value" style={{ color: '#28a745' }}>{kpis.userProgress.completed}</p>
+                                </div>
+                                <div className="user-progress-section">
+                                    <p className="user-progress-label">Pending</p>
+                                    <p className="custom-card-value" style={{ color: '#fd7e14' }}>{kpis.userProgress.pending}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -179,7 +204,7 @@ const A_Analytics = () => {
                                 <option value="yearly">Yearly</option>
                             </select>
                         </div>
-                        <ResponsiveContainer width="100%" height={180}>
+                        <ResponsiveContainer width="100%" height={400}>
                             <AreaChart data={engagementData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <defs><linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4e73df" stopOpacity={0.8}/><stop offset="95%" stopColor="#4e73df" stopOpacity={0}/></linearGradient></defs>
                                 <CartesianGrid strokeDasharray="3 3" />
@@ -208,7 +233,7 @@ const A_Analytics = () => {
                     {/* Assessment Tracker - Row 3 */}
                     <div className="analytics-paper assessment-tracker-card">
                          <h3 className="analytics-title">Training Module Assessment Tracker</h3>
-                        <ResponsiveContainer width="100%" height={180}>
+                        <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={assessmentTracker} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="title" />

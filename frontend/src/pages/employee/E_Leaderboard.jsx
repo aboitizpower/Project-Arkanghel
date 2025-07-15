@@ -8,6 +8,10 @@ const E_Leaderboard = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 10; // You can adjust this number
+
     useEffect(() => {
         const fetchLeaderboard = async () => {
             try {
@@ -24,17 +28,29 @@ const E_Leaderboard = () => {
         fetchLeaderboard();
     }, []);
 
+    // Get current users for pagination
+    const indexOfLastUser = currentPage * usersPerPage;
+    const indexOfFirstUser = indexOfLastUser - usersPerPage;
+    const currentUsers = leaderboardData.slice(indexOfFirstUser, indexOfLastUser);
+
+    // Change page
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
     return (
-        <div className="e-leaderboard-container">
+        <div className="page-layout">
             <EmployeeSidebar />
-            <main className="e-leaderboard-main-content">
+            <main className="leaderboard-main-content">
+                <div className="page-header">
+                    <h1 className="page-title">Leaderboard</h1>
+                </div>
+
                 {isLoading ? (
                     <div className="loading-message">Loading leaderboard...</div>
                 ) : error ? (
                     <div className="error-message">{error}</div>
                 ) : (
-                    <div className="leaderboard-table-container">
-                        <table>
+                    <div className="table-container">
+                        <table className="leaderboard-table">
                             <thead>
                                 <tr>
                                     <th>Rank</th>
@@ -44,9 +60,9 @@ const E_Leaderboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {leaderboardData.map((user, index) => (
+                                {currentUsers.map((user, index) => (
                                     <tr key={user.user_id}>
-                                        <td className="rank-cell">{index + 1}</td>
+                                        <td className="rank-cell">{indexOfFirstUser + index + 1}</td>
                                         <td className="user-cell">{`${user.first_name} ${user.last_name}`}</td>
                                         <td className="progress-cell">
                                             <div className="progress-bar-container">
@@ -68,6 +84,23 @@ const E_Leaderboard = () => {
                         </table>
                     </div>
                 )}
+                <div className="pagination-controls">
+                            <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+                                &laquo;
+                            </button>
+                            {Array.from({ length: Math.ceil(leaderboardData.length / usersPerPage) }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    onClick={() => paginate(i + 1)}
+                                    className={currentPage === i + 1 ? 'active' : ''}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(leaderboardData.length / usersPerPage)}>
+                                &raquo;
+                            </button>
+                </div>
             </main>
         </div>
     );

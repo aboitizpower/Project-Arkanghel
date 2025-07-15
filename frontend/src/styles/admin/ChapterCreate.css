@@ -25,7 +25,7 @@ body,
 }
 
 .chapter-create-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0rem;
 }
 
 .back-button {
@@ -143,8 +143,6 @@ textarea.form-control {
 .form-actions {
     display: flex;
     gap: 1rem;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
     border-top: 1px solid #e5e7eb;
 }
 

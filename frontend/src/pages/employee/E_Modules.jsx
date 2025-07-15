@@ -281,6 +281,7 @@ const E_Modules = () => {
     };
 
     const renderWorkstreamView = () => {
+        const totalPages = Math.ceil(workstreams.length / workstreamsPerPage);
         const startIndex = (currentPage - 1) * workstreamsPerPage;
         const endIndex = startIndex + workstreamsPerPage;
         const currentWorkstreams = workstreams.slice(startIndex, endIndex);
@@ -336,25 +337,35 @@ const E_Modules = () => {
                 </div>
 
                 {/* Pagination Controls */}
-                <div className="pagination-controls">
-                    <button 
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="pagination-btn"
-                    >
-                        <FaChevronLeft /> Previous
-                    </button>
-                    <span className="page-info">
-                        Page {currentPage} of {Math.ceil(workstreams.length / workstreamsPerPage)}
-                    </span>
-                    <button 
-                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(workstreams.length / workstreamsPerPage), prev + 1))}
-                        disabled={currentPage === Math.ceil(workstreams.length / workstreamsPerPage)}
-                        className="pagination-btn"
-                    >
-                        Next <FaChevronRight />
-                    </button>
-                </div>
+                {totalPages > 1 && (
+                    <div className="pagination-wrapper">
+                        <div className="pagination-container">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="pagination-btn"
+                            >
+                                &laquo;
+                            </button>
+                            {[...Array(totalPages).keys()].map(number => (
+                                <button
+                                    key={number + 1}
+                                    onClick={() => setCurrentPage(number + 1)}
+                                    className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
+                                >
+                                    {number + 1}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="pagination-btn"
+                            >
+                                &raquo;
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -490,7 +501,7 @@ const E_Modules = () => {
     return (
         <div className="e-modules-page">
             {!selectedWorkstream && <EmployeeSidebar />}
-            <main className={`main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
+            <main className={`modules-main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
                 {error && <p className="error-message">{error}</p>}
                 {isLoading && <p>Loading...</p>}
                 {!isLoading && !error && (

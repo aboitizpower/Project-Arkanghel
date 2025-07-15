@@ -1,10 +1,22 @@
+/* E_Modules.css */
+.e-modules-page {
+  display: flex;
+  min-height: 100vh;
+}
+
+.modules-main-content {
+  flex: 1;
+  overflow-y: hidden;
+  background-color: #f4f7f6; /* Match background */
+  padding: 0 !important; /* Override any inherited padding */
+}
+
 .page-container {
-    padding: 2rem;
-    background-color: #f4f7f6;
+    padding: 1rem; /* Remove padding from the container */
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Allow page-container to grow and fill space */
-    height: 100%; /* Ensure it takes full available height */
+    flex-grow: 1;
+    height: 95%;
 }
 
 .error-message {
@@ -66,7 +78,8 @@
 .grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
+    gap: 1.5rem;
+    padding: 1.5rem;
 }
 
 .card {
@@ -297,7 +310,7 @@
     /* Original padding will be inherited from .card-ws-content */
 }
 
-.progress-bar-container {
+.card-ws-content .progress-bar-container {
     height: 8px;
     background-color: #e9ecef;
     border-radius: 6px;
@@ -368,6 +381,7 @@
     background-color: #f4f7f9;
     display: flex; /* Make main-content a flex container */
     flex-direction: column; /* Arrange children in a column */
+    padding: 0rem;
 }
 
 .main-content.module-view-active {
@@ -611,47 +625,49 @@
 }
 
 .final-assessment-nav-section {
-    padding: 1rem;
-    border-top: 1px solid #e9ecef;
-    margin-top: auto; /* Pushes it to the bottom */
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+    margin-top: 1rem;
 }
 
-/* Pagination Controls */
-.pagination-controls {
-    display: flex;
-    justify-content: flex-end; /* Align to the right */
-    align-items: center;
-    margin-top: auto; /* Push to the bottom */
-    gap: 1rem;
-    padding-right: 0.8rem; 
-    padding-bottom: 2rem; /* Add some padding from the very bottom edge */
+.pagination-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding: 0;
+}
+
+.pagination-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .pagination-btn {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 0.6rem 1rem; /* Slightly reduced horizontal padding for buttons */
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  background: #f1f5f9;
+  color: #2563eb;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(59,130,246,0.04);
 }
 
-.pagination-btn:hover:not(:disabled) {
-    background-color: #0056b3;
+.pagination-btn:hover:not(:disabled), .pagination-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.12);
 }
 
 .pagination-btn:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-.page-info {
-    font-size: 1rem;
-    color: #333;
-    font-weight: 500;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
