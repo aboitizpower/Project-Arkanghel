@@ -286,6 +286,10 @@ const E_Modules = () => {
         const endIndex = startIndex + workstreamsPerPage;
         const currentWorkstreams = workstreams.slice(startIndex, endIndex);
 
+        if (workstreams.length === 0) {
+            return <p className="no-workstreams-message">No workstreams assigned to you. Please contact your administrator.</p>;
+        }
+
         return (
             <div className="page-container">
                 <div className="grid-container-ws">
@@ -503,7 +507,6 @@ const E_Modules = () => {
             {!selectedWorkstream && <EmployeeSidebar />}
             <main className={`modules-main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
                 {error && <p className="error-message">{error}</p>}
-                {isLoading && <p>Loading...</p>}
                 {!isLoading && !error && (
                     selectedWorkstream ? renderModuleView() : renderWorkstreamView()
                 )}

@@ -40,8 +40,12 @@ const E_Dashboard = () => {
     <div className="employee-dashboard-page">
       <EmployeeSidebar />
       <main className="main-content">
-        {loading && <p>Loading...</p>}
+        
         {error && <p className="error-message">{error}</p>}
+        
+        {!loading && !error && dashboardData.workstreams.length === 0 && (
+          <p className="no-workstreams-message">No workstreams assigned to you. Please contact your administrator.</p>
+        )}
         
         {!loading && !error && (
           <>

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../App";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import "../styles/Auth.css";
@@ -35,6 +37,7 @@ const Login = () => {
   const [isError, setIsError] = useState(false);
   const [animateOut, setAnimateOut] = useState(false);
   const navigate = useNavigate();
+  const authContext = useContext(AuthContext);
 
   const handleRegisterClick = () => {
     setAnimateOut(true);
@@ -74,6 +77,14 @@ const Login = () => {
                   isAdmin: result.user.isAdmin
                 }));
                 localStorage.setItem('userId', result.user.user_id);
+                if (authContext && authContext.setUser) {
+                  authContext.setUser({
+                    first_name: result.user.first_name,
+                    last_name: result.user.last_name,
+                    email: result.user.email,
+                    isAdmin: result.user.isAdmin
+                  });
+                }
               }
               if (result.user && result.user.isAdmin) {
                 setTimeout(() => {

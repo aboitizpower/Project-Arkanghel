@@ -1,7 +1,7 @@
 import React from 'react';
 import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle, FaArrowLeft } from 'react-icons/fa';
 import '../styles/EmployeeSidebar.css';
 
 const EmployeeSidebar = () => {
@@ -10,12 +10,22 @@ const EmployeeSidebar = () => {
   try {
     user = JSON.parse(localStorage.getItem('user'));
   } catch (e) {}
-  const fullName = user ? `${user.first_name} ${user.last_name}` : '';
+  let firstName = user && user.first_name ? user.first_name : '';
+  let lastName = user && user.last_name ? user.last_name : '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const fallbackName = user ? (user.email || 'User') : 'User';
+  const displayName = fullName || fallbackName;
   const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : '';
 
   const handleLogout = () => {
     localStorage.removeItem('user');
     navigate('/');
+  };
+
+  // Show 'Back to Admin Pages' if user is admin
+  const isAdmin = user && user.isAdmin;
+  const handleBackToAdmin = () => {
+    navigate('/admin/analytics');
   };
 
   return (
@@ -48,17 +58,33 @@ const EmployeeSidebar = () => {
           </li>
         </ul>
       </div>
-      <div className="sidebar-footer">
-        <div className="sidebar-avatar-name">
-  <div className="sidebar-avatar">{initials || <FaUserCircle />}</div>
-  <div className="sidebar-user-info">
-    <div className="sidebar-user-name">{fullName}</div>
-    <div className="sidebar-role">Employee</div>
-  </div>
-</div>
-        <button className="sidebar-logout-btn" onClick={handleLogout}>
-          <FaSignOutAlt className="sidebar-icon" /> Logout
-        </button>
+      <div className="sidebar-footer" style={{ marginTop: 'auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 0, marginTop: 0, gap: 10, justifyContent: 'center' }}>
+          <div className="sidebar-avatar" style={{ marginBottom: 0 }}>{initials || <FaUserCircle />}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: '1.08rem', textAlign: 'left', lineHeight: 1, color: '#254EDB', marginBottom: 8 }}>{displayName}</div>
+            <div style={{ fontSize: '0.93rem', color: isAdmin ? '#2563eb' : '#b0b8c9', fontWeight: 500, marginTop: 0, marginBottom: 0, textAlign: 'left', lineHeight: 1 }}>{isAdmin ? 'Admin' : 'Employee'}</div>
+          </div>
+        </div>
+        <hr style={{ width: '100%', margin: '12px 0 10px 0', border: 0, borderTop: '1px solid #e5e7eb' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          {isAdmin && (
+            <button
+              className="sidebar-logout-btn sidebar-footer-btn"
+              style={{ fontSize: '0.93rem', padding: '0.5em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={handleBackToAdmin}
+            >
+              <FaArrowLeft className="sidebar-icon" style={{ fontSize: '1em' }} /> Back to Admin Pages
+            </button>
+          )}
+          <button
+            className="sidebar-logout-btn sidebar-footer-btn"
+            style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={handleLogout}
+          >
+            <FaSignOutAlt className="sidebar-icon" style={{ fontSize: '1.1em' }} /> Logout
+          </button>
+        </div>
       </div>
       
     </nav>

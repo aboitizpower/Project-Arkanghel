@@ -126,7 +126,15 @@ app.get('/workstreams', (req, res) => {
             w.image_type, 
             w.created_at, 
             w.is_published,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) AS chapters_count
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) AS chapters_count,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
+            (
+                SELECT COUNT(DISTINCT a.assessment_id) 
+                FROM assessments a
+                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+            ) as assessments_count,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
     `;
     db.query(sql, (err, results) => {
@@ -1302,79 +1310,95 @@ app.get('/employee/workstreams', (req, res) => {
         return res.status(400).json({ error: 'User ID is required.' });
     }
 
-    const workstreamsSql = `
-        SELECT 
-            w.workstream_id, w.title, w.description, w.image_type,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) as chapters_count,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
-            (
-                SELECT COUNT(DISTINCT a.assessment_id) 
-                FROM assessments a
-                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-                WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
-            ) as assessments_count,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
-        FROM workstreams w
-        WHERE w.is_published = TRUE
-    `;
-    
-    db.query(workstreamsSql, (err, workstreams) => {
-        if (err) {
-            console.error('Error fetching employee workstreams:', err);
-            return res.status(500).json({ error: err.message });
+    // First, get the allowed workstream IDs for this user
+    const permissionsSql = 'SELECT workstream_id FROM user_workstream_permissions WHERE user_id = ?';
+    db.query(permissionsSql, [userId], (permErr, permResults) => {
+        if (permErr) {
+            console.error('Error fetching user workstream permissions:', permErr);
+            return res.status(500).json({ error: 'Failed to fetch user permissions.' });
         }
-        const workstreamIds = workstreams.map(ws => ws.workstream_id);
-        const progressSql = `
-            SELECT
-                mc.workstream_id,
-                COUNT(DISTINCT up.chapter_id) AS completed_chapters,
-                COUNT(DISTINCT CASE WHEN mc.title NOT LIKE '%Final Assessment%' THEN up.chapter_id ELSE NULL END) AS completed_regular_chapters
-            FROM user_progress up
-            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
-            WHERE up.user_id = ? AND mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
-            GROUP BY mc.workstream_id
+        let workstreamFilter = '';
+        let filterValues = [];
+        if (permResults.length > 0) {
+            // Restrict to only allowed workstreams
+            const allowedIds = permResults.map(r => r.workstream_id);
+            workstreamFilter = 'AND w.workstream_id IN (?)';
+            filterValues = [allowedIds];
+        }
+        const workstreamsSql = `
+            SELECT 
+                w.workstream_id, w.title, w.description, w.image_type,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) as chapters_count,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
+                (
+                    SELECT COUNT(DISTINCT a.assessment_id) 
+                    FROM assessments a
+                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                    WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+                ) as assessments_count,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
+            FROM workstreams w
+            WHERE w.is_published = TRUE ${workstreamFilter}
         `;
-
-        db.query(progressSql, [userId, workstreamIds], (progressErr, progressResults) => {
-            if (progressErr) {
-                console.error('Error fetching user progress:', progressErr);
-                return res.status(500).json({ error: 'Failed to fetch user progress.' });
+        db.query(workstreamsSql, filterValues, (err, workstreams) => {
+            if (err) {
+                console.error('Error fetching employee workstreams:', err);
+                return res.status(500).json({ error: err.message });
             }
+            const workstreamIds = workstreams.map(ws => ws.workstream_id);
+            if (workstreamIds.length === 0) return res.json([]);
+            const progressSql = `
+                SELECT
+                    mc.workstream_id,
+                    COUNT(DISTINCT up.chapter_id) AS completed_chapters,
+                    COUNT(DISTINCT CASE WHEN mc.title NOT LIKE '%Final Assessment%' THEN up.chapter_id ELSE NULL END) AS completed_regular_chapters
+                FROM user_progress up
+                JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                WHERE up.user_id = ? AND mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
+                GROUP BY mc.workstream_id
+            `;
 
-            const progressMap = progressResults.reduce((map, row) => {
-                map[row.workstream_id] = {
-                    completed_chapters: row.completed_chapters,
-                    completed_regular_chapters: row.completed_regular_chapters
-                };
-                return map;
-            }, {});
-
-            const workstreamsWithProgress = workstreams.map(ws => {
-                const completedChapters = progressMap[ws.workstream_id]?.completed_chapters || 0;
-                const completedRegularChapters = progressMap[ws.workstream_id]?.completed_regular_chapters || 0;
-                const totalChapters = ws.chapters_count;
-                const regularTotalChapters = ws.regular_chapters_count;
-                const hasFinalAssessment = ws.has_final_assessment > 0;
-                
-                let progress;
-                if (!hasFinalAssessment) {
-                    progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
-                } else {
-                    progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
+            db.query(progressSql, [userId, workstreamIds], (progressErr, progressResults) => {
+                if (progressErr) {
+                    console.error('Error fetching user progress:', progressErr);
+                    return res.status(500).json({ error: 'Failed to fetch user progress.' });
                 }
-                
-                const allRegularChaptersCompleted = regularTotalChapters > 0 && completedRegularChapters >= regularTotalChapters;
 
-                return {
-                    ...ws,
-                    progress: progress,
-                    completed_chapters_count: completedChapters,
-                    has_final_assessment: hasFinalAssessment,
-                    all_regular_chapters_completed: allRegularChaptersCompleted
-                };
+                const progressMap = progressResults.reduce((map, row) => {
+                    map[row.workstream_id] = {
+                        completed_chapters: row.completed_chapters,
+                        completed_regular_chapters: row.completed_regular_chapters
+                    };
+                    return map;
+                }, {});
+
+                const workstreamsWithProgress = workstreams.map(ws => {
+                    const completedChapters = progressMap[ws.workstream_id]?.completed_chapters || 0;
+                    const completedRegularChapters = progressMap[ws.workstream_id]?.completed_regular_chapters || 0;
+                    const totalChapters = ws.chapters_count;
+                    const regularTotalChapters = ws.regular_chapters_count;
+                    const hasFinalAssessment = ws.has_final_assessment > 0;
+                    
+                    let progress;
+                    if (!hasFinalAssessment) {
+                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
+                    } else {
+                        progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
+                    }
+                    
+                    const allRegularChaptersCompleted = regularTotalChapters > 0 && completedRegularChapters >= regularTotalChapters;
+
+                    return {
+                        ...ws,
+                        progress: progress,
+                        completed_chapters_count: completedChapters,
+                        has_final_assessment: hasFinalAssessment,
+                        all_regular_chapters_completed: allRegularChaptersCompleted
+                    };
+                });
+                
+                res.json(workstreamsWithProgress);
             });
-            
-            res.json(workstreamsWithProgress);
         });
     });
 });
@@ -1810,88 +1834,107 @@ app.get('/employee/dashboard/:userId', (req, res) => {
         return res.status(400).json({ error: 'User ID is required.' });
     }
 
-    const workstreamsSql = `
-        SELECT 
-            w.workstream_id, w.title, w.description, w.image_type,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) as chapters_count,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
-            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
-        FROM workstreams w
-        WHERE w.is_published = TRUE
-    `;
-
-    db.query(workstreamsSql, (err, workstreams) => {
-        if (err) {
-            console.error('Error fetching dashboard workstreams:', err);
-            return res.status(500).json({ error: 'Failed to fetch workstreams for dashboard.' });
+    // First, get the allowed workstream IDs for this user
+    const permissionsSql = 'SELECT workstream_id FROM user_workstream_permissions WHERE user_id = ?';
+    db.query(permissionsSql, [userId], (permErr, permResults) => {
+        if (permErr) {
+            console.error('Error fetching user workstream permissions:', permErr);
+            return res.status(500).json({ error: 'Failed to fetch user permissions.' });
         }
-
-        if (workstreams.length === 0) {
-            return res.json({ kpis: { completed: 0, pending: 0 }, workstreams: [] });
+        let workstreamFilter = '';
+        let filterValues = [];
+        if (permResults.length > 0) {
+            // Restrict to only allowed workstreams
+            const allowedIds = permResults.map(r => r.workstream_id);
+            workstreamFilter = 'AND w.workstream_id IN (?)';
+            filterValues = [allowedIds];
         }
-
-        const workstreamIds = workstreams.map(ws => ws.workstream_id);
-        const progressSql = `
-            SELECT
-                mc.workstream_id,
-                COUNT(DISTINCT up.chapter_id) AS completed_chapters,
-                COUNT(DISTINCT CASE WHEN mc.title NOT LIKE '%Final Assessment%' THEN up.chapter_id ELSE NULL END) AS completed_regular_chapters
-            FROM user_progress up
-            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
-            WHERE up.user_id = ? AND mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
-            GROUP BY mc.workstream_id
+        const workstreamsSql = `
+            SELECT 
+                w.workstream_id, w.title, w.description, w.image_type,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) as chapters_count,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
+                (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
+            FROM workstreams w
+            WHERE w.is_published = TRUE ${workstreamFilter}
         `;
 
-        db.query(progressSql, [userId, workstreamIds], (progressErr, progressResults) => {
-            if (progressErr) {
-                console.error('Error fetching user progress for dashboard:', progressErr);
-                return res.status(500).json({ error: 'Failed to fetch user progress.' });
+        db.query(workstreamsSql, filterValues, (err, workstreams) => {
+            if (err) {
+                console.error('Error fetching dashboard workstreams:', err);
+                return res.status(500).json({ error: 'Failed to fetch workstreams for dashboard.' });
             }
 
-            const progressMap = progressResults.reduce((map, row) => {
-                map[row.workstream_id] = {
-                    completed_chapters: row.completed_chapters,
-                    completed_regular_chapters: row.completed_regular_chapters
-                };
-                return map;
-            }, {});
-            
-            let completedCount = 0;
-            
-            const workstreamsWithProgress = workstreams.map(ws => {
-                const completedChapters = progressMap[ws.workstream_id]?.completed_chapters || 0;
-                const completedRegularChapters = progressMap[ws.workstream_id]?.completed_regular_chapters || 0;
-                const totalChapters = ws.chapters_count;
-                const regularTotalChapters = ws.regular_chapters_count;
-                const hasFinalAssessment = ws.has_final_assessment > 0;
+            if (workstreams.length === 0) {
+                return res.json({ kpis: { completed: 0, pending: 0 }, workstreams: [] });
+            }
+
+            const workstreamIds = workstreams.map(ws => ws.workstream_id);
+            if (workstreamIds.length === 0) {
+                return res.json({ kpis: { completed: 0, pending: 0 }, workstreams: [] });
+            }
+            const progressSql = `
+                SELECT
+                    mc.workstream_id,
+                    COUNT(DISTINCT up.chapter_id) AS completed_chapters,
+                    COUNT(DISTINCT CASE WHEN mc.title NOT LIKE '%Final Assessment%' THEN up.chapter_id ELSE NULL END) AS completed_regular_chapters
+                FROM user_progress up
+                JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                WHERE up.user_id = ? AND mc.workstream_id IN (?) AND up.is_completed = TRUE AND mc.is_published = TRUE
+                GROUP BY mc.workstream_id
+            `;
+
+            db.query(progressSql, [userId, workstreamIds], (progressErr, progressResults) => {
+                if (progressErr) {
+                    console.error('Error fetching user progress for dashboard:', progressErr);
+                    return res.status(500).json({ error: 'Failed to fetch user progress.' });
+                }
+
+                const progressMap = progressResults.reduce((map, row) => {
+                    map[row.workstream_id] = {
+                        completed_chapters: row.completed_chapters,
+                        completed_regular_chapters: row.completed_regular_chapters
+                    };
+                    return map;
+                }, {});
                 
-                let progress;
-                if (!hasFinalAssessment) {
-                    progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
-                } else {
-                    progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
-                }
+                let completedCount = 0;
+                
+                const workstreamsWithProgress = workstreams.map(ws => {
+                    const completedChapters = progressMap[ws.workstream_id]?.completed_chapters || 0;
+                    const completedRegularChapters = progressMap[ws.workstream_id]?.completed_regular_chapters || 0;
+                    const totalChapters = ws.chapters_count;
+                    const regularTotalChapters = ws.regular_chapters_count;
+                    const hasFinalAssessment = ws.has_final_assessment > 0;
+                    
+                    let progress;
+                    if (!hasFinalAssessment) {
+                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
+                    } else {
+                        progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
+                    }
 
-                if (progress >= 100) {
-                    completedCount++;
-                }
+                    if (progress >= 100) {
+                        completedCount++;
+                    }
 
-                return {
-                    ...ws,
-                    total_chapters: ws.chapters_count,
-                    progress: progress,
-                    image_url: ws.image_type ? `/workstreams/${ws.workstream_id}/image` : null
-                };
-            });
-            
-            const pendingCount = workstreams.length - completedCount;
+                    return {
+                        ...ws,
+                        total_chapters: ws.chapters_count,
+                        progress: progress,
+                        image_url: ws.image_type ? `/workstreams/${ws.workstream_id}/image` : null
+                    };
+                });
+                
+                const pendingCount = workstreams.length - completedCount;
 
-            res.json({
-                kpis: {
-                    completed: completedCount,
-                    pending: pendingCount
-                },
-                workstreams: workstreamsWithProgress
+                res.json({
+                    kpis: {
+                        completed: completedCount,
+                        pending: pendingCount
+                    },
+                    workstreams: workstreamsWithProgress
+                });
             });
         });
     });
