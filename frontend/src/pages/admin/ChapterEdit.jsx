@@ -114,8 +114,8 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                   <div className="inline-edit-content">
                     <input type="text" value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} className="inline-input" />
                     <div className="inline-edit-actions">
-                      <button className="btn-cancel" onClick={() => handleCancel('title')}><FaTimes /> Cancel</button>
                       <button className="btn-save" onClick={() => handleSave('title')} disabled={isSubmitting}><FaSave /> Save</button>
+                      <button className="btn-cancel" onClick={() => handleCancel('title')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
                 ) : <p>{chapter.title}</p>}
@@ -131,8 +131,8 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                   <div className="inline-edit-content">
                     <textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="inline-textarea" />
                     <div className="inline-edit-actions">
-                      <button className="btn-cancel" onClick={() => handleCancel('content')}><FaTimes /> Cancel</button>
                       <button className="btn-save" onClick={() => handleSave('content')} disabled={isSubmitting}><FaSave /> Save</button>
+                      <button className="btn-cancel" onClick={() => handleCancel('content')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
                 ) : <p>{chapter.content || 'No description provided.'}</p>}
@@ -152,8 +152,8 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                   <div className="inline-edit-content">
                     <input type="file" accept="video/*" onChange={(e) => setNewVideo(e.target.files[0])} className="inline-input-file" />
                     <div className="inline-edit-actions">
-                      <button className="btn-cancel" onClick={() => handleCancel('video')}><FaTimes /> Cancel</button>
                       <button className="btn-save" onClick={() => handleSave('video')} disabled={!newVideo || isSubmitting}><FaSave /> Save</button>
+                      <button className="btn-cancel" onClick={() => handleCancel('video')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -173,8 +173,8 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                   <div className="inline-edit-content">
                     <input type="file" accept=".pdf" onChange={(e) => setNewPdf(e.target.files[0])} className="inline-input-file" />
                     <div className="inline-edit-actions">
-                      <button className="btn-cancel" onClick={() => handleCancel('pdf')}><FaTimes /> Cancel</button>
                       <button className="btn-save" onClick={() => handleSave('pdf')} disabled={!newPdf || isSubmitting}><FaSave /> Save</button>
+                      <button className="btn-cancel" onClick={() => handleCancel('pdf')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
                 ) : (

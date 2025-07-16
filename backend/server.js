@@ -643,6 +643,120 @@ app.get('/chapters/:chapter_id/assessments', (req, res) => {
     });
 });
 
+// Create Assessment for a Workstream
+app.post('/workstreams/:workstream_id/assessments', (req, res) => {
+    const { workstream_id } = req.params;
+    const { title, description, questions, chapter_id } = req.body;
+    const total_points = (questions && questions.length) ? questions.length : 0;
+
+    if (!title) {
+        return res.status(400).json({ error: 'Title is required.' });
+    }
+
+    db.beginTransaction(err => {
+        if (err) {
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error.' });
+        }
+
+        const createAssessmentAndQuestions = (targetChapterId) => {
+            const assessmentSql = 'INSERT INTO assessments (chapter_id, title, total_points) VALUES (?, ?, ?)';
+            db.query(assessmentSql, [targetChapterId, title, total_points], (err, result) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error creating assessment:', err);
+                        res.status(500).json({ error: 'Database error while creating assessment.' });
+                    });
+                }
+
+                const newAssessmentId = result.insertId;
+
+                if (questions && questions.length > 0) {
+                    const questionInsertSql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES ?';
+                    const questionValues = questions.map(q => [
+                        newAssessmentId, 
+                        q.question, 
+                        q.type || 'multiple', 
+                        q.correct_answer, 
+                        JSON.stringify(q.options || null)
+                    ]);
+
+                    db.query(questionInsertSql, [questionValues], (err, questionResult) => {
+                        if (err) {
+                            return db.rollback(() => {
+                                console.error('Error creating questions:', err);
+                                res.status(500).json({ error: 'Database error while creating questions.' });
+                            });
+                        }
+                        db.commit(err => {
+                            if (err) { return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' })); }
+                            res.status(201).json({ success: 'Assessment and questions created', assessment_id: newAssessmentId });
+                        });
+                    });
+                } else {
+                    db.commit(err => {
+                        if (err) { return db.rollback(() => res.status(500).json({ error: 'Database error on commit.' })); }
+                        res.status(201).json({ success: 'Assessment created', assessment_id: newAssessmentId });
+                    });
+                }
+            });
+        };
+
+        if (chapter_id) {
+            // Create assessment for existing chapter
+            createAssessmentAndQuestions(chapter_id);
+        } else {
+            // Create a new chapter for the assessment
+            const chapterSql = 'INSERT INTO module_chapters (workstream_id, title, content, is_published, order_index) VALUES (?, ?, ?, ?, ?)';
+            const chapterTitle = `Assessment: ${title}`;
+            const chapterContent = description || 'This chapter contains an assessment.';
+            
+            // Get the highest order_index for this workstream
+            const getMaxOrderSql = 'SELECT COALESCE(MAX(order_index), 0) as max_order FROM module_chapters WHERE workstream_id = ?';
+            db.query(getMaxOrderSql, [workstream_id], (err, orderResult) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error getting max order:', err);
+                        res.status(500).json({ error: 'Database error while getting chapter order.' });
+                    });
+                }
+                
+                const newOrderIndex = (orderResult[0].max_order || 0) + 1;
+                
+                db.query(chapterSql, [workstream_id, chapterTitle, chapterContent, true, newOrderIndex], (err, result) => {
+                    if (err) {
+                        return db.rollback(() => {
+                            console.error('Error creating chapter for assessment:', err);
+                            res.status(500).json({ error: 'Failed to create chapter for assessment.' });
+                        });
+                    }
+                    const newChapterId = result.insertId;
+                    createAssessmentAndQuestions(newChapterId);
+                });
+            });
+        }
+    });
+});
+
+// Get all assessments for a workstream
+app.get('/workstreams/:workstream_id/assessments', (req, res) => {
+    const { workstream_id } = req.params;
+    const sql = `
+        SELECT a.assessment_id, a.chapter_id, a.title, a.total_points, mc.title as chapter_title
+        FROM assessments a
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        WHERE mc.workstream_id = ?
+        ORDER BY mc.order_index ASC, a.assessment_id ASC
+    `;
+    db.query(sql, [workstream_id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching assessments for workstream ${workstream_id}:`, err);
+            return res.status(500).json({ error: 'Failed to fetch assessments.' });
+        }
+        res.json(results);
+    });
+});
+
 // Update a chapter's text details
 app.put('/chapters/:id/details', (req, res) => {
     const { id } = req.params;

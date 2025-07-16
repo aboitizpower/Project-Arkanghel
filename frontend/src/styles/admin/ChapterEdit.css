@@ -73,24 +73,26 @@
 
 .edit-card-modern {
   background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 2rem 2.5rem 1.5rem 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .edit-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eee;
+  padding: 0 0 1rem 0;
+  border-bottom: none;
 }
 
 .edit-card-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  color: #4a5568;
+  color: #22223b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   display: flex;
@@ -110,7 +112,7 @@
 }
 
 .edit-card-body {
-  padding: 1.5rem;
+  padding: 0;
 }
 
 .edit-card-body p {
@@ -149,36 +151,55 @@
 }
 
 .inline-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 1rem !important;
+  margin-top: 1.5rem !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+  margin-left: 0 !important;
 }
 
-.btn-save, .btn-cancel {
-  padding: 0.5rem 1rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.inline-edit-content,
+.edit-card-body {
+  display: block !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
 }
 
 .btn-save {
-  background-color: #007bff;
-  color: white;
+  background-color: #2563eb !important;
+  color: #fff;
+  border: none;
+  min-width: 110px;
+  padding: 0.85rem 1.5rem;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
 }
 
 .btn-save:disabled {
   background-color: #a0cfff;
+  color: #fff;
   cursor: not-allowed;
 }
 
 .btn-cancel {
-  background-color: #f1f1f1;
-  color: #333;
-  border-color: #ddd;
+  background-color: #656d78;
+  color: #fff;
+  border: none;
+  min-width: 110px;
+  padding: 0.85rem 1.5rem;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
 }
 
 .video-preview {

@@ -227,6 +227,16 @@ const WorkstreamEdit = () => {
   }
 
   if (selectedChapter) {
+    const handleChapterUpdated = async () => {
+      // Fetch the updated chapter data
+      try {
+        const res = await axios.get(`${API_URL}/chapters/${selectedChapter.chapter_id}`);
+        setSelectedChapter(res.data);
+        fetchWorkstream();
+      } catch (err) {
+        fetchWorkstream(); // fallback
+      }
+    };
     return (
       <div className="workstream-edit-container">
         <AdminSidebar />
@@ -234,10 +244,7 @@ const WorkstreamEdit = () => {
           <ChapterEdit 
             chapter={selectedChapter} 
             onCancel={() => setSelectedChapter(null)} 
-            onUpdated={() => {
-              setSelectedChapter(null);
-              fetchWorkstream();
-            }}
+            onUpdated={handleChapterUpdated}
           />
         </main>
       </div>
