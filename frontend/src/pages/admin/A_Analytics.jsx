@@ -15,6 +15,7 @@ const A_Analytics = () => {
     const [topUsers, setTopUsers] = useState([]);
     const [assessmentTracker, setAssessmentTracker] = useState([]);
     const [criticalAreas, setCriticalAreas] = useState([]);
+    const [userName, setUserName] = useState('');
     const [workstreams, setWorkstreams] = useState([]);
     
     const [loading, setLoading] = useState(true);
@@ -93,6 +94,10 @@ const A_Analytics = () => {
     }
 
     useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user.first_name) {
+            setUserName(user.first_name);
+        }
         const fetchAllData = async () => {
             setLoading(true);
             try {
@@ -135,6 +140,7 @@ const A_Analytics = () => {
         <div className="analytics-container">
             <AdminSidebar />
             <main className="analytics-main">
+                <h1 className="welcome-header">Welcome, {userName}!</h1>
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
                     <div className="custom-card kpi-card">
@@ -204,7 +210,7 @@ const A_Analytics = () => {
                                 <option value="yearly">Yearly</option>
                             </select>
                         </div>
-                        <ResponsiveContainer width="100%" height={400}>
+                        <ResponsiveContainer width="100%" height={320}>
                             <AreaChart data={engagementData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <defs><linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4e73df" stopOpacity={0.8}/><stop offset="95%" stopColor="#4e73df" stopOpacity={0}/></linearGradient></defs>
                                 <CartesianGrid strokeDasharray="3 3" />

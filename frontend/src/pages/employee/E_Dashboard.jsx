@@ -10,6 +10,7 @@ const E_Dashboard = () => {
   const [dashboardData, setDashboardData] = useState({ kpis: {}, workstreams: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userName, setUserName] = useState('');
   const userId = localStorage.getItem('userId');
 
   // Pagination state
@@ -17,6 +18,10 @@ const E_Dashboard = () => {
   const workstreamsPerPage = 8;
 
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.first_name) {
+        setUserName(user.first_name);
+    }
     if (userId) {
       const fetchDashboardData = async () => {
         try {
@@ -40,6 +45,7 @@ const E_Dashboard = () => {
     <div className="employee-dashboard-page">
       <EmployeeSidebar />
       <main className="main-content">
+        <h1 className="welcome-header">Welcome, {userName}!</h1>
         
         {error && <p className="error-message">{error}</p>}
         
@@ -85,13 +91,19 @@ const E_Dashboard = () => {
                                 <div className="workstream-card-content">
                                     <h3>{ws.title}</h3>
                                     <p>{ws.total_chapters} Modules</p>
-                                    <div className="progress-bar-container">
-                                        <div 
-                                            className="progress-bar"
-                                            style={{ width: `${ws.progress}%`}}
-                                        ></div>
-                                    </div>
-                                    <p className="progress-text">{Math.round(ws.progress)}% Complete</p>
+                                    {ws.total_chapters > 0 ? (
+                                        <>
+                                            <div className="progress-bar-container">
+                                                <div 
+                                                    className="progress-bar"
+                                                    style={{ width: `${ws.progress}%`}}
+                                                ></div>
+                                            </div>
+                                            <p className="progress-text">{Math.round(ws.progress)}% Complete</p>
+                                        </>
+                                    ) : (
+                                        <p className="no-content-text">No content available</p>
+                                    )}
                                 </div>
                             </div>
                         ))}

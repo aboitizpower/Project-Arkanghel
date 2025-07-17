@@ -6,6 +6,9 @@ import '../../styles/admin/A_Leaderboard.css';
 
 const A_Leaderboard = () => {
     const [leaderboardData, setLeaderboardData] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const usersPerPage = 10;
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [workstreams, setWorkstreams] = useState([]);
@@ -18,6 +21,7 @@ const A_Leaderboard = () => {
             try {
                 const response = await axios.get('http://localhost:8081/leaderboard');
                 setLeaderboardData(response.data);
+                console.log("Leaderboard data:", response.data);
             } catch (err) {
                 setError('Failed to fetch leaderboard data. Please try again later.');
                 console.error('Error fetching leaderboard:', err);
@@ -47,6 +51,11 @@ const A_Leaderboard = () => {
         // In real app, backend should support this
         // For now, skip this filter unless you add workstream info to leaderboardData
     }
+
+    // Pagination logic: slice filtered users for current page
+    const indexOfLastUser = currentPage * usersPerPage;
+    const indexOfFirstUser = indexOfLastUser - usersPerPage;
+    const currentUsers = filtered.slice(indexOfFirstUser, indexOfLastUser);
 
     return (
         <div className="admin-layout">
@@ -96,9 +105,9 @@ const A_Leaderboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((user, index) => (
+                                {currentUsers.map((user, idx) => (
                                     <tr key={user.user_id} className={user.user_id === currentUserId ? 'highlight-row' : ''}>
-                                        <td className="rank-cell">{index + 1}</td>
+                                        <td className="rank-cell">{indexOfFirstUser + idx + 1}</td>
                                         <td className="user-cell">{`${user.first_name} ${user.last_name}`}</td>
                                         <td className="progress-cell">
                                             <div className="progress-bar-container">
@@ -118,6 +127,33 @@ const A_Leaderboard = () => {
                                 ))}
                             </tbody>
                         </table>
+                        <div className="pagination-wrapper">
+                          <div className="pagination-container">
+                            <button
+                              className="pagination-btn"
+                              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                              disabled={currentPage === 1}
+                            >
+                              &laquo;
+                            </button>
+                            {Array.from({ length: Math.ceil(filtered.length / usersPerPage) }, (_, i) => (
+                              <button
+                                key={i + 1}
+                                onClick={() => setCurrentPage(i + 1)}
+                                className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
+                              >
+                                {i + 1}
+                              </button>
+                            ))}
+                            <button
+                              className="pagination-btn"
+                              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filtered.length / usersPerPage), prev + 1))}
+                              disabled={currentPage === Math.ceil(filtered.length / usersPerPage)}
+                            >
+                              &raquo;
+                            </button>
+                          </div>
+                        </div>
                     </div>
                 )}
             </main>

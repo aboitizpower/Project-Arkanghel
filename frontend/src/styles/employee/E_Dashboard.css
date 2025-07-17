@@ -8,7 +8,7 @@
 
 .employee-dashboard-page .main-content {
   flex: 1;
-  padding: 2rem;
+  padding: .5rem;
   display: flex; /* Make main-content a flex container */
   flex-direction: column; /* Arrange children in a column */
   overflow-y: auto; /* Add this to enable internal scrolling if content exceeds height */
@@ -21,9 +21,15 @@
 
 .employee-dashboard-page h1 {
   font-size: 2rem;
-  font-weight: 800;
-  margin-bottom: 2rem;
+  font-weight: 700;
+  margin-bottom: .5rem;
+  margin-top: 0;
+  background-color: #ffffff;
+  border-radius: 10px;
   color: #1a202c;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 1rem; /* Reduced padding */
+  transition: transform 0.2s;
 }
 
 /* KPI Cards */
@@ -32,14 +38,15 @@
   gap: 1.5rem;
 }
 
-.kpi-card {
+.employee-dashboard-page .kpi-card {
   display: flex;
   align-items: center;
   background-color: #ffffff;
   padding: 1rem; /* Reduced padding */
   border-radius: 10px;
+  margin-bottom: 1rem;
   flex: 1; /* Allow cards to grow and share space */
-  height: 90px; /* Smaller height */
+  height: 50px; /* Smaller height */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s;
 }
@@ -169,14 +176,18 @@
 } 
 
 /* Pagination Controls */
-.pagination-controls {
+.pagination-wrapper {
+    width: 100%;
     display: flex;
-    justify-content: flex-end; /* Align to the right */
+    justify-content: flex-end;
+    padding: 1.5rem 0;
+    margin-top: 1.5rem; /* Add space above pagination */
+}
+
+.pagination-container {
+    display: flex;
     align-items: center;
-    margin-top: auto; /* Push to the bottom */
-    gap: 1rem;
-    padding-right: 0.8rem; 
-    padding-bottom: 2rem; /* Add some padding from the very bottom edge */
+    gap: 0.5rem;
 }
 
 .pagination-btn {

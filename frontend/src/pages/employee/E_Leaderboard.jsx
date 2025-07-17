@@ -84,23 +84,25 @@ const E_Leaderboard = () => {
                         </table>
                     </div>
                 )}
-                <div className="pagination-controls">
-                            <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
-                                &laquo;
-                            </button>
-                            {Array.from({ length: Math.ceil(leaderboardData.length / usersPerPage) }, (_, i) => (
-                                <button
-                                    key={i + 1}
-                                    onClick={() => paginate(i + 1)}
-                                    className={currentPage === i + 1 ? 'active' : ''}
-                                >
-                                    {i + 1}
-                                </button>
-                            ))}
-                            <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(leaderboardData.length / usersPerPage)}>
-                                &raquo;
-                            </button>
-                </div>
+                <div className="pagination-wrapper">
+  <div className="pagination-container">
+    <button className="pagination-btn" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+      &laquo;
+    </button>
+    {Array.from({ length: Math.ceil(leaderboardData.length / usersPerPage) }, (_, i) => (
+      <button
+        key={i + 1}
+        onClick={() => paginate(i + 1)}
+        className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
+      >
+        {i + 1}
+      </button>
+    ))}
+    <button className="pagination-btn" onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(leaderboardData.length / usersPerPage)}>
+      &raquo;
+    </button>
+  </div>
+</div>
             </main>
         </div>
     );

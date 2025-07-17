@@ -1,22 +1,22 @@
 /* E_Modules.css */
 .e-modules-page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .modules-main-content {
   flex: 1;
-  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
   background-color: #f4f7f6; /* Match background */
-  padding: 0 !important; /* Override any inherited padding */
 }
 
 .page-container {
-    padding: 1rem; /* Remove padding from the container */
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    height: 95%;
 }
 
 .error-message {
@@ -634,8 +634,7 @@
   width: 100%;
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
-  padding: 0;
+  padding-top: 1.5rem;
 }
 
 .pagination-container {

@@ -6,7 +6,7 @@
 
 .analytics-main {
     flex-grow: 1;
-    padding: 1rem;
+    padding: .5rem;
     background-color: #f4f7fc;
     height: 100vh;
     overflow: hidden;
@@ -22,6 +22,19 @@
         "kpi1 kpi2 kpi3"
         "engagement engagement engagement"
         "assessment-tracker critical-areas top-users";
+}
+
+.welcome-header {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+    margin-top:0;
+    background-color: #ffffff;
+    border-radius: 10px;
+    color: #1a202c;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 1rem; /* Reduced padding */
+    transition: transform 0.2s;
 }
 
 .kpi-card:nth-child(1) { grid-area: kpi1; }

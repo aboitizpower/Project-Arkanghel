@@ -24,6 +24,9 @@ const getAvatarColor = (first, last) => {
 
 const A_Users = () => {
   const [users, setUsers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
+
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
   const [sortOrder, setSortOrder] = useState("none"); // none, admin, employee
@@ -126,6 +129,10 @@ const A_Users = () => {
     filteredUsers = [...filteredUsers].sort((a, b) => a.isAdmin - b.isAdmin);
   }
 
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
   return (
     <div className="admin-layout">
       <AdminSidebar />
@@ -206,12 +213,12 @@ const A_Users = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {currentUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="admin-users-no-users">No users found.</td>
                 </tr>
               ) : (
-                filteredUsers.map(user => (
+                currentUsers.map(user => (
                   <tr key={user.id}>
                     <td className="admin-users-avatar-cell">
                       <div
@@ -255,6 +262,33 @@ const A_Users = () => {
               )}
             </tbody>
           </table>
+          <div className="pagination-wrapper">
+            <div className="pagination-container">
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                &laquo;
+              </button>
+              {Array.from({ length: Math.ceil(filteredUsers.length / usersPerPage) }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredUsers.length / usersPerPage), prev + 1))}
+                disabled={currentPage === Math.ceil(filteredUsers.length / usersPerPage)}
+              >
+                &raquo;
+              </button>
+            </div>
+          </div>
         </div>
         {/* Workstream Permission Modal */}
         {wsModalUser && (

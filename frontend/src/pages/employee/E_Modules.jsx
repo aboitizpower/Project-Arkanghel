@@ -294,19 +294,19 @@ const E_Modules = () => {
             <div className="page-container">
                 <div className="grid-container-ws">
                     {currentWorkstreams.map((ws) => {
-                        const progress = Math.round(ws.progress || 0);
+                        const progress = ws.chapters_count > 0 ? Math.round(ws.progress || 0) : 0;
                         const isCompleted = progress === 100;
                         const hasContent = ws.chapters_count > 0;
 
                         let actionButton;
-                        if (isCompleted) {
+                        if (!hasContent) {
+                            actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
+                        } else if (isCompleted) {
                             actionButton = <button className="action-btn completed">Completed</button>;
                         } else if (ws.has_final_assessment && ws.all_regular_chapters_completed) {
                             actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Take Final Assessment</button>;
-                        } else if (hasContent) {
-                            actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
                         } else {
-                            actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
+                            actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Start Learning</button>;
                         }
 
                         return (
@@ -324,13 +324,21 @@ const E_Modules = () => {
                                         <span>•</span>
                                         <span>{ws.assessments_count || 0} Assessments</span>
                                     </div>
-                                    <div className="card-ws-progress">
-                                         <span className="progress-label">Progress</span>
-                                         <span className="progress-percentage">{progress}%</span>
-                                    </div>
-                                    <div className="progress-bar-container">
-                                        <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                                    </div>
+                                    {hasContent ? (
+                                        <>
+                                            <div className="card-ws-progress">
+                                                <span className="progress-label">Progress</span>
+                                                <span className="progress-percentage">{progress}%</span>
+                                            </div>
+                                            <div className="progress-bar-container">
+                                                <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="no-content-container">
+                                            <p>No content available</p>
+                                        </div>
+                                    )}
                                     <div className="card-ws-action">
                                         {actionButton}
                                     </div>

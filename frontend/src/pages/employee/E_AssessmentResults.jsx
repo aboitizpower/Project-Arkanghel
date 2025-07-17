@@ -57,8 +57,8 @@ const E_AssessmentResults = () => {
                 ) : (
                     <div className="table-container">
                         {results.length > 0 ? (
-                            <div>
-                                <table className="results-table">
+  <>
+    <table className="results-table">
                                     <thead>
                                         <tr>
                                             <th>Assessment Title</th>
@@ -76,24 +76,26 @@ const E_AssessmentResults = () => {
                                         ))}
                                     </tbody>
                                 </table>
-                                <div className="pagination-controls">
-                                    <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
-                                        &laquo;
-                                    </button>
-                                    {Array.from({ length: Math.ceil(results.length / resultsPerPage) }, (_, i) => (
-                                        <button
-                                            key={i + 1}
-                                            onClick={() => paginate(i + 1)}
-                                            className={currentPage === i + 1 ? 'active' : ''}
-                                        >
-                                            {i + 1}
+                                <div className="pagination-wrapper">
+                                    <div className="pagination-container">
+                                        <button className="pagination-btn" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+                                            &laquo;
                                         </button>
-                                    ))}
-                                    <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(results.length / resultsPerPage)}>
-                                        &raquo;
-                                    </button>
+                                        {Array.from({ length: Math.ceil(results.length / resultsPerPage) }, (_, i) => (
+                                            <button
+                                                key={i + 1}
+                                                onClick={() => paginate(i + 1)}
+                                                className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                        <button className="pagination-btn" onClick={() => paginate(currentPage + 1)} disabled={currentPage === Math.ceil(results.length / resultsPerPage)}>
+                                            &raquo;
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            </>
                         ) : (
                             <p>You have not completed any assessments yet.</p>
                         )}

@@ -502,6 +502,7 @@ app.put('/chapters/:id/publish', (req, res) => {
     });
 });
 
+// Update workstream publish status
 app.put('/workstreams/:id/publish', (req, res) => {
     const { id } = req.params;
     const { is_published } = req.body;
@@ -510,20 +511,39 @@ app.put('/workstreams/:id/publish', (req, res) => {
         return res.status(400).json({ error: 'is_published field is required.' });
     }
 
-    const sql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
-    db.query(sql, [is_published, id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Workstream not found.' });
-        }
-        res.json({ success: `Workstream ${is_published ? 'published' : 'unpublished'} successfully!` });
-    });
+    // If we are trying to publish, first check for published chapters
+    if (is_published) {
+        const checkChaptersSql = 'SELECT COUNT(*) as published_chapters_count FROM module_chapters WHERE workstream_id = ? AND is_published = 1';
+
+        db.query(checkChaptersSql, [id], (err, results) => {
+            if (err) {
+                return res.status(500).json({ error: `Failed to check chapters: ${err.message}` });
+            }
+            if (results[0].published_chapters_count === 0) {
+                return res.status(400).json({ error: 'Cannot publish a workstream with no published chapters.' });
+            }
+
+            // Proceed with publishing
+            const updateSql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
+            db.query(updateSql, [is_published, id], (err, result) => {
+                if (err) return res.status(500).json({ error: `Failed to update workstream: ${err.message}` });
+                if (result.affectedRows === 0) return res.status(404).json({ error: 'Workstream not found.' });
+                res.json({ success: true, is_published });
+            });
+        });
+    } else {
+        // If unpublishing, no check is needed
+        const updateSql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
+        db.query(updateSql, [is_published, id], (err, result) => {
+            if (err) return res.status(500).json({ error: `Failed to update workstream: ${err.message}` });
+            if (result.affectedRows === 0) return res.status(404).json({ error: 'Workstream not found.' });
+            res.json({ success: true, is_published });
+        });
+    }
 });
 
-// Reorder chapters and assessments
-app.post('/workstreams/:workstream_id/reorder-chapters', (req, res) => {
+// Update chapter order for a workstream
+app.put('/workstreams/:workstream_id/order', (req, res) => {
     const { workstream_id } = req.params;
     const { chapters } = req.body;
 
@@ -2022,13 +2042,16 @@ app.get('/employee/dashboard/:userId', (req, res) => {
                     const hasFinalAssessment = ws.has_final_assessment > 0;
                     
                     let progress;
-                    if (!hasFinalAssessment) {
-                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
+                    if (totalChapters === 0) {
+                        progress = 0;
+                    } else if (!hasFinalAssessment) {
+                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 0;
                     } else {
                         progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
                     }
 
-                    if (progress >= 100) {
+                    // Only count as completed if there's content and progress is 100
+                    if (totalChapters > 0 && progress >= 100) {
                         completedCount++;
                     }
 
