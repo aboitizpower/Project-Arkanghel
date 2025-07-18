@@ -159,7 +159,24 @@ const E_Assessment = () => {
             });
             const { totalScore, totalQuestions } = response.data;
             alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
-            navigate('/employee/modules', { state: { workstreamId, chapterId, refresh: Date.now() } });
+            
+            // Ensure we have both workstreamId and chapterId when navigating back
+            if (!workstreamId || !chapterId) {
+                console.error('Missing navigation context:', { workstreamId, chapterId });
+                // Fallback to just navigating to modules if we somehow lost context
+                navigate('/employee/modules');
+                return;
+            }
+
+            // Navigate back with full context
+            navigate('/employee/modules', { 
+                state: { 
+                    workstreamId: parseInt(workstreamId, 10), 
+                    chapterId: parseInt(chapterId, 10),
+                    refresh: Date.now()
+                },
+                replace: true // Use replace to prevent back button issues
+            });
         } catch (err) {
             setError('Failed to submit assessment.');
             console.error(err);

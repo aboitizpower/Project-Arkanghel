@@ -1719,7 +1719,16 @@ app.get('/employee/workstreams', (req, res) => {
 // Get all published chapters for a specific workstream for employees
 app.get('/employee/workstreams/:workstream_id/chapters', (req, res) => {
     const { workstream_id } = req.params;
-    const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename FROM module_chapters WHERE workstream_id = ? AND is_published = TRUE ORDER BY order_index ASC';
+    const sql = `
+        SELECT 
+            chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename 
+        FROM module_chapters 
+        WHERE workstream_id = ? 
+        AND (is_published = TRUE OR title LIKE '%Final Assessment%')
+        ORDER BY 
+            CASE WHEN title LIKE '%Final Assessment%' THEN 1 ELSE 0 END,
+            order_index ASC
+    `;
     db.query(sql, [workstream_id], (err, results) => {
         if (err) {
             console.error(`Error fetching chapters for workstream ${workstream_id}:`, err);
