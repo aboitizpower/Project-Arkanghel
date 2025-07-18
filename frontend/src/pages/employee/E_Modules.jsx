@@ -46,19 +46,18 @@ const E_Modules = () => {
             // The chapters will be fetched by handleSelectWorkstream.
             const workstreamToSelect = workstreams.find(ws => ws.workstream_id === workstreamId);
             if (workstreamToSelect) {
-                handleSelectWorkstream(workstreamToSelect);
+                handleSelectWorkstream(workstreamToSelect, chapterId); // Pass chapterId to handleSelectWorkstream
             }
         }
-    }, [location.state, workstreams]); // Re-run if workstreams list changes
+    }, [location.state, workstreams]);
 
     useEffect(() => {
         // This effect runs when chapters are populated and location state has a chapterId
-        const { chapterId, refresh } = location.state || {};
+        const { chapterId, refresh, scrollToChapter } = location.state || {};
         if (chapterId && refresh && chapters.length > 0) {
             const chapterToSelect = chapters.find(ch => ch.chapter_id === chapterId);
             if (chapterToSelect) {
                 handleSelectChapter(chapterToSelect);
-
                 // Clear the refresh state to prevent re-triggering
                 navigate(location.pathname, { state: {}, replace: true });
             }
@@ -112,13 +111,37 @@ const E_Modules = () => {
         }
     };
 
-    const handleSelectWorkstream = (workstream) => {
+    const handleSelectWorkstream = async (workstream, targetChapterId = null) => {
         setSelectedWorkstream(workstream);
         setSelectedChapter(null);
         setChapters([]);
         setCompletedChapters(new Set()); // Reset progress for the new workstream
-        fetchChapters(workstream.workstream_id);
-        fetchUserProgress(workstream.workstream_id);
+        try {
+            const [chaptersRes, progressRes] = await Promise.all([
+                axios.get(`${API_URL}/employee/workstreams/${workstream.workstream_id}/chapters`),
+                axios.get(`${API_URL}/user-progress/${userId}/${workstream.workstream_id}`)
+            ]);
+            
+            const fetchedChapters = chaptersRes.data;
+            setChapters(fetchedChapters);
+            
+            const completedIds = progressRes.data.map(item => item.chapter_id);
+            setCompletedChapters(new Set(completedIds));
+
+            // If we have a target chapter ID, select that chapter
+            if (targetChapterId) {
+                const targetChapter = fetchedChapters.find(ch => ch.chapter_id === targetChapterId);
+                if (targetChapter) {
+                    _selectChapterForView(targetChapter);
+                }
+            } else if (fetchedChapters.length > 0) {
+                // Otherwise select the first chapter
+                _selectChapterForView(fetchedChapters[0]);
+            }
+        } catch (err) {
+            console.error('Error fetching chapters or progress:', err);
+            setError('Could not load chapters. Please try again.');
+        }
     };
 
     const _selectChapterForView = async (chapter) => {
@@ -201,7 +224,12 @@ const E_Modules = () => {
                 try {
                     const response = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`);
                     if (response.data && response.data.length > 0) {
-                        navigate(`/employee/assessment/${response.data[0].assessment_id}`);
+                        navigate(`/employee/assessment/${response.data[0].assessment_id}`, {
+                            state: {
+                                workstreamId: selectedWorkstream.workstream_id,
+                                chapterId: chapter.chapter_id
+                            }
+                        });
                     } else {
                         setError('Assessment not found.');
                     }

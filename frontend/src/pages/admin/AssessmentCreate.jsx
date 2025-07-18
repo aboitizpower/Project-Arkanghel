@@ -113,7 +113,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         correctAnswer: correctAnswerTF === true || correctAnswerTF === 'true' ? 0 : 1,
         type: 'truefalse'
       };
-    } else {
+    } else if (modalType === 'identification') {
       newQuestion = {
         id: Date.now(),
         question: modalQuestion,
@@ -202,7 +202,10 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         questions: questions.map(q => ({
           question: q.question,
           options: q.options.filter(opt => opt.trim() !== ''),
-          correct_answer: q.correctAnswer
+          correct_answer: q.correctAnswer,
+          question_type: q.type === 'multiple' ? 'multiple_choice' :
+                        q.type === 'truefalse' ? 'true_false' :
+                        'identification'
         })),
         chapter_id: chapterIdToSend,
         is_final: isFinalToSend

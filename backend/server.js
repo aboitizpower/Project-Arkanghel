@@ -992,9 +992,9 @@ app.delete('/chapters/:id', (req, res) => {
                     },
                     // 3. Delete assessments
                     next => {
-                        if (assessmentIds.length === 0) return next();
-                        const sql = 'DELETE FROM assessments WHERE chapter_id = ?';
-                        db.query(sql, [id], err => {
+                        if (chapterIds.length === 0) return next();
+                        const sql = 'DELETE FROM assessments WHERE chapter_id IN (?)';
+                        db.query(sql, [chapterIds], err => {
                             if (err) return db.rollback(() => {
                                 console.error('Error deleting assessments:', err);
                                 res.status(500).json({ error: 'Failed to delete assessments.' });
@@ -1351,16 +1351,9 @@ app.post('/answers', (req, res) => {
                     let score = 0;
                     
                     if (question) {
-                        if (question.question_type === 'multiple_choice') {
-                            // For multiple choice, compare the index
-                            const options = typeof question.options === 'string' ? 
-                                JSON.parse(question.options) : question.options;
-                            const answerIndex = options.indexOf(ans.answer);
-                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
-                        } else if (question.question_type === 'true_false') {
-                            // For true/false, convert answer to index (True = 0, False = 1)
-                            const answerIndex = ans.answer.toLowerCase() === 'true' ? 0 : 1;
-                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
+                        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+                            // For both multiple choice and true/false, directly compare the numeric indices
+                            score = parseInt(ans.answer) === parseInt(question.correct_answer) ? 1 : 0;
                         } else {
                             // For identification, case-insensitive comparison
                             score = ans.answer.toLowerCase() === question.correct_answer.toLowerCase() ? 1 : 0;
@@ -1654,7 +1647,8 @@ app.get('/employee/workstreams', (req, res) => {
                     SELECT COUNT(DISTINCT a.assessment_id) 
                     FROM assessments a
                     JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-                    WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+                    WHERE mc.workstream_id = w.workstream_id 
+                    AND (mc.is_published = TRUE OR mc.title LIKE '%Final Assessment%')
                 ) as assessments_count,
                 (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
             FROM workstreams w
@@ -1700,20 +1694,23 @@ app.get('/employee/workstreams', (req, res) => {
                     const hasFinalAssessment = ws.has_final_assessment > 0;
                     
                     let progress;
-                    if (!hasFinalAssessment) {
-                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 100;
+                    if (totalChapters === 0) {
+                        progress = 0;
+                    } else if (!hasFinalAssessment) {
+                        // If no final assessment, calculate progress based on regular chapters only
+                        progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 0;
                     } else {
-                        progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
+                        // If there is a final assessment, require both regular chapters and final assessment
+                        const regularProgress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) : 0;
+                        const finalChapterCompleted = completedChapters > completedRegularChapters;
+                        // Only count as 100% if all regular chapters AND final assessment are completed
+                        progress = finalChapterCompleted ? regularProgress * 100 : (regularProgress * 90); // Cap at 90% until final is done
                     }
-                    
-                    const allRegularChaptersCompleted = regularTotalChapters > 0 && completedRegularChapters >= regularTotalChapters;
 
                     return {
                         ...ws,
-                        progress: progress,
-                        completed_chapters_count: completedChapters,
-                        has_final_assessment: hasFinalAssessment,
-                        all_regular_chapters_completed: allRegularChaptersCompleted
+                        progress: Math.round(progress),
+                        all_regular_chapters_completed: regularTotalChapters > 0 && completedRegularChapters >= regularTotalChapters
                     };
                 });
                 
@@ -1726,7 +1723,16 @@ app.get('/employee/workstreams', (req, res) => {
 // Get all published chapters for a specific workstream for employees
 app.get('/employee/workstreams/:workstream_id/chapters', (req, res) => {
     const { workstream_id } = req.params;
-    const sql = 'SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename FROM module_chapters WHERE workstream_id = ? AND is_published = TRUE ORDER BY order_index ASC';
+    const sql = `
+        SELECT 
+            chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename 
+        FROM module_chapters 
+        WHERE workstream_id = ? 
+        AND (is_published = TRUE OR title LIKE '%Final Assessment%')
+        ORDER BY 
+            CASE WHEN title LIKE '%Final Assessment%' THEN 1 ELSE 0 END,
+            order_index ASC
+    `;
     db.query(sql, [workstream_id], (err, results) => {
         if (err) {
             console.error(`Error fetching chapters for workstream ${workstream_id}:`, err);
@@ -2247,9 +2253,14 @@ app.get('/employee/dashboard/:userId', (req, res) => {
                     if (totalChapters === 0) {
                         progress = 0;
                     } else if (!hasFinalAssessment) {
+                        // If no final assessment, calculate progress based on regular chapters only
                         progress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) * 100 : 0;
                     } else {
-                        progress = totalChapters > 0 ? (completedChapters / totalChapters) * 100 : 0;
+                        // If there is a final assessment, require both regular chapters and final assessment
+                        const regularProgress = regularTotalChapters > 0 ? (completedRegularChapters / regularTotalChapters) : 0;
+                        const finalChapterCompleted = completedChapters > completedRegularChapters;
+                        // Only count as 100% if all regular chapters AND final assessment are completed
+                        progress = finalChapterCompleted ? regularProgress * 100 : (regularProgress * 90); // Cap at 90% until final is done
                     }
 
                     // Only count as completed if there's content and progress is 100
@@ -2260,7 +2271,7 @@ app.get('/employee/dashboard/:userId', (req, res) => {
                     return {
                         ...ws,
                         total_chapters: ws.chapters_count,
-                        progress: progress,
+                        progress: Math.round(progress),
                         image_url: ws.image_type ? `/workstreams/${ws.workstream_id}/image` : null
                     };
                 });
