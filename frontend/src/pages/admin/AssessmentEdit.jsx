@@ -40,22 +40,43 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
   const openModal = (editIndex = null) => {
     if (editIndex !== null) {
-      // Editing existing question
-      const q = questions[editIndex];
-      setModalType(q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')));
-      setModalQuestion(q.question_text || q.question || '');
-      setModalOptions(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : (q.question_type === 'truefalse' ? ['True', 'False'] : ['', '', '', '']));
+      const question = questions[editIndex];
       
-      let correctAnswer;
-      if (q.question_type === 'identification') {
-        correctAnswer = q.correct_answer ?? q.answer ?? q.correctAnswer ?? '';
-      } else {
-        correctAnswer = q.correct_answer ?? 0;
+      // Set question type
+      let modalQuestionType;
+      switch (question.question_type) {
+        case 'multiple_choice':
+          modalQuestionType = 'multiple';
+          break;
+        case 'true_false':
+          modalQuestionType = 'truefalse';
+          break;
+        default:
+          modalQuestionType = 'identification';
       }
-      setModalCorrectAnswer(correctAnswer);
-
+      
+      setModalType(modalQuestionType);
+      setModalQuestion(question.question_text);
+      
+      // Handle options and correct answer based on type
+      if (modalQuestionType === 'multiple') {
+        // Parse options if needed
+        let options = Array.isArray(question.options) ? question.options :
+                     (typeof question.options === 'string' ? JSON.parse(question.options) : []);
+        setModalOptions(options.length > 0 ? options : ['', '', '', '']);
+        setModalCorrectAnswer(question.correct_answer || 0);
+      } else if (modalQuestionType === 'truefalse') {
+        setModalOptions(['True', 'False']);
+        setModalCorrectAnswer(question.correct_answer === 0 ? 'true' : 'false');
+      } else {
+        // For identification questions
+        setModalOptions([]); // No options needed
+        setModalCorrectAnswer(question.correct_answer || ''); // Use the answer text directly
+      }
+      
       setModalEditIndex(editIndex);
     } else {
+      // New question defaults
       setModalType('multiple');
       setModalQuestion('');
       setModalOptions(['', '', '', '']);
@@ -79,51 +100,71 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   };
   const handleModalSubmit = () => {
     if (!modalQuestion.trim()) return;
-    let newQuestion;
+
+    // Prepare the question data
+    const questionData = {
+      question_text: modalQuestion.trim(),
+      question_type: modalType === 'multiple' ? 'multiple_choice' : 
+                    modalType === 'truefalse' ? 'true_false' : 'identification'
+    };
+
+    // Handle options and correct answer based on type
     if (modalType === 'multiple') {
       const filteredOptions = modalOptions.filter(opt => opt.trim() !== '');
-      if (filteredOptions.length < 2) return; // At least 2 options
-      let correctAnswerIndex = modalCorrectAnswer;
-      if (correctAnswerIndex === '' || correctAnswerIndex === undefined || isNaN(Number(correctAnswerIndex)) || Number(correctAnswerIndex) < 0 || Number(correctAnswerIndex) >= filteredOptions.length) {
-        correctAnswerIndex = 0;
+      if (filteredOptions.length < 2) {
+        alert('Multiple choice questions must have at least 2 options.');
+        return;
       }
-      newQuestion = {
-        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question_text: modalQuestion,
-        options: filteredOptions,
-        correct_answer: correctAnswerIndex,
-        question_type: 'multiple_choice',
-      };
+      questionData.options = filteredOptions;
+      questionData.correct_answer = parseInt(modalCorrectAnswer, 10) || 0;
     } else if (modalType === 'truefalse') {
-      let correctAnswerTF = modalCorrectAnswer;
-      if (correctAnswerTF === '' || correctAnswerTF === undefined) {
-        correctAnswerTF = 'true';
+      questionData.options = ['True', 'False'];
+      questionData.correct_answer = modalCorrectAnswer === 'true' ? 0 : 1;
+    } else {
+      // Identification questions have no options
+      questionData.options = [];
+      questionData.correct_answer = modalCorrectAnswer.trim();
+      if (!questionData.correct_answer) {
+        alert('Please provide an answer for the identification question.');
+        return;
       }
-      newQuestion = {
-        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question_text: modalQuestion,
-        options: ['True', 'False'],
-        correct_answer: correctAnswerTF === true || correctAnswerTF === 'true' ? 0 : 1,
-        question_type: 'true_false',
-      };
-    } else {
-      if (!modalCorrectAnswer || !modalCorrectAnswer.trim()) return; // Require answer
-      newQuestion = {
-        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question_text: modalQuestion,
-        options: [],
-        correct_answer: modalCorrectAnswer,
-        question_type: 'identification',
-      };
     }
-    console.log('New question:', newQuestion); // Debug log
+
+    // If we're editing, use the existing question ID
     if (modalEditIndex !== null) {
-      // Edit existing
-      setQuestions(qs => qs.map((q, i) => i === modalEditIndex ? { ...q, ...newQuestion } : q));
+      const existingQuestion = questions[modalEditIndex];
+      const questionId = existingQuestion.question_id || existingQuestion.id;
+      
+      // Update existing question
+      axios.put(`${API_URL}/questions/${questionId}`, questionData)
+        .then(() => {
+          // Update the questions array with the new data
+          setQuestions(prevQuestions => 
+            prevQuestions.map((q, idx) => 
+              idx === modalEditIndex ? { ...q, ...questionData, question_id: questionId } : q
+            )
+          );
+          setShowModal(false);
+        })
+        .catch(err => {
+          console.error('Error updating question:', err);
+          alert('Failed to update question. Please try again.');
+        });
     } else {
-      setQuestions(qs => [...qs, newQuestion]);
+      // Create new question
+      axios.post(`${API_URL}/questions`, {
+        ...questionData,
+        assessment_id: assessment.assessment_id
+      })
+        .then(response => {
+          setQuestions(prev => [...prev, response.data]);
+          setShowModal(false);
+        })
+        .catch(err => {
+          console.error('Error creating question:', err);
+          alert('Failed to create question. Please try again.');
+        });
     }
-    setShowModal(false);
   };
 
   const location = useLocation();
@@ -349,6 +390,111 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         ? `Assessment: ${workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId)?.title || ''}`
         : assessment.title);
 
+  const renderQuestionAnswer = (question) => {
+    if (!question) return null;
+
+    // Parse options if they're stored as a string
+    let options = question.options;
+    if (typeof options === 'string') {
+      try {
+        options = JSON.parse(options);
+      } catch (e) {
+        options = [];
+      }
+    }
+
+    switch (question.question_type) {
+      case 'multiple_choice':
+        // Show the actual option text that is correct
+        return options && options[question.correct_answer] ? (
+          <div className="answer-display">
+            {options[question.correct_answer]}
+          </div>
+        ) : null;
+
+      case 'true_false':
+        // Show True or False based on the 0/1 index
+        return (
+          <div className="answer-display">
+            {question.correct_answer === 0 ? 'True' : 'False'}
+          </div>
+        );
+
+      case 'identification':
+      case 'short_answer':
+        // Show the actual text answer
+        return (
+          <div className="answer-display">
+            {question.correct_answer}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderQuestionDisplay = (question, index) => {
+    return (
+      <div key={question.question_id || question.id} className="question-item">
+        <div className="question-header">
+          <h3>Question {index + 1}</h3>
+          <div className="question-actions">
+            <button onClick={() => openModal(index)} className="edit-btn">
+              <FaPencilAlt /> Edit
+            </button>
+            <button onClick={() => handleDeleteQuestion(question.question_id || question.id)} className="remove-btn">
+              Remove
+            </button>
+          </div>
+        </div>
+        <div className="question-content">
+          <p className="question-text">{question.question_text}</p>
+          
+          {/* Question Type */}
+          <div className="question-type">
+            <span className="type-label">Type:</span>
+            <span className="type-value">
+              {question.question_type === 'multiple_choice' ? 'Multiple Choice' :
+               question.question_type === 'true_false' ? 'True/False' : 'Identification'}
+            </span>
+          </div>
+
+          {/* Correct Answer Section */}
+          <div className="answer-section">
+            <span className="answer-label">Correct Answer:</span>
+            <span className="answer-value">
+              {question.question_type === 'multiple_choice' ? (
+                // For multiple choice, show the correct option text
+                Array.isArray(question.options) && question.options[question.correct_answer]
+              ) : question.question_type === 'true_false' ? (
+                // For true/false, show True or False
+                question.correct_answer === 0 ? 'True' : 'False'
+              ) : (
+                // For identification, show the answer text directly
+                question.correct_answer
+              )}
+            </span>
+          </div>
+
+          {/* Show options only for multiple choice */}
+          {question.question_type === 'multiple_choice' && Array.isArray(question.options) && (
+            <div className="options-section">
+              <span className="options-label">Options:</span>
+              <ul className="options-list">
+                {question.options.map((opt, i) => (
+                  <li key={i} className={i === question.correct_answer ? 'correct' : ''}>
+                    {opt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <main className="assessment-create-main-content">
       <LoadingOverlay loading={isSubmitting} />
@@ -477,167 +623,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           {/* Scrollable Questions List */}
           <div className="questions-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             <div className="questions-scroll-list" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
-              {questions && questions.length > 0 ? questions.map((question, qIndex) => (
-                <div key={question.question_id || question.id} className="question-item" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 32 }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <div className="question-header">
-                      <span className="question-number">Question {qIndex + 1}</span>
-                      <button type="button" className="remove-question" onClick={() => handleDeleteQuestion(question.question_id || question.id)}>
-                        Remove
-                      </button>
-                    </div>
-                    <textarea
-                      value={question.question_text || question.question || ''}
-                      onChange={e => {
-                        const updated = [...questions];
-                        updated[qIndex] = { ...question, question_text: e.target.value };
-                        setQuestions(updated);
-                      }}
-                      className="form-control"
-                      placeholder="Enter your question"
-                      rows={4}
-                      style={{ resize: 'vertical' }}
-                      required
-                    />
-    </div>
-                  {/* Identification type: answer input on the right */}
-                  {(question.question_type !== 'multiple' && question.question_type !== 'truefalse') ? (
-                    <div
-                      className="answer-option"
-                      style={{
-                        background: question.correct_answer ? '#e0f2fe' : undefined,
-                        border: question.correct_answer ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        marginBottom: 4,
-                        padding: '4px 8px',
-                        position: 'relative',
-                        minWidth: 220,
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <input
-                        type="text"
-                        value={question.correct_answer ?? ''}
-                        onChange={e => {
-                          const updated = [...questions];
-                          updated[qIndex] = { ...question, correct_answer: e.target.value };
-                          setQuestions(updated);
-                        }}
-                        className="form-control"
-                        placeholder="Answer"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          flex: 1,
-                          fontSize: '1em',
-                        }}
-                      />
-                      {question.correct_answer && (
-                        <span
-                          style={{
-                            color: '#3b82f6',
-                            fontWeight: 700,
-                            marginLeft: 8,
-                            position: 'absolute',
-                            right: 12,
-                            fontSize: '1.2em',
-                          }}
-                        >
-                          &#10003;
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ flex: 1 }}>
-      <div className="answer-options">
-                        {(question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : []).map((option, oIndex) => (
-                          <div key={oIndex} className="answer-option" style={{
-                            background: parseInt(question.correct_answer) === oIndex ? '#e0f2fe' : 'transparent',
-                            border: parseInt(question.correct_answer) === oIndex ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                            borderRadius: 6,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            marginBottom: 4,
-                            padding: '4px 8px'
-                          }}>
-            <input
-              type="radio"
-                              name={`question-${question.question_id || question.id}`}
-                              checked={parseInt(question.correct_answer) === oIndex}
-                              onChange={() => {
-                                const updated = [...questions];
-                                updated[qIndex] = { ...question, correct_answer: parseInt(oIndex) };
-                                setQuestions(updated);
-                              }}
-                              style={{ accentColor: '#3b82f6' }}
-            />
-            <input
-              type="text"
-              value={option}
-                              onChange={e => {
-                                const updated = [...questions];
-                                const currentOptions = question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : [];
-                                const newOptions = [...currentOptions];
-                                newOptions[oIndex] = e.target.value;
-                                updated[qIndex] = { ...question, options: JSON.stringify(newOptions) };
-                                setQuestions(updated);
-                              }}
-              className="form-control"
-                              placeholder={`Option ${oIndex + 1}`}
-                              required
-            />
-                            {parseInt(question.correct_answer) === oIndex && (
-                              <span style={{ color: '#3b82f6', fontWeight: 700, marginLeft: 4 }}>&#10003;</span>
-                            )}
-                            {(question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : []).length > 2 && (
-              <button 
-                type="button" 
-                className="remove-answer"
-                                onClick={() => {
-                                  const updated = [...questions];
-                                  const currentOptions = question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : [];
-                                  const newOptions = currentOptions.filter((_, idx) => idx !== oIndex);
-                                  let newCorrect = parseInt(question.correct_answer);
-                                  if (newCorrect >= newOptions.length) newCorrect = newOptions.length - 1;
-                                  if (newCorrect < 0) newCorrect = 0;
-                                  updated[qIndex] = { ...question, options: JSON.stringify(newOptions), correct_answer: newCorrect };
-                                  setQuestions(updated);
-                                }}
-              >
-                ×
-              </button>
-            )}
-                            {/* Add Option button beside last option if less than 4 */}
-                            {oIndex === (question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : []).length - 1 && 
-                             (question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : []).length < 4 && 
-                             question.question_type === 'multiple' &&
-                             JSON.stringify((question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : [])) !== JSON.stringify(['True','False']) && (
-                              <button 
-                                type="button" 
-                                className="add-answer"
-                                onClick={() => {
-                                  const updated = [...questions];
-                                  const currentOptions = question.options ? (typeof question.options === 'string' ? JSON.parse(question.options) : question.options) : [];
-                                  const newOptions = [...currentOptions, ''];
-                                  updated[qIndex] = { ...question, options: JSON.stringify(newOptions) };
-                                  setQuestions(updated);
-                                }}
-                              >
-                                + Add Option
-                              </button>
-                            )}
-          </div>
-        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )) : <p>No questions yet.</p>}
+              {questions && questions.length > 0 ? questions.map((question, qIndex) => renderQuestionDisplay(question, qIndex)) : <p>No questions yet.</p>}
             </div>
             {/* Modal for adding a question */}
             {showModal && (

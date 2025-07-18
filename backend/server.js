@@ -992,9 +992,9 @@ app.delete('/chapters/:id', (req, res) => {
                     },
                     // 3. Delete assessments
                     next => {
-                        if (assessmentIds.length === 0) return next();
-                        const sql = 'DELETE FROM assessments WHERE chapter_id = ?';
-                        db.query(sql, [id], err => {
+                        if (chapterIds.length === 0) return next();
+                        const sql = 'DELETE FROM assessments WHERE chapter_id IN (?)';
+                        db.query(sql, [chapterIds], err => {
                             if (err) return db.rollback(() => {
                                 console.error('Error deleting assessments:', err);
                                 res.status(500).json({ error: 'Failed to delete assessments.' });
@@ -1351,16 +1351,9 @@ app.post('/answers', (req, res) => {
                     let score = 0;
                     
                     if (question) {
-                        if (question.question_type === 'multiple_choice') {
-                            // For multiple choice, compare the index
-                            const options = typeof question.options === 'string' ? 
-                                JSON.parse(question.options) : question.options;
-                            const answerIndex = options.indexOf(ans.answer);
-                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
-                        } else if (question.question_type === 'true_false') {
-                            // For true/false, convert answer to index (True = 0, False = 1)
-                            const answerIndex = ans.answer.toLowerCase() === 'true' ? 0 : 1;
-                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
+                        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+                            // For both multiple choice and true/false, directly compare the numeric indices
+                            score = parseInt(ans.answer) === parseInt(question.correct_answer) ? 1 : 0;
                         } else {
                             // For identification, case-insensitive comparison
                             score = ans.answer.toLowerCase() === question.correct_answer.toLowerCase() ? 1 : 0;

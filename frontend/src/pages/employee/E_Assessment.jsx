@@ -81,28 +81,40 @@ const E_Assessment = () => {
             case 'multiple_choice':
                 return options.map((option, index) => (
                     <label key={index} className="option-label">
-                        <input type="radio" name={`question-${q.question_id}`} value={option}
-                               checked={answers[q.question_id] === option}
-                               onChange={() => handleAnswerChange(q.question_id, option)} />
+                        <input 
+                            type="radio" 
+                            name={`question-${q.question_id}`} 
+                            value={index}
+                            checked={answers[q.question_id] === index}
+                            onChange={() => handleAnswerChange(q.question_id, index)} 
+                        />
                         {option}
                     </label>
                 ));
             case 'true_false':
-                return ['True', 'False'].map(option => (
+                return ['True', 'False'].map((option, index) => (
                     <label key={option} className="option-label">
-                        <input type="radio" name={`question-${q.question_id}`} value={option}
-                               checked={answers[q.question_id] === option}
-                               onChange={() => handleAnswerChange(q.question_id, option)} />
+                        <input 
+                            type="radio" 
+                            name={`question-${q.question_id}`} 
+                            value={index}
+                            checked={answers[q.question_id] === index}
+                            onChange={() => handleAnswerChange(q.question_id, index)} 
+                        />
                         {option}
                     </label>
                 ));
             case 'short_answer':
             case 'identification':
                 return (
-                    <input type="text" className="identification-input" name={`question-${q.question_id}`}
-                           value={answers[q.question_id] || ''}
-                           onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
-                           placeholder="Type your answer here" />
+                    <input 
+                        type="text" 
+                        className="identification-input" 
+                        name={`question-${q.question_id}`}
+                        value={answers[q.question_id] || ''}
+                        onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
+                        placeholder="Type your answer here" 
+                    />
                 );
             default:
                 return <p>Unsupported question type: {q.question_type}</p>;
@@ -120,10 +132,23 @@ const E_Assessment = () => {
             return;
         }
 
-        const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
-            questionId: parseInt(questionId, 10),
-            answer
-        }));
+        const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => {
+            const question = questions.find(q => q.question_id === parseInt(questionId, 10));
+            let formattedAnswer = answer;
+            
+            // Format the answer based on question type
+            if (question) {
+                if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+                    formattedAnswer = parseInt(answer); // Ensure we send a number for index-based answers
+                }
+                // For identification/short_answer, keep the text answer as is
+            }
+            
+            return {
+                questionId: parseInt(questionId, 10),
+                answer: formattedAnswer
+            };
+        });
 
         setIsLoading(true);
         try {
