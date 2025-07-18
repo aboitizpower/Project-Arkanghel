@@ -20,35 +20,39 @@ const E_Assessment = () => {
     const [workstream, setWorkstream] = useState(null);
     const [chapters, setChapters] = useState([]);
     const [completedChapters, setCompletedChapters] = useState(new Set());
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(0);
+    const questionsPerPage = 1;
 
     useEffect(() => {
         const fetchAssessmentData = async () => {
+            setIsLoading(true);
             try {
                 const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`);
                 setAssessment(assessmentRes.data);
 
                 const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
-                console.log('Questions data:', questionsRes.data); // Debug log
-                
-                // Process the questions data to ensure options are parsed
                 const processedQuestions = questionsRes.data.map(q => ({
                     ...q,
-                    options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
+                    options: typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []),
                     question_text: q.question_text || q.question
                 }));
-                
                 setQuestions(processedQuestions);
             } catch (err) {
                 setError('Failed to load assessment data.');
                 console.error(err);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchAssessmentData();
     }, [assessmentId]);
 
+    // Fetch sidebar data
     useEffect(() => {
-        // Fetch workstream and chapters for sidebar
         const fetchSidebarData = async () => {
             if (!workstreamId) return;
             try {
@@ -57,163 +61,114 @@ const E_Assessment = () => {
                 setWorkstream(ws);
                 const chaptersRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
                 setChapters(chaptersRes.data);
-                // Fetch completed chapters
                 const progressRes = await axios.get(`${API_URL}/user-progress/${localStorage.getItem('userId')}/${workstreamId}`);
                 const completedIds = progressRes.data.map(item => item.chapter_id);
                 setCompletedChapters(new Set(completedIds));
             } catch (err) {
-                // Sidebar is not critical, so don't block assessment
                 console.error('Sidebar fetch error:', err);
             }
         };
         fetchSidebarData();
     }, [workstreamId]);
 
-    useEffect(() => {
-        document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = ''; };
-    }, []);
-
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
     };
 
     const renderQuestionInputs = (q) => {
-        console.log('Rendering question:', q); // Debug log
-        
-        // Ensure options are properly parsed
-        const options = q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
-        
+        const options = Array.isArray(q.options) ? q.options : [];
         switch (q.question_type) {
-            case 'multiple':
             case 'multiple_choice':
-                if (!Array.isArray(options)) {
-                    console.log('Invalid options format:', options);
-                    return <p>Options are not available for this question.</p>;
-                }
                 return options.map((option, index) => (
                     <label key={index} className="option-label">
-                        <input
-                            type="radio"
-                            name={`question-${q.question_id}`}
-                            value={option}
-                            checked={answers[q.question_id] === option}
-                            onChange={() => handleAnswerChange(q.question_id, option)}
-                            required
-                        />
+                        <input type="radio" name={`question-${q.question_id}`} value={option}
+                               checked={answers[q.question_id] === option}
+                               onChange={() => handleAnswerChange(q.question_id, option)} />
                         {option}
                     </label>
                 ));
-            case 'truefalse':
             case 'true_false':
                 return ['True', 'False'].map(option => (
                     <label key={option} className="option-label">
-                        <input 
-                            type="radio" 
-                            name={`question-${q.question_id}`} 
-                            value={option}
-                            checked={answers[q.question_id] === option}
-                            onChange={() => handleAnswerChange(q.question_id, option)}
-                            required
-                        />
+                        <input type="radio" name={`question-${q.question_id}`} value={option}
+                               checked={answers[q.question_id] === option}
+                               onChange={() => handleAnswerChange(q.question_id, option)} />
                         {option}
                     </label>
                 ));
-            case 'identification':
             case 'short_answer':
+            case 'identification':
                 return (
-                    <input 
-                        type="text"
-                        className="identification-input"
-                        name={`question-${q.question_id}`}
-                        value={answers[q.question_id] || ''}
-                        onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
-                        placeholder="Type your answer here"
-                        required
-                    />
+                    <input type="text" className="identification-input" name={`question-${q.question_id}`}
+                           value={answers[q.question_id] || ''}
+                           onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
+                           placeholder="Type your answer here" />
                 );
             default:
-                console.log('Unsupported question type:', q.question_type);
                 return <p>Unsupported question type: {q.question_type}</p>;
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async () => {
         const userId = localStorage.getItem('userId');
         if (!userId) {
-            alert('You must be logged in to submit an assessment.');
+            alert('You must be logged in to submit.');
+            return;
+        }
+        if (Object.keys(answers).length !== questions.length) {
+            alert('Please answer all questions before submitting.');
             return;
         }
 
         const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
             questionId: parseInt(questionId, 10),
-            answer: answer
+            answer
         }));
 
-        if (formattedAnswers.length !== questions.length) {
-            alert('Please answer all questions before submitting.');
-            return;
-        }
-
+        setIsLoading(true);
         try {
-            const response = await axios.post(`${API_URL}/answers`, { 
-                userId: parseInt(userId, 10), 
+            const response = await axios.post(`${API_URL}/answers`, {
+                userId: parseInt(userId, 10),
                 answers: formattedAnswers,
                 assessmentId: parseInt(assessmentId, 10)
             });
             const { totalScore, totalQuestions } = response.data;
-            alert(`Assessment submitted successfully!\n\nYou scored ${totalScore} out of ${totalQuestions}.`);
-            
-            navigate('/employee/modules', { 
-                state: { 
-                    workstreamId, 
-                    chapterId,
-                    refresh: Date.now()
-                } 
-            });
+            alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
+            navigate('/employee/modules', { state: { workstreamId, chapterId, refresh: Date.now() } });
         } catch (err) {
             setError('Failed to submit assessment.');
             console.error(err);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleSelectChapter = (ch) => {
-        // Only allow navigation to unlocked chapters
         const chapterIndex = chapters.findIndex(c => c.chapter_id === ch.chapter_id);
         if (chapterIndex > 0 && !completedChapters.has(chapters[chapterIndex - 1].chapter_id)) {
             return;
         }
-        navigate('/employee/modules', {
-            state: {
-                workstreamId,
-                chapterId: ch.chapter_id,
-                refresh: Date.now()
-            }
-        });
+        navigate('/employee/modules', { state: { workstreamId, chapterId: ch.chapter_id, refresh: Date.now() } });
     };
 
-    if (error) {
-        return <div className="error-message">{error}</div>;
-    }
+    const totalPages = Math.ceil(questions.length / questionsPerPage);
+    const currentQuestions = questions.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
+    const progress = ((currentPage + 1) / totalPages) * 100;
 
-    if (!assessment) {
-        return <div>Loading assessment...</div>;
-    }
+    if (isLoading) return <LoadingOverlay loading={true} />;
+    if (error) return <div className="error-message">{error}</div>;
 
-    // Sidebar logic
     const regularChapters = chapters.filter(c => !c.title?.toLowerCase().includes('final assessment'));
     const finalAssessmentChapter = chapters.find(c => c.title?.toLowerCase().includes('final assessment'));
     const areAllChaptersComplete = regularChapters.every(c => completedChapters.has(c.chapter_id));
 
     return (
-        <div className="e-assessment-container" style={{ display: 'flex' }}>
-            {/* Chapter Sidebar */}
+        <div className="e-assessment-container">
+            {/* Sidebar */}
             <div className="module-view-sidebar">
                 <div className="module-view-header">
                     <button onClick={() => navigate('/employee/modules', { state: { workstreamId } })} className="back-to-ws-btn">
-                        <FaArrowLeft />
-                        <span>Back to Workstreams</span>
+                        <FaArrowLeft /><span>Back to Workstreams</span>
                     </button>
                     <h2>{workstream?.title}</h2>
                 </div>
@@ -222,11 +177,8 @@ const E_Assessment = () => {
                         {regularChapters.map((ch, index) => {
                             const isLocked = index > 0 && !completedChapters.has(regularChapters[index - 1].chapter_id);
                             return (
-                                <li
-                                    key={ch.chapter_id}
-                                    className={`chapter-list-item ${chapterId === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
-                                    onClick={() => !isLocked && handleSelectChapter(ch)}
-                                >
+                                <li key={ch.chapter_id} className={`chapter-list-item ${chapterId === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                                    onClick={() => !isLocked && handleSelectChapter(ch)}>
                                     <div className="chapter-icon">{isLocked ? <FaLock /> : <FaBook />}</div>
                                     <span className="chapter-title">{ch.title}</span>
                                 </li>
@@ -240,11 +192,9 @@ const E_Assessment = () => {
                             {(() => {
                                 const isLocked = !areAllChaptersComplete;
                                 return (
-                                    <li
-                                        key={finalAssessmentChapter.chapter_id}
+                                    <li key={finalAssessmentChapter.chapter_id}
                                         className={`chapter-list-item ${chapterId === finalAssessmentChapter.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
-                                        onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}
-                                    >
+                                        onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}>
                                         <div className="chapter-icon">{isLocked ? <FaLock /> : <FaClipboardList />}</div>
                                         <span className="chapter-title">{finalAssessmentChapter.title}</span>
                                     </li>
@@ -254,22 +204,34 @@ const E_Assessment = () => {
                     </div>
                 )}
             </div>
-            {/* Assessment Content */}
-            <main className="assessment-main-content">
-                <LoadingOverlay loading={!assessment || questions.length === 0} />
-                <h1>{assessment.title}</h1>
-                <p>{assessment.description}</p>
-                <form onSubmit={handleSubmit} className="assessment-form">
-                    {questions.map((q, index) => (
-                        <div key={q.question_id} className="question-card">
-                            <p className="question-text">{index + 1}. {q.question_text}</p>
-                            <div className="options-container">
-                                {renderQuestionInputs(q)}
+
+            {/* Main Assessment Content */}
+            <main className="e-assessment-main-new">
+                <div className="question-card-new">
+                    <form onSubmit={(e) => e.preventDefault()}>
+                        {currentQuestions.map((q, index) => (
+                            <div key={q.question_id}>
+                                <h2 className="question-title-new">Question {currentPage * questionsPerPage + index + 1}:</h2>
+                                <p className="question-text-new">{q.question_text}</p>
+                                <div className="options-container-new">{renderQuestionInputs(q)}</div>
                             </div>
+                        ))}
+                        <div className="assessment-navigation-new">
+                            <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0} className="prev-btn-new">
+                                Previous Question
+                            </button>
+                            {currentPage < totalPages - 1 ? (
+                                <button onClick={() => setCurrentPage(p => p + 1)} className="submit-btn-new">
+                                    Next Question
+                                </button>
+                            ) : (
+                                <button onClick={handleSubmit} className="submit-btn-new">
+                                    Submit
+                                </button>
+                            )}
                         </div>
-                    ))}
-                    <button type="submit" className="submit-btn">Submit Assessment</button>
-                </form>
+                    </form>
+                </div>
             </main>
         </div>
     );
