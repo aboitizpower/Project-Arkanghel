@@ -1764,23 +1764,39 @@ app.put('/questions/:id/unpublish', (req, res) => {
     });
 });
 
-// Get assessment results for a user
+// Get assessment results for a user (latest/highest score per assessment)
 app.get('/users/:userId/assessment-results', (req, res) => {
     const { userId } = req.params;
-
+    // For each assessment, get the highest score attempt for this user
     const sql = `
         SELECT 
-            assessments.assessment_id,
-            assessments.title,
-            SUM(answers.score) AS user_score,
-            (SELECT COUNT(*) FROM questions WHERE questions.assessment_id = assessments.assessment_id) AS total_questions
-        FROM answers
-        JOIN questions ON answers.question_id = questions.question_id
-        JOIN assessments ON questions.assessment_id = assessments.assessment_id
-        WHERE answers.user_id = ?
-        GROUP BY assessments.assessment_id, assessments.title;
+            a.assessment_id,
+            a.title AS assessment_title,
+            w.workstream_id,
+            w.title AS workstream_title,
+            MAX(user_score) AS user_score,
+            a.total_points
+        FROM (
+            SELECT 
+                a.assessment_id,
+                a.title,
+                mc.workstream_id,
+                SUM(ans.score) AS user_score,
+                a.total_points,
+                ans.answered_at
+            FROM answers ans
+            JOIN questions q ON ans.question_id = q.question_id
+            JOIN assessments a ON q.assessment_id = a.assessment_id
+            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+            WHERE ans.user_id = ?
+            GROUP BY a.assessment_id, ans.answered_at
+        ) AS attempts
+        JOIN assessments a ON attempts.assessment_id = a.assessment_id
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        JOIN workstreams w ON mc.workstream_id = w.workstream_id
+        GROUP BY a.assessment_id, a.title, w.workstream_id, w.title, a.total_points
+        ORDER BY w.title, a.title
     `;
-
     db.query(sql, [userId], (err, results) => {
         if (err) {
             console.error('Error fetching assessment results:', err);

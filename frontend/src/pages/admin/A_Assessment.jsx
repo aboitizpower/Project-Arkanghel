@@ -149,17 +149,21 @@ const A_Assessment = () => {
       <main className="admin-main">
         <LoadingOverlay loading={loading} />
         {/* Header and Search Bar Row */}
-        <div className="admin-header assessment-header-row">
-          <h1 className="admin-title" style={{textAlign: 'left', flex: 1}}>Assessment Management</h1>
-          <div className="search-container assessment-search-bar narrow-search-bar" style={{ width: '450px', maxWidth: '100%' }}>
-            <input
-              type="text"
-              className="search-input narrow-search-input"
-              style={{ width: '450px' }}
-              placeholder="Search by employee name"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-            />
+        <div className="admin-header">
+          <div className="header-left">
+            <h1 className="admin-title">Assessment Management</h1>
+          </div>
+          <div className="header-right">
+            <div className="search-container" style={{ width: '400px', maxWidth: '100%' }}>
+              <input
+                type="text"
+                className="search-input"
+                style={{ width: '100%' }}
+                placeholder="Search by employee name..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+              />
+            </div>
           </div>
         </div>
         {/* Shared Content Container for KPIs, Filters, Table */}
@@ -193,14 +197,14 @@ const A_Assessment = () => {
           </label>
         </div>
         {/* Table */}
-          <div className="admin-table-container">
+        <div className="admin-table-container">
           {loading ? (
-              <p style={{ padding: 32, textAlign: 'center' }}>Loading...</p>
+            <p style={{ padding: 32, textAlign: 'center' }}>Loading...</p>
           ) : error ? (
-              <p style={{ color: 'red', padding: 32, textAlign: 'center' }}>{error}</p>
+            <p style={{ color: 'red', padding: 32, textAlign: 'center' }}>{error}</p>
           ) : (
             <>
-                <table className="admin-table">
+              <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Employee Name</th>
@@ -215,26 +219,47 @@ const A_Assessment = () => {
                   {paginatedResults.length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
                   ) : paginatedResults.map((row, i) => (
-                      <tr key={i} className={i % 2 ? 'odd-row' : 'even-row'}>
-                        <td>{row.first_name} {row.last_name}</td>
-                        <td>{row.assessment_title}</td>
-                        <td>{row.date_taken ? new Date(row.date_taken).toLocaleString() : '-'}</td>
-                        <td>{row.total_score ?? '-'}</td>
-                        <td>{row.num_attempts ?? '-'}</td>
-                        <td>{row.pass_fail ?? '-'}</td>
+                    <tr key={i} className={i % 2 ? 'odd-row' : 'even-row'}>
+                      <td>{row.first_name} {row.last_name}</td>
+                      <td>{row.assessment_title}</td>
+                      <td>{row.date_taken ? new Date(row.date_taken).toLocaleString() : '-'}</td>
+                      <td>{row.total_score ?? '-'}</td>
+                      <td>{row.num_attempts ?? '-'}</td>
+                      <td>{row.pass_fail ?? '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {/* Pagination */}
-                <div className="assessment-pagination">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
-                <span>Page {page} of {totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</button>
+              <div className="pagination-wrapper">
+                <div className="pagination-container">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    &laquo;
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => setPage(i + 1)}
+                      className={`pagination-btn${page === i + 1 ? ' active' : ''}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    &raquo;
+                  </button>
+                </div>
               </div>
             </>
           )}
-          </div>
+        </div>
         </div>
       </main>
     </div>

@@ -6,7 +6,6 @@ const LoadingOverlay = ({ loading, text = 'Loading...' }) => {
   return (
     <div className="loading-overlay">
       <div className="loading-spinner"></div>
-      <div className="loading-text">{text}</div>
     </div>
   );
 };
