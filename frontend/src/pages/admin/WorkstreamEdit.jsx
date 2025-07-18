@@ -174,16 +174,32 @@ const WorkstreamEdit = () => {
     }
   };
 
-  const onDragEnd = (result) => {
-    const { source, destination } = result;
-    if (!destination) return; // Dropped outside the list
+  const handleDragEnd = async (result) => {
+    if (!result.destination) {
+      return;
+    }
 
-    const reordered = Array.from(chapters);
-    const [moved] = reordered.splice(source.index, 1);
-    reordered.splice(destination.index, 0, moved);
+    const originalChapters = [...chapters];
+    const reorderedChapters = Array.from(originalChapters);
+    const [movedItem] = reorderedChapters.splice(result.source.index, 1);
+    reorderedChapters.splice(result.destination.index, 0, movedItem);
 
-    setChapters(reordered);
-    handleReorderChapters(reordered);
+    setChapters(reorderedChapters);
+    setError(null);
+
+    try {
+      await axios.put(`${API_URL}/chapters/reorder`, {
+        chapters: reorderedChapters.map(c => ({ chapter_id: c.chapter_id })),
+      });
+    } catch (err) {
+      console.error("Failed to save new chapter order:", err);
+      setChapters(originalChapters);
+      setError("Failed to save new chapter order. Please try again.");
+    }
+  };
+
+  const handleCreateChapter = () => {
+    navigate(`/admin/workstream/${workstreamId}/chapter/create`);
   };
 
   if (isLoading) {
@@ -237,15 +253,24 @@ const WorkstreamEdit = () => {
   }
 
   if (selectedChapter) {
-    const handleChapterUpdated = async () => {
-      // Fetch the updated chapter data
-      try {
-        const res = await axios.get(`${API_URL}/chapters/${selectedChapter.chapter_id}`);
-        setSelectedChapter(res.data);
-        fetchWorkstream();
-      } catch (err) {
-        fetchWorkstream(); // fallback
-      }
+    const handleChapterUpdated = (updatedChapter) => {
+      // Create a fully updated chapter object, ensuring URLs are correct
+      const newChapterData = {
+        ...selectedChapter,
+        ...updatedChapter,
+        video_url: updatedChapter.video_filename ? `/chapters/${updatedChapter.chapter_id}/video` : null,
+        pdf_url: updatedChapter.pdf_filename ? `/chapters/${updatedChapter.chapter_id}/pdf` : null,
+      };
+
+      // Update the selected chapter state for the edit view
+      setSelectedChapter(newChapterData);
+
+      // Also update the chapter in the main list for the overview
+      setChapters(prevChapters =>
+        prevChapters.map(ch =>
+          ch.chapter_id === updatedChapter.chapter_id ? newChapterData : ch
+        )
+      );
     };
     return (
       <div className="workstream-edit-container">
@@ -410,7 +435,7 @@ const WorkstreamEdit = () => {
                   </button>
                 </div>
                 <div className="divider"></div>
-                <DragDropContext onDragEnd={onDragEnd}>
+                <DragDropContext onDragEnd={handleDragEnd}>
                   <Droppable droppableId="chapters">
                     {(provided) => (
                       <div 
@@ -612,7 +637,7 @@ const WorkstreamEdit = () => {
                   </button>
                 </div>
                 <div className="divider"></div>
-                <DragDropContext onDragEnd={onDragEnd}>
+                <DragDropContext onDragEnd={handleDragEnd}>
                   <Droppable droppableId="chapters">
                     {(provided) => (
                       <div 

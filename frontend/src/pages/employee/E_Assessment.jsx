@@ -28,7 +28,16 @@ const E_Assessment = () => {
                 setAssessment(assessmentRes.data);
 
                 const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
-                setQuestions(questionsRes.data);
+                console.log('Questions data:', questionsRes.data); // Debug log
+                
+                // Process the questions data to ensure options are parsed
+                const processedQuestions = questionsRes.data.map(q => ({
+                    ...q,
+                    options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
+                    question_text: q.question_text || q.question
+                }));
+                
+                setQuestions(processedQuestions);
             } catch (err) {
                 setError('Failed to load assessment data.');
                 console.error(err);
@@ -70,12 +79,19 @@ const E_Assessment = () => {
     };
 
     const renderQuestionInputs = (q) => {
+        console.log('Rendering question:', q); // Debug log
+        
+        // Ensure options are properly parsed
+        const options = q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+        
         switch (q.question_type) {
-            case 'Multiple Choice':
-                if (!Array.isArray(q.options)) {
+            case 'multiple':
+            case 'multiple_choice':
+                if (!Array.isArray(options)) {
+                    console.log('Invalid options format:', options);
                     return <p>Options are not available for this question.</p>;
                 }
-                return q.options.map((option, index) => (
+                return options.map((option, index) => (
                     <label key={index} className="option-label">
                         <input
                             type="radio"
@@ -88,7 +104,8 @@ const E_Assessment = () => {
                         {option}
                     </label>
                 ));
-            case 'True or False':
+            case 'truefalse':
+            case 'true_false':
                 return ['True', 'False'].map(option => (
                     <label key={option} className="option-label">
                         <input 
@@ -102,7 +119,8 @@ const E_Assessment = () => {
                         {option}
                     </label>
                 ));
-            case 'Identification':
+            case 'identification':
+            case 'short_answer':
                 return (
                     <input 
                         type="text"
@@ -115,6 +133,7 @@ const E_Assessment = () => {
                     />
                 );
             default:
+                console.log('Unsupported question type:', q.question_type);
                 return <p>Unsupported question type: {q.question_type}</p>;
         }
     };

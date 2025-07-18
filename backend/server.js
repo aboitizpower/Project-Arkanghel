@@ -553,34 +553,39 @@ app.put('/workstreams/:workstream_id/order', (req, res) => {
 
     db.beginTransaction(err => {
         if (err) {
-            return res.status(500).json({ error: 'Failed to start transaction.', details: err.message });
+            return res.status(500).json({ error: 'Failed to start transaction.' });
         }
 
-        const chapterPromises = chapters.map((chapter) => {
+        // Update each chapter's order index
+        const updatePromises = chapters.map((chapter, index) => {
             return new Promise((resolve, reject) => {
-                const chapterSql = 'UPDATE module_chapters SET order_index = ? WHERE chapter_id = ? AND workstream_id = ?';
-                db.query(chapterSql, [chapter.order_index, chapter.chapter_id, workstream_id], (err, result) => {
-                    if (err) return reject(err);
-                    if (result.affectedRows === 0) return reject(new Error(`Chapter with ID ${chapter.chapter_id} not found or does not belong to workstream ${workstream_id}.`));
-                    resolve();
+                const sql = 'UPDATE module_chapters SET order_index = ? WHERE chapter_id = ? AND workstream_id = ?';
+                db.query(sql, [index, chapter.chapter_id, workstream_id], (err, result) => {
+                    if (err) reject(err);
+                    else if (result.affectedRows === 0) {
+                        reject(new Error(`Chapter ${chapter.chapter_id} not found or does not belong to workstream ${workstream_id}`));
+                    }
+                    else resolve();
                 });
             });
         });
 
-        Promise.all(chapterPromises)
+        Promise.all(updatePromises)
             .then(() => {
                 db.commit(err => {
                     if (err) {
                         return db.rollback(() => {
-                            res.status(500).json({ error: 'Failed to commit transaction.', details: err.message });
+                            console.error('Failed to commit transaction:', err);
+                            res.status(500).json({ error: 'Failed to save chapter order.' });
                         });
                     }
-                    res.json({ success: 'Order updated successfully.' });
+                    res.json({ success: true, message: 'Chapter order updated successfully.' });
                 });
             })
             .catch(error => {
                 db.rollback(() => {
-                    res.status(500).json({ error: 'Failed to update order.', details: error.message });
+                    console.error('Error updating chapter order:', error);
+                    res.status(500).json({ error: 'Failed to update chapter order.' });
                 });
             });
     });
@@ -929,34 +934,131 @@ app.get('/chapters/:id/video', (req, res) => {
 // Delete a chapter
 app.delete('/chapters/:id', (req, res) => {
     const { id } = req.params;
-    const getAssessmentsSql = 'SELECT assessment_id FROM assessments WHERE chapter_id = ?';
-    db.query(getAssessmentsSql, [id], (err, assessments) => {
-        if (err) return res.status(500).json({ error: `Failed to fetch assessments: ${err.message}` });
 
-        const deleteTheChapter = () => {
-            const deleteChapterSql = 'DELETE FROM module_chapters WHERE chapter_id = ?';
-            db.query(deleteChapterSql, [id], (err, result) => {
-                if (err) return res.status(500).json({ error: `Failed to delete chapter: ${err.message}` });
-                if (result.affectedRows === 0) return res.status(404).json({ error: 'Chapter not found.' });
-                res.json({ success: 'Chapter and all associated content deleted successfully.' });
-            });
+    db.beginTransaction(err => {
+        if (err) {
+            console.error('Transaction start error:', err);
+            return res.status(500).json({ error: 'Database error starting transaction.' });
         }
 
-        if (assessments.length > 0) {
-            const assessmentIds = assessments.map(a => a.assessment_id);
-            const deleteQuestionsSql = 'DELETE FROM questions WHERE assessment_id IN (?)';
-            db.query(deleteQuestionsSql, [assessmentIds], (err, result) => {
-                if (err) return res.status(500).json({ error: `Failed to delete questions: ${err.message}` });
-                
-                const deleteAssessmentsSql = 'DELETE FROM assessments WHERE chapter_id = ?';
-                db.query(deleteAssessmentsSql, [id], (err, result) => {
-                    if (err) return res.status(500).json({ error: `Failed to delete assessments: ${err.message}` });
-                    deleteTheChapter();
+        // First, get the chapter's workstream_id and order_index
+        const getChapterSql = 'SELECT workstream_id, order_index FROM module_chapters WHERE chapter_id = ?';
+        db.query(getChapterSql, [id], (err, chapterResults) => {
+            if (err || chapterResults.length === 0) {
+                return db.rollback(() => {
+                    console.error('Error getting chapter details:', err);
+                    res.status(500).json({ error: 'Failed to get chapter details.' });
                 });
+            }
+
+            const { workstream_id, order_index } = chapterResults[0];
+
+            // Get all assessments for this chapter
+            const getAssessmentsSql = 'SELECT assessment_id FROM assessments WHERE chapter_id = ?';
+            db.query(getAssessmentsSql, [id], (err, assessments) => {
+                if (err) {
+                    return db.rollback(() => {
+                        console.error('Error getting assessments:', err);
+                        res.status(500).json({ error: 'Failed to get assessments.' });
+                    });
+                }
+
+                const assessmentIds = assessments.map(a => a.assessment_id);
+
+                const deleteSequence = [
+                    // 1. Delete answers if there are any assessments
+                    next => {
+                        if (assessmentIds.length === 0) return next();
+                        const sql = 'DELETE FROM answers WHERE question_id IN (SELECT question_id FROM questions WHERE assessment_id IN (?))';
+                        db.query(sql, [assessmentIds], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error deleting answers:', err);
+                                res.status(500).json({ error: 'Failed to delete answers.' });
+                            });
+                            next();
+                        });
+                    },
+                    // 2. Delete questions
+                    next => {
+                        if (assessmentIds.length === 0) return next();
+                        const sql = 'DELETE FROM questions WHERE assessment_id IN (?)';
+                        db.query(sql, [assessmentIds], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error deleting questions:', err);
+                                res.status(500).json({ error: 'Failed to delete questions.' });
+                            });
+                            next();
+                        });
+                    },
+                    // 3. Delete assessments
+                    next => {
+                        if (assessmentIds.length === 0) return next();
+                        const sql = 'DELETE FROM assessments WHERE chapter_id = ?';
+                        db.query(sql, [id], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error deleting assessments:', err);
+                                res.status(500).json({ error: 'Failed to delete assessments.' });
+                            });
+                            next();
+                        });
+                    },
+                    // 4. Delete user progress
+                    next => {
+                        const sql = 'DELETE FROM user_progress WHERE chapter_id = ?';
+                        db.query(sql, [id], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error deleting user progress:', err);
+                                res.status(500).json({ error: 'Failed to delete user progress.' });
+                            });
+                            next();
+                        });
+                    },
+                    // 5. Delete the chapter
+                    next => {
+                        const sql = 'DELETE FROM module_chapters WHERE chapter_id = ?';
+                        db.query(sql, [id], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error deleting chapter:', err);
+                                res.status(500).json({ error: 'Failed to delete chapter.' });
+                            });
+                            next();
+                        });
+                    },
+                    // 6. Update order_index for remaining chapters
+                    next => {
+                        const sql = 'UPDATE module_chapters SET order_index = order_index - 1 WHERE workstream_id = ? AND order_index > ?';
+                        db.query(sql, [workstream_id, order_index], err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error updating order indices:', err);
+                                res.status(500).json({ error: 'Failed to update chapter order.' });
+                            });
+                            next();
+                        });
+                    }
+                ];
+
+                let currentStep = 0;
+                const executeNextStep = () => {
+                    if (currentStep < deleteSequence.length) {
+                        deleteSequence[currentStep](() => {
+                            currentStep++;
+                            executeNextStep();
+                        });
+                    } else {
+                        // All steps completed successfully
+                        db.commit(err => {
+                            if (err) return db.rollback(() => {
+                                console.error('Error committing transaction:', err);
+                                res.status(500).json({ error: 'Failed to commit changes.' });
+                            });
+                            res.json({ success: 'Chapter and all associated content deleted successfully.' });
+                        });
+                    }
+                };
+
+                executeNextStep();
             });
-        } else {
-            deleteTheChapter();
-        }
+        });
     });
 });
 
@@ -1233,7 +1335,7 @@ app.post('/answers', (req, res) => {
                 });
             }
 
-            const getQuestionsSql = 'SELECT question_id, correct_answer, (SELECT chapter_id FROM assessments WHERE assessment_id = ?) as chapter_id FROM questions WHERE question_id IN (?)';
+            const getQuestionsSql = 'SELECT question_id, question_type, correct_answer, options, (SELECT chapter_id FROM assessments WHERE assessment_id = ?) as chapter_id FROM questions WHERE question_id IN (?)';
             db.query(getQuestionsSql, [assessmentId, questionIds], (fetchErr, questions) => {
                 if (fetchErr || questions.length === 0) {
                     return db.rollback(() => {
@@ -1242,15 +1344,29 @@ app.post('/answers', (req, res) => {
                     });
                 }
 
-                const correctAnswersMap = questions.reduce((map, row) => {
-                    map[row.question_id] = row.correct_answer;
-                    return map;
-                }, {});
-
                 const chapterId = questions[0].chapter_id;
 
                 const insertValues = answers.map(ans => {
-                    const score = (correctAnswersMap[ans.questionId] && ans.answer === correctAnswersMap[ans.questionId]) ? 1 : 0;
+                    const question = questions.find(q => q.question_id === ans.questionId);
+                    let score = 0;
+                    
+                    if (question) {
+                        if (question.question_type === 'multiple_choice') {
+                            // For multiple choice, compare the index
+                            const options = typeof question.options === 'string' ? 
+                                JSON.parse(question.options) : question.options;
+                            const answerIndex = options.indexOf(ans.answer);
+                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
+                        } else if (question.question_type === 'true_false') {
+                            // For true/false, convert answer to index (True = 0, False = 1)
+                            const answerIndex = ans.answer.toLowerCase() === 'true' ? 0 : 1;
+                            score = answerIndex === parseInt(question.correct_answer) ? 1 : 0;
+                        } else {
+                            // For identification, case-insensitive comparison
+                            score = ans.answer.toLowerCase() === question.correct_answer.toLowerCase() ? 1 : 0;
+                        }
+                    }
+
                     return [ans.questionId, userId, ans.answer, score];
                 });
 
@@ -1268,7 +1384,7 @@ app.post('/answers', (req, res) => {
                     }
 
                     // If score is > 50%, mark chapter as complete
-                    if (percentage > 50 && chapterId) {
+                    if (percentage >= 50 && chapterId) {
                         const completeChapterSql = `
                             INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time)
                             VALUES (?, ?, TRUE, NOW())
@@ -2234,7 +2350,7 @@ app.get('/admin/assessments/results', (req, res) => {
             w.workstream_id, w.title AS workstream_title,
             mc.chapter_id, mc.title AS chapter_title,
             a.assessment_id, a.title AS assessment_title,
-            MIN(ans.created_at) AS date_taken,
+            MIN(ans.answered_at) AS date_taken,
             COUNT(ans.answer_id) AS num_attempts,
             SUM(ans.score) AS total_score,
             a.total_points,
@@ -2289,6 +2405,158 @@ app.get('/kpi/total-assessments-taken', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ count: results[0].count });
   });
+});
+
+// Update chapter order
+app.put('/chapters/reorder', (req, res) => {
+  const { chapters } = req.body;
+
+  if (!Array.isArray(chapters) || chapters.length === 0) {
+    return res.status(400).json({ error: 'Invalid or empty chapters array provided.' });
+  }
+
+  const workstreamId = chapters[0]?.workstream_id;
+  if (!workstreamId) {
+    // This part is commented out as workstream_id is not consistently available from the frontend.
+    // We will rely on chapter_id uniqueness.
+    // console.warn("workstream_id not provided in reorder request.");
+  }
+
+  const chapterIds = chapters.map(c => c.chapter_id);
+  if (chapterIds.some(id => !id)) {
+    return res.status(400).json({ error: 'All chapters must have a valid chapter_id.' });
+  }
+
+  let caseSql = 'SET order_index = CASE chapter_id ';
+  const params = [];
+
+  chapters.forEach((chapter, index) => {
+    caseSql += 'WHEN ? THEN ? ';
+    params.push(chapter.chapter_id, index);
+  });
+
+  caseSql += 'END';
+  
+  const fullSql = `UPDATE module_chapters ${caseSql} WHERE chapter_id IN (?)`;
+  params.push(chapterIds);
+
+  db.query(fullSql, params, (err, result) => {
+    if (err) {
+      console.error('Error reordering chapters:', err);
+      return res.status(500).json({ error: 'Failed to save new chapter order due to a database error.' });
+    }
+    if (result.affectedRows === 0) {
+        // This could happen if none of the chapter_ids matched.
+        return res.status(404).json({ error: 'No chapters found to reorder. Please check the chapter IDs.' });
+    }
+    res.json({ message: 'Chapter order updated successfully.' });
+  });
+});
+
+// Route to get all chapters for a workstream
+app.get('/workstreams/:workstreamId/chapters', (req, res) => {
+  const { workstreamId } = req.params;
+  const sql = `
+    SELECT chapter_id, workstream_id, title, content, order_index, pdf_filename, video_filename, is_published
+    FROM module_chapters
+    WHERE workstream_id = ?
+    ORDER BY order_index ASC
+  `;
+  db.query(sql, [workstreamId], (err, results) => {
+    if (err) {
+      console.error(`Error fetching chapters for workstream ${workstreamId}:`, err);
+      return res.status(500).json({ error: 'Failed to fetch chapters.' });
+    }
+    res.json(results);
+  });
+});
+
+// CONSOLIDATED UPDATE for a chapter
+app.put('/chapters/:id', upload.fields([{ name: 'video_file' }, { name: 'pdf_file' }]), (req, res) => {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const videoFile = req.files?.video_file?.[0];
+    const pdfFile = req.files?.pdf_file?.[0];
+
+    let sql = 'UPDATE module_chapters SET ';
+    const params = [];
+    const updates = [];
+
+    if (title) {
+        updates.push('title = ?');
+        params.push(title);
+    }
+    if (content) {
+        updates.push('content = ?');
+        params.push(content);
+    }
+    if (videoFile) {
+        updates.push('video_file = ?, video_filename = ?, video_mime_type = ?');
+        params.push(videoFile.buffer, videoFile.originalname, videoFile.mimetype);
+    }
+    if (pdfFile) {
+        updates.push('pdf_file = ?, pdf_filename = ?, pdf_mime_type = ?');
+        params.push(pdfFile.buffer, pdfFile.originalname, pdfFile.mimetype);
+    }
+
+    if (updates.length === 0) {
+        return res.status(400).json({ error: 'No fields to update provided.' });
+    }
+
+    sql += updates.join(', ');
+    sql += ' WHERE chapter_id = ?';
+    params.push(id);
+
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.error(`Error updating chapter ${id}:`, err);
+            return res.status(500).json({ error: 'Database error while updating chapter.' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        // Fetch the updated chapter to return it with proper URLs
+        const selectSql = 'SELECT *, video_filename IS NOT NULL as has_video, pdf_filename IS NOT NULL as has_pdf FROM module_chapters WHERE chapter_id = ?';
+        db.query(selectSql, [id], (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(500).json({ error: 'Failed to fetch updated chapter data.' });
+            }
+            const updatedChapter = results[0];
+            const responseData = {
+                ...updatedChapter,
+                video_url: updatedChapter.has_video ? `/chapters/${id}/video` : null,
+                pdf_url: updatedChapter.has_pdf ? `/chapters/${id}/pdf` : null,
+            };
+            res.json(responseData);
+        });
+    });
+});
+
+// Update chapter publish status
+app.put('/chapters/:id/publish', (req, res) => {
+    const { id } = req.params;
+    const { is_published } = req.body;
+
+    console.log(`Received publish toggle request for chapter ID: ${id}, new status: ${is_published}`);
+
+    if (typeof is_published !== 'boolean') {
+        console.error('Invalid is_published value received:', is_published);
+        return res.status(400).json({ error: 'Invalid is_published value. It must be a boolean.' });
+    }
+
+    const sql = 'UPDATE module_chapters SET is_published = ? WHERE chapter_id = ?';
+    db.query(sql, [is_published, id], (err, result) => {
+        if (err) {
+            console.error('Database error updating chapter publish state:', err);
+            return res.status(500).json({ error: 'Failed to update chapter publish state.', details: err.message });
+        }
+        if (result.affectedRows === 0) {
+            console.warn(`Chapter not found for publish update: ${id}`);
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        console.log(`Chapter ID ${id} publish state updated to ${is_published} successfully.`);
+        res.json({ success: true, message: 'Chapter publish state updated successfully.' });
+    });
 });
 
 // Start server

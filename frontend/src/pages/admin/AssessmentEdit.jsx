@@ -45,7 +45,15 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       setModalType(q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')));
       setModalQuestion(q.question_text || q.question || '');
       setModalOptions(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : (q.question_type === 'truefalse' ? ['True', 'False'] : ['', '', '', '']));
-      setModalCorrectAnswer(q.question_type === 'identification' ? (q.correct_answer ?? q.answer ?? q.correctAnswer ?? '') : (q.correct_answer ?? 0));
+      
+      let correctAnswer;
+      if (q.question_type === 'identification') {
+        correctAnswer = q.correct_answer ?? q.answer ?? q.correctAnswer ?? '';
+      } else {
+        correctAnswer = q.correct_answer ?? 0;
+      }
+      setModalCorrectAnswer(correctAnswer);
+
       setModalEditIndex(editIndex);
     } else {
       setModalType('multiple');
@@ -81,10 +89,10 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       }
       newQuestion = {
         id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question: modalQuestion,
+        question_text: modalQuestion,
         options: filteredOptions,
         correct_answer: correctAnswerIndex,
-        question_type: 'multiple',
+        question_type: 'multiple_choice',
       };
     } else if (modalType === 'truefalse') {
       let correctAnswerTF = modalCorrectAnswer;
@@ -93,21 +101,22 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       }
       newQuestion = {
         id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question: modalQuestion,
+        question_text: modalQuestion,
         options: ['True', 'False'],
         correct_answer: correctAnswerTF === true || correctAnswerTF === 'true' ? 0 : 1,
-        question_type: 'truefalse',
+        question_type: 'true_false',
       };
     } else {
       if (!modalCorrectAnswer || !modalCorrectAnswer.trim()) return; // Require answer
       newQuestion = {
         id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
-        question: modalQuestion,
+        question_text: modalQuestion,
         options: [],
         correct_answer: modalCorrectAnswer,
         question_type: 'identification',
       };
     }
+    console.log('New question:', newQuestion); // Debug log
     if (modalEditIndex !== null) {
       // Edit existing
       setQuestions(qs => qs.map((q, i) => i === modalEditIndex ? { ...q, ...newQuestion } : q));
@@ -159,55 +168,90 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
   useEffect(() => {
     // Always fetch questions for this assessment on mount
-    const fetchQuestions = async () => {
+    const fetchAssessmentData = async () => {
       try {
-        const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
-        // Ensure correct_answer is properly converted to number for comparison
-        const processedQuestions = (res.data || []).map(q => ({
-          ...q,
-          correct_answer: typeof q.correct_answer === 'string' ? parseInt(q.correct_answer) : q.correct_answer
-        }));
+        // Fetch both assessment details and questions
+        const [assessmentRes, questionsRes] = await Promise.all([
+          axios.get(`${API_URL}/assessments/${assessment.assessment_id}`),
+          axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`)
+        ]);
+
+        // Set description from assessment data
+        setEditedDescription(assessmentRes.data.description || '');
+
+        // Process questions
+        const processedQuestions = (questionsRes.data || []).map(q => {
+          let correctAnswer = q.correct_answer;
+          if (q.question_type === 'multiple_choice' || q.question_type === 'true_false') {
+            if (typeof correctAnswer === 'string') {
+              correctAnswer = parseInt(correctAnswer, 10);
+            }
+          }
+          return {
+            ...q,
+            correct_answer: correctAnswer
+          };
+        });
         setQuestions(processedQuestions);
+
       } catch (err) {
         // Optionally set error
+        console.error("Failed to fetch assessment data:", err);
       }
     };
-    fetchQuestions();
+    fetchAssessmentData();
   }, [assessment.assessment_id]);
 
-  const handleSaveDescription = async () => {
+  // Overhauled question CRUD logic
+  const handleSaveAllChanges = async () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, {
-        ...assessment,
-        description: editedDescription
-      });
-      if (onUpdated) onUpdated();
-      setIsEditingDescription(false);
-    } catch (err) {
-      setError('Failed to update description');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSaveChapter = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      // In save logic, set is_final = selectedChapterId === 'final', chapter_id = selectedChapterId !== 'final' ? selectedChapterId : null, and title = autoTitle.
+      // 1. Save assessment details (chapter, title, description)
       const assessmentData = {
         ...assessment,
         chapter_id: selectedChapterId !== 'final' ? selectedChapterId : null,
         is_final: selectedChapterId === 'final',
         title: autoTitle,
-        workstream_id: workstream?.workstream_id || assessment.workstream_id // Always include workstream_id
+        description: editedDescription,
+        workstream_id: workstream?.workstream_id || assessment.workstream_id
       };
       await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, assessmentData);
+
+      // 2. Save all questions
+      for (const q of questions) {
+        console.log('Saving question:', q); // Debug log
+        const payload = {
+          question_text: q.question_text || q.question,
+          options: Array.isArray(q.options) ? q.options : 
+                  (typeof q.options === 'string' ? JSON.parse(q.options) : []),
+          correct_answer: q.correct_answer,
+          question_type: q.question_type === 'multiple' ? 'multiple_choice' :
+                        q.question_type === 'truefalse' ? 'true_false' :
+                        q.question_type
+        };
+        console.log('Question payload:', payload); // Debug log
+        
+        if (q.question_id) {
+          await axios.put(`${API_URL}/questions/${q.question_id}`, payload);
+        } else {
+          await axios.post(`${API_URL}/questions`, {
+            ...payload,
+            assessment_id: assessment.assessment_id
+          });
+        }
+      }
+      
+      // 3. Sync UI and close editing states
+      setIsEditingDescription(false);
+      // Re-fetch questions to sync UI
+      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
+      console.log('Fetched updated questions:', res.data); // Debug log
+      setQuestions(res.data || []);
       if (onUpdated) onUpdated();
     } catch (err) {
-      setError('Failed to update chapter assignment');
+      console.error('Save error:', err); // Debug log
+      setError('Failed to save changes: ' + (err?.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
@@ -240,37 +284,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   };
 
   // Overhauled question CRUD logic
-  const handleSaveAllQuestions = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      for (const q of questions) {
-        const payload = {
-          question_text: q.question_text || q.question,
-          options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-          correct_answer: q.correct_answer,
-          question_type: q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')),
-        };
-        if (q.question_id) {
-          await axios.put(`${API_URL}/questions/${q.question_id}`, payload);
-        } else {
-          await axios.post(`${API_URL}/questions`, {
-            ...payload,
-            assessment_id: assessment.assessment_id
-          });
-        }
-      }
-      // Re-fetch questions to sync UI
-      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
-      setQuestions(res.data || []);
-      if (onUpdated) onUpdated();
-    } catch (err) {
-      setError('Failed to save questions: ' + (err?.response?.data?.error || err.message));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSaveQuestion = async (qid) => {
     setIsSubmitting(true);
     setError(null);
@@ -369,7 +382,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             >
               <FaTrash style={{ marginRight: 8 }} /> Delete Assessment
             </button>
-            <button className="btn-primary" onClick={handleSaveAllQuestions} disabled={isSubmitting}>
+            <button className="btn-primary" onClick={handleSaveAllChanges} disabled={isSubmitting}>
               <FaSave style={{ marginRight: 6 }} /> Save All Changes
             </button>
           </div>
@@ -383,7 +396,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
               <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: 15 }}>Assessment Structure</span>
             </div>
             <div className="form-group">
-              <label htmlFor="chapter-select">Select Chapter or Final Assessment</label>
+              <label>Select Chapter or Final Assessment</label>
               <select
                 id="chapter-select"
                 className="form-control"
@@ -435,53 +448,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                   placeholder="Edit assessment description"
                 />
                 <div className="form-actions">
-                  <button className="btn-save btn-primary" onClick={handleSaveDescription} disabled={isSubmitting}>
-                    {isSubmitting ? 'Saving...' : 'Save'}
-                  </button>
                   <button className="btn-cancel btn-secondary" onClick={() => setIsEditingDescription(false)}>Cancel</button>
                 </div>
               </>
             ) : (
               <p style={{whiteSpace: 'pre-line'}}>{editedDescription || 'No description'}</p>
-            )}
-          </div>
-
-          {/* Chapter Dropdown Card */}
-          <div className="edit-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: 15 }}>Select Chapter</span>
-            </div>
-            {isLoadingWorkstream ? (
-              <p>Loading chapters...</p>
-            ) : workstream && workstream.chapters && workstream.chapters.length > 0 ? (
-              <>
-                <select
-                  id="assessment-chapter"
-                  value={selectedChapterId}
-                  onChange={(e) => setSelectedChapterId(e.target.value)}
-                  className="form-control"
-                >
-                  <option value="">Select a chapter</option>
-                  <option value="final">Final Assessment</option>
-                  {workstream.chapters
-                    .filter(chapter =>
-                      !usedChapterIds.includes(chapter.chapter_id) || chapter.chapter_id === assessment.chapter_id
-                    )
-                    .map(chapter => (
-                      <option key={chapter.chapter_id} value={chapter.chapter_id}>
-                        {chapter.title}
-                      </option>
-                    ))}
-                </select>
-                <div className="form-actions" style={{ marginTop: 16 }}>
-                  <button className="btn-save btn-primary" onClick={handleSaveChapter} disabled={isSubmitting}>
-                    {isSubmitting ? 'Saving...' : 'Save Chapter'}
-                  </button>
-                  <button className="btn-cancel btn-secondary" onClick={() => setSelectedChapterId(assessment.is_final ? 'final' : (assessment.chapter_id || ''))}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <p>No chapters found for this workstream.</p>
             )}
           </div>
         </div>
@@ -514,9 +485,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                       <button type="button" className="remove-question" onClick={() => handleDeleteQuestion(question.question_id || question.id)}>
                         Remove
                       </button>
-                      <button type="button" className="edit-inline-btn" style={{ marginLeft: 8, color: '#2563eb' }} onClick={() => openModal(qIndex)}>
-                        <FaPencilAlt style={{ fontSize: 13 }} /> Edit
-                      </button>
                     </div>
                     <textarea
                       value={question.question_text || question.question || ''}
@@ -537,8 +505,8 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                     <div
                       className="answer-option"
                       style={{
-                        background: question.correct_answer ?? question.answer ?? question.correctAnswer ? '#e0f2fe' : undefined,
-                        border: question.correct_answer ?? question.answer ?? question.correctAnswer ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                        background: question.correct_answer ? '#e0f2fe' : undefined,
+                        border: question.correct_answer ? '2px solid #3b82f6' : '1px solid #e5e7eb',
                         borderRadius: 6,
                         display: 'flex',
                         alignItems: 'center',
@@ -552,7 +520,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                     >
                       <input
                         type="text"
-                        value={question.correct_answer ?? question.answer ?? question.correctAnswer ?? ''}
+                        value={question.correct_answer ?? ''}
                         onChange={e => {
                           const updated = [...questions];
                           updated[qIndex] = { ...question, correct_answer: e.target.value };
@@ -568,7 +536,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                           fontSize: '1em',
                         }}
                       />
-                      {(question.correct_answer ?? question.answer ?? question.correctAnswer) && (
+                      {question.correct_answer && (
                         <span
                           style={{
                             color: '#3b82f6',

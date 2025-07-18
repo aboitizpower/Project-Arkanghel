@@ -203,10 +203,10 @@ const E_Modules = () => {
                     if (response.data && response.data.length > 0) {
                         navigate(`/employee/assessment/${response.data[0].assessment_id}`);
                     } else {
-                        setError('Final assessment is not available at this time.');
+                        setError('Assessment not found.');
                     }
                 } catch (err) {
-                    setError('Could not load the final assessment.');
+                    setError('Could not load the assessment.');
                     console.error(err);
                 } finally {
                     setIsLoading(false);
@@ -246,9 +246,14 @@ const E_Modules = () => {
                 const finalAssessmentChapter = chapters.find(c => c.title.toLowerCase().includes('final assessment'));
                 const lastRegularChapterId = regularChapters.length > 0 ? regularChapters[regularChapters.length - 1].chapter_id : null;
 
-                if (selectedChapter.chapter_id === lastRegularChapterId && finalAssessmentChapter) {
-                    // Last chapter completed, automatically navigate to final assessment
-                    handleSelectChapter(finalAssessmentChapter);
+                if (selectedChapter.chapter_id === lastRegularChapterId) {
+                    if (finalAssessmentChapter) {
+                        // Last chapter completed and there is a final assessment, navigate to it
+                        handleSelectChapter(finalAssessmentChapter);
+                    } else {
+                        // Last chapter completed and no final assessment, mark workstream as complete
+                        handleBackToWorkstreams();
+                    }
                 } else {
                     // Move to the next chapter in the sequence
                     const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);

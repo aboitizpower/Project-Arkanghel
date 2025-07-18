@@ -21,38 +21,39 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
   const handleSave = async (field) => {
     setIsSubmitting(true);
     setError(null);
-    try {
-      let payload = {};
-      let url = `${API_URL}/chapters/${chapter.chapter_id}`;
-      let headers = { 'Content-Type': 'application/json' };
 
-      if (field === 'title') {
-        payload = { title: editedTitle };
-      } else if (field === 'content') {
-        payload = { content: editedContent };
-      } else if (field === 'video' && newVideo) {
-        const formData = new FormData();
-        formData.append('video_file', newVideo);
-        payload = formData;
-        url = `${API_URL}/chapters/${chapter.chapter_id}/upload-video`;
-        headers = { 'Content-Type': 'multipart/form-data' };
-      } else if (field === 'pdf' && newPdf) {
-        const formData = new FormData();
-        formData.append('pdf_file', newPdf);
-        payload = formData;
-        url = `${API_URL}/chapters/${chapter.chapter_id}/upload-pdf`;
-        headers = { 'Content-Type': 'multipart/form-data' };
-      } else {
-        setIsSubmitting(false);
-        return; // Nothing to save
-      }
+    const formData = new FormData();
+    let hasData = false;
 
-      await axios.post(url, payload, { headers });
+    if (field === 'title' && editedTitle !== chapter.title) {
+      formData.append('title', editedTitle);
+      hasData = true;
+    } else if (field === 'content' && editedContent !== chapter.content) {
+      formData.append('content', editedContent);
+      hasData = true;
+    } else if (field === 'video' && newVideo) {
+      formData.append('video_file', newVideo);
+      hasData = true;
+    } else if (field === 'pdf' && newPdf) {
+      formData.append('pdf_file', newPdf);
+      hasData = true;
+    }
+
+    if (!hasData) {
+      setIsSubmitting(false);
       setIsEditing(prev => ({ ...prev, [field]: false }));
-      onUpdated(); // Refresh data in parent
+      return;
+    }
 
+    try {
+      const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setIsEditing(prev => ({ ...prev, [field]: false }));
+      onUpdated(response.data); // Pass updated chapter data back
     } catch (err) {
-      setError(`Failed to save ${field}.`);
+      console.error(`Failed to save ${field}:`, err.response ? err.response.data : err.message);
+      setError(`Failed to save ${field}. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
