@@ -298,59 +298,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     }
   };
 
-  const handleEditQuestion = (qid) => {
-    setEditingQuestionId(qid);
-    const q = questions.find(q => q.question_id === qid);
-    setQuestionEdits({
-      question: q.question,
-      options: [...(q.options || [])],
-      correct_answer: q.correct_answer
-    });
-  };
-
-  const handleCancelEditQuestion = () => {
-    setEditingQuestionId(null);
-    setQuestionEdits({});
-  };
-
-  const handleQuestionEditChange = (field, value) => {
-    setQuestionEdits(edits => ({ ...edits, [field]: value }));
-  };
-
-  const handleOptionEditChange = (idx, value) => {
-    setQuestionEdits(edits => ({
-      ...edits,
-      options: edits.options.map((opt, i) => (i === idx ? value : opt))
-    }));
-  };
-
-  // Overhauled question CRUD logic
-  const handleSaveQuestion = async (qid) => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const q = questions.find(q => q.question_id === qid);
-      if (!q) return;
-      const payload = {
-        question_text: q.question_text || q.question,
-        options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-        correct_answer: q.correct_answer,
-        question_type: q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')),
-      };
-      await axios.put(`${API_URL}/questions/${qid}`, payload);
-      // Re-fetch questions to sync UI
-      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
-      setQuestions(res.data || []);
-      setEditingQuestionId(null);
-      setQuestionEdits({});
-      if (onUpdated) onUpdated();
-    } catch (err) {
-      setError('Failed to update question: ' + (err?.response?.data?.error || err.message));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleDeleteQuestion = async (questionId) => {
     if (!window.confirm('Are you sure you want to delete this question?')) return;
     setIsSubmitting(true);
@@ -450,8 +397,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         </div>
         <div className="question-content">
           <p className="question-text">{question.question_text}</p>
-          
-          {/* Question Type */}
           <div className="question-type">
             <span className="type-label">Type:</span>
             <span className="type-value">
@@ -459,25 +404,12 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                question.question_type === 'true_false' ? 'True/False' : 'Identification'}
             </span>
           </div>
-
-          {/* Correct Answer Section */}
           <div className="answer-section">
             <span className="answer-label">Correct Answer:</span>
             <span className="answer-value">
-              {question.question_type === 'multiple_choice' ? (
-                // For multiple choice, show the correct option text
-                Array.isArray(question.options) && question.options[question.correct_answer]
-              ) : question.question_type === 'true_false' ? (
-                // For true/false, show True or False
-                question.correct_answer === 0 ? 'True' : 'False'
-              ) : (
-                // For identification, show the answer text directly
-                question.correct_answer
-              )}
+              {renderQuestionAnswer(question)}
             </span>
           </div>
-
-          {/* Show options only for multiple choice */}
           {question.question_type === 'multiple_choice' && Array.isArray(question.options) && (
             <div className="options-section">
               <span className="options-label">Options:</span>
