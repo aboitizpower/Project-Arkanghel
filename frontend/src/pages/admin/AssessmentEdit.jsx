@@ -1,19 +1,22 @@
 // File: components/AssessmentEdit.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import { FaPencilAlt, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import '../../styles/admin/AssessmentEdit.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
 const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(assessment.title);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(assessment.description || '');
+  // Remove manual title editing state and UI
+  // Add state for final assessment toggle
+  // Remove isFinal state and logic
+  // Use only selectedChapterId, where 'final' means final assessment
   const [selectedChapterId, setSelectedChapterId] = useState(
     assessment.is_final ? 'final' : (assessment.chapter_id || '')
   );
@@ -33,13 +36,25 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [modalQuestion, setModalQuestion] = useState('');
   const [modalOptions, setModalOptions] = useState(['', '', '', '']);
   const [modalCorrectAnswer, setModalCorrectAnswer] = useState('');
+  const [modalEditIndex, setModalEditIndex] = useState(null); // Track which question is being edited
 
-  const openModal = () => {
+  const openModal = (editIndex = null) => {
+    if (editIndex !== null) {
+      // Editing existing question
+      const q = questions[editIndex];
+      setModalType(q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')));
+      setModalQuestion(q.question_text || q.question || '');
+      setModalOptions(q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : (q.question_type === 'truefalse' ? ['True', 'False'] : ['', '', '', '']));
+      setModalCorrectAnswer(q.question_type === 'identification' ? (q.correct_answer ?? q.answer ?? q.correctAnswer ?? '') : (q.correct_answer ?? 0));
+      setModalEditIndex(editIndex);
+    } else {
+      setModalType('multiple');
+      setModalQuestion('');
+      setModalOptions(['', '', '', '']);
+      setModalCorrectAnswer('');
+      setModalEditIndex(null);
+    }
     setShowModal(true);
-    setModalType('multiple');
-    setModalQuestion('');
-    setModalOptions(['', '', '', '']);
-    setModalCorrectAnswer('');
   };
   const closeModal = () => {
     setShowModal(false);
@@ -59,16 +74,17 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     let newQuestion;
     if (modalType === 'multiple') {
       const filteredOptions = modalOptions.filter(opt => opt.trim() !== '');
+      if (filteredOptions.length < 2) return; // At least 2 options
       let correctAnswerIndex = modalCorrectAnswer;
       if (correctAnswerIndex === '' || correctAnswerIndex === undefined || isNaN(Number(correctAnswerIndex)) || Number(correctAnswerIndex) < 0 || Number(correctAnswerIndex) >= filteredOptions.length) {
         correctAnswerIndex = 0;
       }
       newQuestion = {
-        id: Date.now(),
+        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
         question: modalQuestion,
         options: filteredOptions,
         correct_answer: correctAnswerIndex,
-        question_type: 'multiple'
+        question_type: 'multiple',
       };
     } else if (modalType === 'truefalse') {
       let correctAnswerTF = modalCorrectAnswer;
@@ -76,24 +92,35 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         correctAnswerTF = 'true';
       }
       newQuestion = {
-        id: Date.now(),
+        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
         question: modalQuestion,
         options: ['True', 'False'],
         correct_answer: correctAnswerTF === true || correctAnswerTF === 'true' ? 0 : 1,
-        question_type: 'truefalse'
+        question_type: 'truefalse',
       };
     } else {
+      if (!modalCorrectAnswer || !modalCorrectAnswer.trim()) return; // Require answer
       newQuestion = {
-        id: Date.now(),
+        id: modalEditIndex !== null ? questions[modalEditIndex].id || questions[modalEditIndex].question_id : Date.now(),
         question: modalQuestion,
         options: [],
         correct_answer: modalCorrectAnswer,
-        question_type: 'identification'
+        question_type: 'identification',
       };
     }
-    setQuestions(qs => [...qs, newQuestion]);
-    closeModal();
+    if (modalEditIndex !== null) {
+      // Edit existing
+      setQuestions(qs => qs.map((q, i) => i === modalEditIndex ? { ...q, ...newQuestion } : q));
+    } else {
+      setQuestions(qs => [...qs, newQuestion]);
+    }
+    setShowModal(false);
   };
+
+  const location = useLocation();
+  useEffect(() => {
+    setShowModal(false);
+  }, [location.pathname]);
 
   // Fetch workstream data to get chapters and used chapters
   useEffect(() => {
@@ -148,23 +175,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     fetchQuestions();
   }, [assessment.assessment_id]);
 
-  const handleSaveTitle = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, {
-        ...assessment,
-        title: editedTitle
-      });
-      if (onUpdated) onUpdated();
-      setIsEditingTitle(false);
-    } catch (err) {
-      setError('Failed to update title');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleSaveDescription = async () => {
     setIsSubmitting(true);
     setError(null);
@@ -186,10 +196,13 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setIsSubmitting(true);
     setError(null);
     try {
+      // In save logic, set is_final = selectedChapterId === 'final', chapter_id = selectedChapterId !== 'final' ? selectedChapterId : null, and title = autoTitle.
       const assessmentData = {
         ...assessment,
-        chapter_id: selectedChapterId === 'final' ? null : selectedChapterId,
-        is_final: selectedChapterId === 'final'
+        chapter_id: selectedChapterId !== 'final' ? selectedChapterId : null,
+        is_final: selectedChapterId === 'final',
+        title: autoTitle,
+        workstream_id: workstream?.workstream_id || assessment.workstream_id // Always include workstream_id
       };
       await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, assessmentData);
       if (onUpdated) onUpdated();
@@ -226,23 +239,59 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     }));
   };
 
+  // Overhauled question CRUD logic
+  const handleSaveAllQuestions = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      for (const q of questions) {
+        const payload = {
+          question_text: q.question_text || q.question,
+          options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
+          correct_answer: q.correct_answer,
+          question_type: q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')),
+        };
+        if (q.question_id) {
+          await axios.put(`${API_URL}/questions/${q.question_id}`, payload);
+        } else {
+          await axios.post(`${API_URL}/questions`, {
+            ...payload,
+            assessment_id: assessment.assessment_id
+          });
+        }
+      }
+      // Re-fetch questions to sync UI
+      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
+      setQuestions(res.data || []);
+      if (onUpdated) onUpdated();
+    } catch (err) {
+      setError('Failed to save questions: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSaveQuestion = async (qid) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}/questions/${qid}`, {
-        question: questionEdits.question,
-        options: questionEdits.options,
-        correct_answer: questionEdits.correct_answer
-      });
-      if (onUpdated) onUpdated();
-      setEditingQuestionId(null);
-      setQuestionEdits({});
+      const q = questions.find(q => q.question_id === qid);
+      if (!q) return;
+      const payload = {
+        question_text: q.question_text || q.question,
+        options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
+        correct_answer: q.correct_answer,
+        question_type: q.question_type || (q.options && q.options.length === 0 ? 'identification' : (q.options && q.options.length === 2 && q.options[0] === 'True' && q.options[1] === 'False' ? 'truefalse' : 'multiple')),
+      };
+      await axios.put(`${API_URL}/questions/${qid}`, payload);
       // Re-fetch questions to sync UI
       const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
       setQuestions(res.data || []);
+      setEditingQuestionId(null);
+      setQuestionEdits({});
+      if (onUpdated) onUpdated();
     } catch (err) {
-      setError('Failed to update question');
+      setError('Failed to update question: ' + (err?.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
@@ -253,22 +302,77 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await axios.delete(`${API_URL}/assessments/${assessment.assessment_id}/questions/${questionId}`);
+      await axios.delete(`${API_URL}/questions/${questionId}`);
+      // Re-fetch questions to sync UI
+      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
+      setQuestions(res.data || []);
       if (onUpdated) onUpdated();
     } catch (err) {
-      setError('Failed to delete question');
-      console.error(err);
+      setError('Failed to delete question: ' + (err?.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleDeleteAssessment = async () => {
+    if (!window.confirm('Are you sure you want to delete this assessment and all its questions?')) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await axios.delete(`${API_URL}/assessments/${assessment.assessment_id}`);
+      if (onCancel) onCancel();
+      else navigate('/admin/assessment');
+    } catch (err) {
+      setError('Failed to delete assessment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Auto-generate title based on dropdown selection
+  const autoTitle = selectedChapterId === 'final'
+    ? `Final Assessment for: ${workstream?.title || ''}`
+    : (selectedChapterId
+        ? `Assessment: ${workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId)?.title || ''}`
+        : assessment.title);
+
   return (
     <main className="assessment-create-main-content">
-      <div className="assessment-create-header">
+      <LoadingOverlay loading={isSubmitting} />
+      <div className="assessment-create-header" style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
           <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>
             &larr; Back
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: 16 }}>
+            <button
+              className="btn-delete-assessment"
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '0.5rem 1.25rem',
+                fontWeight: 600,
+                fontSize: '1rem',
+                boxShadow: '0 2px 8px rgba(239,68,68,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1,
+                transition: 'background 0.2s',
+              }}
+              onClick={handleDeleteAssessment}
+              disabled={isSubmitting}
+              onMouseOver={e => e.currentTarget.style.background = '#b91c1c'}
+              onMouseOut={e => e.currentTarget.style.background = '#ef4444'}
+            >
+              <FaTrash style={{ marginRight: 8 }} /> Delete Assessment
+            </button>
+            <button className="btn-primary" onClick={handleSaveAllQuestions} disabled={isSubmitting}>
+              <FaSave style={{ marginRight: 6 }} /> Save All Changes
+            </button>
+          </div>
         </div>
       <div className="assessment-create-row">
         {/* Left box: Assessment details form as cards */}
@@ -276,39 +380,33 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           {/* Title Card */}
           <div className="edit-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: 15 }}>Assessment Title</span>
-              {!isEditingTitle && (
-                <button
-                  type="button"
-                  className="edit-inline-btn"
-                  onClick={() => setIsEditingTitle(true)}
-                  style={{ background: 'none', border: 'none', color: '#2563eb', display: 'flex', alignItems: 'center', gap: 4, fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
-                >
-                  <FaPencilAlt style={{ fontSize: 13 }} /> Edit title
-                </button>
-              )}
+              <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: 15 }}>Assessment Structure</span>
             </div>
-            {isEditingTitle ? (
-              <>
-                <input
-                  id="assessment-title"
-                  type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  className="form-control"
-                  placeholder="Edit assessment title"
-                  required
-                />
-                <div className="form-actions">
-                  <button className="btn-save btn-primary" onClick={handleSaveTitle} disabled={isSubmitting}>
-                    {isSubmitting ? 'Saving...' : 'Save'}
-                  </button>
-                  <button className="btn-cancel btn-secondary" onClick={() => setIsEditingTitle(false)}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <p>{editedTitle}</p>
-            )}
+            <div className="form-group">
+              <label htmlFor="chapter-select">Select Chapter or Final Assessment</label>
+              <select
+                id="chapter-select"
+                className="form-control"
+                value={selectedChapterId}
+                onChange={e => setSelectedChapterId(e.target.value)}
+              >
+                <option value="">Select a chapter or final assessment</option>
+                {workstream?.chapters?.map(ch => (
+                  <option key={ch.chapter_id} value={ch.chapter_id}>{ch.title}</option>
+                ))}
+                <option value="final">Final Assessment for: {workstream?.title || ''}</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Assessment Name</label>
+              <input
+                type="text"
+                className="form-control"
+                value={autoTitle}
+                readOnly
+                style={{ background: '#f3f4f6', color: '#222', fontWeight: 600 }}
+              />
+            </div>
           </div>
 
           {/* Description Card */}
@@ -413,12 +511,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div className="question-header">
                       <span className="question-number">Question {qIndex + 1}</span>
-                      <button 
-                        type="button" 
-                        className="remove-question"
-                        onClick={() => handleDeleteQuestion(question.question_id || question.id)}
-                      >
+                      <button type="button" className="remove-question" onClick={() => handleDeleteQuestion(question.question_id || question.id)}>
                         Remove
+                      </button>
+                      <button type="button" className="edit-inline-btn" style={{ marginLeft: 8, color: '#2563eb' }} onClick={() => openModal(qIndex)}>
+                        <FaPencilAlt style={{ fontSize: 13 }} /> Edit
                       </button>
                     </div>
                     <textarea
@@ -578,9 +675,9 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             {showModal && (
               <div className="modal-overlay">
                 <div className="modal-content">
-                  <h4>Question {questions.length + 1}</h4>
+                  <h4>{modalEditIndex !== null ? `Edit Question ${modalEditIndex + 1}` : `Question ${questions.length + 1}`}</h4>
                   <label>Question Type</label>
-                  <select value={modalType} onChange={e => setModalType(e.target.value)} className="form-control">
+                  <select value={modalType} onChange={e => setModalType(e.target.value)} className="form-control" disabled={modalEditIndex !== null}>
                     <option value="multiple">Multiple Choice</option>
                     <option value="truefalse">True/False</option>
                     <option value="identification">Identification</option>
@@ -651,7 +748,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                   )}
                   <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
-                    <button type="button" className="btn-primary" onClick={handleModalSubmit}>Add</button>
+                    <button type="button" className="btn-primary" onClick={handleModalSubmit}>{modalEditIndex !== null ? 'Save' : 'Add'}</button>
                   </div>
                 </div>
               </div>
@@ -659,7 +756,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           </div>
           {/* Add Question Button at the bottom, not scrollable */}
           <div style={{ flex: '0 0 auto', marginTop: '1rem', display: 'flex', justifyContent: 'flex-start' }}>
-            <button className="add-question-btn" onClick={openModal}>
+            <button className="add-question-btn" onClick={() => openModal()}>
               + Add Question
             </button>
           </div>

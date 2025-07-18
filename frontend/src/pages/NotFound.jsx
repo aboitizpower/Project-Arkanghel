@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import LoadingOverlay from '../components/LoadingOverlay';
 
 const NotFound = () => (
   <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6" }}>

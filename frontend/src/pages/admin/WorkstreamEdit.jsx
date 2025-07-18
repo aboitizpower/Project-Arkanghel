@@ -1,7 +1,7 @@
 // File: components/WorkstreamEdit.jsx
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AdminSidebar from '../../components/AdminSidebar';
 import ChapterEdit from './ChapterEdit';
@@ -9,12 +9,14 @@ import AssessmentEdit from './AssessmentEdit';
 import axios from 'axios';
 import { FaPencilAlt, FaTrash, FaPlus } from 'react-icons/fa';
 import '../../styles/admin/WorkstreamEdit.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
 const WorkstreamEdit = () => {
   const { workstreamId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [workstream, setWorkstream] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +68,11 @@ const WorkstreamEdit = () => {
       fetchWorkstream();
     }
   }, [fetchWorkstream, workstreamId]);
+
+  useEffect(() => {
+    setSelectedChapter(null);
+    setSelectedAssessment(null);
+  }, [location.pathname]);
 
   const handleDeleteChapter = async (chapterId) => {
     if (window.confirm('Are you sure you want to delete this chapter? All associated assessments and user progress will also be deleted.')) {
@@ -184,6 +191,7 @@ const WorkstreamEdit = () => {
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
+          <LoadingOverlay loading={isLoading} />
           <div className="loading-container">
             <div className="loading-spinner"></div>
             <p>Loading workstream...</p>
@@ -198,6 +206,7 @@ const WorkstreamEdit = () => {
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
+          <LoadingOverlay loading={isLoading} />
           <div className="error-message">
             {error}
             <button onClick={() => navigate('/admin/modules')} className="btn-secondary">
@@ -215,6 +224,7 @@ const WorkstreamEdit = () => {
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
+          <LoadingOverlay loading={isLoading} />
           <div className="error-message">
             Workstream not found.
             <button onClick={() => navigate('/admin/modules')} className="btn-secondary">
@@ -241,6 +251,7 @@ const WorkstreamEdit = () => {
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
+          <LoadingOverlay loading={isLoading} />
           <ChapterEdit 
             chapter={selectedChapter} 
             onCancel={() => setSelectedChapter(null)} 
@@ -256,6 +267,7 @@ const WorkstreamEdit = () => {
       <div className="workstream-edit-container">
         <AdminSidebar />
         <main className="workstream-edit-main-content">
+          <LoadingOverlay loading={isLoading} />
           <AssessmentEdit 
             assessment={selectedAssessment} 
             onCancel={() => setSelectedAssessment(null)} 
@@ -273,6 +285,7 @@ const WorkstreamEdit = () => {
     <div className="workstream-edit-container">
       <AdminSidebar />
       <main className="workstream-edit-main-content">
+        <LoadingOverlay loading={isLoading} />
         <div className="workstream-edit-header">
           <button className="back-button" onClick={() => navigate('/admin/modules')}>
             &larr; Back to All Workstreams
@@ -479,6 +492,7 @@ const WorkstreamEdit = () => {
     <div className="workstream-edit-container">
       <AdminSidebar />
       <main className="workstream-edit-main-content">
+        <LoadingOverlay loading={isLoading} />
         <div className="workstream-edit-page">
           <div className="workstream-edit-layout">
             {/* Left Panel: Workstream Details */}

@@ -4,6 +4,7 @@ import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -514,6 +515,7 @@ const E_Modules = () => {
         <div className="e-modules-page">
             {!selectedWorkstream && <EmployeeSidebar />}
             <main className={`modules-main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
+                <LoadingOverlay loading={isLoading} />
                 {error && <p className="error-message">{error}</p>}
                 {!isLoading && !error && (
                     selectedWorkstream ? renderModuleView() : renderWorkstreamView()

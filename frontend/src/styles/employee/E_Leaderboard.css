@@ -157,3 +157,37 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* Debug: force pointer-events for main content and sidebar */
+.sidebar, .leaderboard-main-content, .page-header, .table-container {
+  pointer-events: auto !important;
+  z-index: 2;
+}
+
+/* Only overlays with display: flex or block should block pointer events */
+.ws-modal-overlay:not([style*="display: none"]),
+.modal-overlay:not([style*="display: none"]),
+.edit-modal-overlay:not([style*="display: none"]) {
+  pointer-events: auto !important;
+}
+
+/* Debug: highlight all fixed/absolute high-z-index elements */
+*[style*="position: fixed" i][style*="z-index: 100" i],
+*[style*="position: absolute" i][style*="z-index: 100" i],
+*[style*="position: fixed" i][style*="z-index: 200" i],
+*[style*="position: absolute" i][style*="z-index: 200" i],
+*[style*="position: fixed" i][style*="z-index: 1000" i],
+*[style*="position: absolute" i][style*="z-index: 1000" i] {
+  outline: 3px solid red !important;
+  background: rgba(255,0,0,0.08) !important;
+}
+
+body * {
+  pointer-events: auto !important;
+}
+
+.ws-modal-overlay[style*="display: none"],
+.modal-overlay[style*="display: none"],
+.edit-modal-overlay[style*="display: none"] {
+  pointer-events: none !important;
+}

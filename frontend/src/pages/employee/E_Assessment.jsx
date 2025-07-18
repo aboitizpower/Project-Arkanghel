@@ -4,6 +4,7 @@ import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Assessment.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaLock } from 'react-icons/fa';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -235,7 +236,8 @@ const E_Assessment = () => {
                 )}
             </div>
             {/* Assessment Content */}
-            <main className="page-container" style={{ flex: 1 }}>
+            <main className="assessment-main-content">
+                <LoadingOverlay loading={!assessment || questions.length === 0} />
                 <h1>{assessment.title}</h1>
                 <p>{assessment.description}</p>
                 <form onSubmit={handleSubmit} className="assessment-form">

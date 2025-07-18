@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Leaderboard.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const E_Leaderboard = () => {
     const [leaderboardData, setLeaderboardData] = useState([]);
@@ -40,6 +41,7 @@ const E_Leaderboard = () => {
         <div className="page-layout">
             <EmployeeSidebar />
             <main className="leaderboard-main-content">
+                <LoadingOverlay loading={isLoading} />
                 <div className="page-header">
                     <h1 className="page-title">Leaderboard</h1>
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_AssessmentResults.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -46,6 +47,7 @@ const E_AssessmentResults = () => {
         <div className="page-layout">
             <EmployeeSidebar />
             <main className="main-content">
+                <LoadingOverlay loading={loading} />
                 <div className="page-header">
                     <h1 className="page-title">Assessment Results</h1>
                 </div>

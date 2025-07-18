@@ -16,6 +16,8 @@
   position: relative;
   overflow: hidden;
   font-family: 'Poppins', Arial, sans-serif;
+  z-index: 9999;
+  pointer-events: auto !important;
 }
 
 .sidebar-header {
@@ -162,10 +164,6 @@
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border 0.18s;
   justify-content: center;
-  margin-top: -10%;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: 0 2px 8px rgba(7, 14, 27, 0.06);
 }
 
 .sidebar-logout-btn .sidebar-icon {
@@ -184,3 +182,53 @@
 }
 
 /* Add any admin-specific styles below */
+
+/* --- Robust Admin Layout Fixes --- */
+.admin-layout {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  width: 100vw;
+  position: relative;
+  background: #f7f8fa;
+  z-index: 0;
+}
+
+.sidebar {
+  position: relative !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  flex-shrink: 0;
+  outline: none !important;
+  box-shadow: 2px 0 16px rgba(7, 14, 27, 0.10);
+}
+
+.admin-main,
+.admin-table-container,
+.leaderboard-main-content,
+.page-header,
+.table-container {
+  position: relative !important;
+  z-index: 1 !important;
+  flex: 1 1 0;
+  min-width: 0;
+  background: transparent;
+  pointer-events: auto !important;
+}
+
+/* Safety net: overlays only block pointer events if visible */
+.ws-modal-overlay[aria-hidden="true"],
+.ws-modal-overlay[style*="display: none"],
+.ws-modal-overlay[style*="visibility: hidden"],
+.modal-overlay[aria-hidden="true"],
+.modal-overlay[style*="display: none"],
+.modal-overlay[style*="visibility: hidden"] {
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Remove any negative margins or box-shadows from sidebar buttons */
+.sidebar-footer-btn {
+  margin: 0 !important;
+  box-shadow: none !important;
+}

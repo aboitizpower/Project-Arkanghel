@@ -16,6 +16,8 @@
   position: relative;
   overflow: hidden;
   font-family: 'Poppins', Arial, sans-serif;
+  z-index: 9999;
+  pointer-events: auto !important;
 }
 
 .sidebar-header {

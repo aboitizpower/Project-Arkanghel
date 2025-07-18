@@ -3,6 +3,7 @@ import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Dashboard.css'; // New CSS file
 import { FaCheckCircle, FaHourglassHalf, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -45,6 +46,7 @@ const E_Dashboard = () => {
     <div className="employee-dashboard-page">
       <EmployeeSidebar />
       <main className="main-content">
+        <LoadingOverlay loading={loading} />
         <h1 className="welcome-header">Welcome, {userName}!</h1>
         
         {error && <p className="error-message">{error}</p>}

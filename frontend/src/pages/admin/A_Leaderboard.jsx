@@ -3,6 +3,7 @@ import axios from 'axios';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/AdminCommon.css';
 import '../../styles/admin/A_Leaderboard.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const A_Leaderboard = () => {
     const [leaderboardData, setLeaderboardData] = useState([]);
@@ -61,6 +62,7 @@ const A_Leaderboard = () => {
         <div className="admin-layout">
             <AdminSidebar />
             <main className="admin-main">
+                <LoadingOverlay loading={isLoading} />
                 <div className="admin-header">
                     <div className="header-left">
                         <h1 className="admin-title">Leaderboard</h1>

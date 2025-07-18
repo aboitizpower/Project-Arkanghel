@@ -342,3 +342,14 @@
   border-color: #cbd5e1;
   box-shadow: 0 4px 16px rgba(37,99,235,0.09);
 }
+
+/* Safety net: Prevent hidden overlays from blocking pointer events */
+.ws-modal-overlay[aria-hidden="true"],
+.ws-modal-overlay[style*="display: none"],
+.ws-modal-overlay[style*="visibility: hidden"],
+.modal-overlay[aria-hidden="true"],
+.modal-overlay[style*="display: none"],
+.modal-overlay[style*="visibility: hidden"] {
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

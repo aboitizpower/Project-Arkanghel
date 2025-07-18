@@ -5,6 +5,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/AssessmentCreate.css';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -171,53 +172,64 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title) {
-      setError('Title is required.');
+    if (!selectedChapterId) {
+      setError('Please select a chapter or final assessment.');
       return;
     }
     if (questions.length === 0) {
       setError('At least one question is required.');
       return;
     }
-    if (!selectedChapterId) {
-      setError('Please select a chapter.');
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
     try {
+      let generatedTitle = '';
+      let chapterIdToSend = null;
+      let isFinalToSend = false;
+      if (selectedChapterId === 'final') {
+        generatedTitle = `Final Assessment for: ${workstream?.title || ''}`;
+        chapterIdToSend = null;
+        isFinalToSend = true;
+      } else {
+        const chapter = workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId);
+        generatedTitle = chapter ? `Assessment: ${chapter.title}` : '';
+        chapterIdToSend = selectedChapterId ? Number(selectedChapterId) : null;
+        isFinalToSend = false;
+      }
       const assessmentData = {
-        title,
-        description,
+        title: generatedTitle,
+        description: description || '',
         questions: questions.map(q => ({
           question: q.question,
           options: q.options.filter(opt => opt.trim() !== ''),
           correct_answer: q.correctAnswer
-        }))
+        })),
+        chapter_id: chapterIdToSend,
+        is_final: isFinalToSend
       };
-      if (selectedChapterId === 'final') {
-        assessmentData.is_final = true;
-      } else {
-        assessmentData.chapter_id = selectedChapterId;
-      }
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
       await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       if (onCreated) onCreated();
       else navigate('/admin/modules');
     } catch (err) {
-      setError('Failed to create assessment');
-      console.error(err);
+      let backendMsg = err?.response?.data?.error || err?.message || 'Failed to create assessment';
+      setError('Failed to create assessment: ' + backendMsg);
+      console.error('Assessment creation error:', err);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    setShowModal(false);
+  }, [location.pathname]);
 
   if (isLoading) {
     return (
       <div className="assessment-create-container">
         <AdminSidebar />
         <main className="assessment-create-main-content">
+          <LoadingOverlay loading={isLoading} />
           <div className="loading-message">Loading workstream data...</div>
         </main>
       </div>
@@ -229,6 +241,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       <div className="assessment-create-container">
         <AdminSidebar />
         <main className="assessment-create-main-content">
+          <LoadingOverlay loading={isLoading} />
           <div className="error-message">{error}</div>
         </main>
       </div>
@@ -239,6 +252,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
     <div className="assessment-create-container">
       <AdminSidebar />
       <main className="assessment-create-main-content">
+        <LoadingOverlay loading={isLoading} />
         <div className="assessment-create-header">
           <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>
             &larr; Back
@@ -248,40 +262,15 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
           {/* Left box: Assessment details form */}
           <div className="assessment-create-page assessment-create-left" style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '24px', boxShadow: '0 2px 16px rgba(0,0,0,0.08)', background: '#fff' }}>
             <h2>Create New Assessment</h2>
-            <p className="subtitle">Fill out the details below to add a new assessment.</p>
+            <p className="subtitle">Select a chapter or choose Final Assessment. The name will be auto-generated.</p>
 
             {error && <div className="error-message">{error}</div>}
 
             <form onSubmit={handleSubmit} className="assessment-create-form">
-              <div className="form-group">
-                <label htmlFor="assessment-title">Assessment Title</label>
-                <input
-                  id="assessment-title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="form-control"
-                  placeholder="Enter assessment title"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="assessment-description">Assessment Description</label>
-                <textarea
-                  id="assessment-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="form-control"
-                  rows="4"
-                  placeholder="Enter assessment description"
-                />
-              </div>
-
-              {/* Remove radio group and always show chapter dropdown */}
+              {/* Chapter dropdown with Final Assessment option */}
               {workstream?.chapters && workstream.chapters.length > 0 && (
                 <div className="form-group">
-                  <label htmlFor="chapter-select">Select Chapter</label>
+                  <label htmlFor="chapter-select">Select Chapter or Final Assessment</label>
                   <select
                     id="chapter-select"
                     className="form-control"
@@ -289,17 +278,48 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                     onChange={e => setSelectedChapterId(e.target.value)}
                     required
                   >
-                    <option value="" disabled>Select a chapter</option>
-                    <option value="final">Final Assessment</option>
-                    {workstream.chapters
-                      .filter(ch => !usedChapterIds.includes(ch.chapter_id))
-                      .map(ch => (
-                        <option key={ch.chapter_id} value={ch.chapter_id}>{ch.title}</option>
+                    <option value="" disabled>Select a chapter or final assessment</option>
+                    {workstream.chapters.map(ch => (
+                      <option
+                        key={ch.chapter_id}
+                        value={ch.chapter_id}
+                        disabled={usedChapterIds.includes(ch.chapter_id)}
+                      >
+                        {ch.title}{usedChapterIds.includes(ch.chapter_id) ? ' (Already has assessment)' : ''}
+                      </option>
                     ))}
+                    <option value="final">Final Assessment for: {workstream?.title || ''}</option>
                   </select>
                 </div>
               )}
-
+              {/* Auto-generated assessment name (read-only) */}
+              <div className="form-group">
+                <label>Assessment Name (auto-generated)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={selectedChapterId === 'final'
+                    ? `Final Assessment for: ${workstream?.title || ''}`
+                    : (selectedChapterId
+                        ? `Assessment: ${workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId)?.title || ''}`
+                        : '')}
+                  readOnly
+                  style={{ background: '#f3f4f6', color: '#222', fontWeight: 600 }}
+                />
+              </div>
+              {/* Optional description */}
+              <div className="form-group">
+                <label htmlFor="assessment-description">Assessment Description (optional)</label>
+                <textarea
+                  id="assessment-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="form-control"
+                  rows="4"
+                  placeholder="Enter assessment description (optional)"
+                />
+              </div>
+              {/* The description field is now supported in the DB and will be sent as part of the payload */}
               <div className="form-actions">
                 <button type="submit" className="btn-primary" disabled={isSubmitting}>
                   {isSubmitting ? 'Creating...' : 'Create Assessment'}

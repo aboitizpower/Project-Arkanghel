@@ -1,16 +1,14 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { AuthContext } from '../App';
 import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle, FaUserTie, FaArrowLeft } from 'react-icons/fa';
 import '../styles/AdminSidebar.css';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user'));
-  } catch (e) {}
+  const { user, setUser } = useContext(AuthContext);
   let firstName = user && user.first_name ? user.first_name : '';
   let lastName = user && user.last_name ? user.last_name : '';
   const fullName = `${firstName} ${lastName}`.trim();
@@ -19,8 +17,10 @@ const AdminSidebar = () => {
   const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : '';
 
   const handleLogout = () => {
+    if (setUser) setUser(null);
     localStorage.removeItem('user');
     navigate('/');
+    window.location.reload();
   };
 
   // Show 'Back to Admin Pages' if on employee page, otherwise show 'View Employee Pages'
@@ -31,6 +31,7 @@ const AdminSidebar = () => {
     } else {
       navigate('/employee/dashboard');
     }
+    window.location.reload();
   };
 
   return (
@@ -49,6 +50,11 @@ const AdminSidebar = () => {
           <li>
             <NavLink to="/admin/modules" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
               <FaLayerGroup className="sidebar-icon" /> Workstream Management
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/admin/assessment" className={({ isActive }) => isActive ? 'sidebar-link active' : 'sidebar-link'}>
+              <FaTasks className="sidebar-icon" /> Assessment Management
             </NavLink>
           </li>
           <li>

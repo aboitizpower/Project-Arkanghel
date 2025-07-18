@@ -6,7 +6,8 @@ import '../../styles/admin/A_Modules.css';
 import '../../styles/admin/AdminCommon.css';
 import axios from 'axios';
 import { FaCog, FaTrash, FaEye, FaEyeSlash, FaSearch } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -127,6 +128,7 @@ const A_Modules = () => {
         <div className="admin-layout">
             <AdminSidebar />
             <main className="admin-main">
+                <LoadingOverlay loading={isLoading} />
                 <div className="admin-header">
                     <div className="header-left">
                         <h1 className="admin-title">Workstream Management</h1>

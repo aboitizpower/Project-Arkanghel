@@ -3,6 +3,8 @@ import AdminSidebar from '../../components/AdminSidebar';
 import { FaSort, FaChevronDown, FaSearch, FaCog } from 'react-icons/fa';
 import '../../styles/admin/A_Users.css';
 import '../../styles/admin/AdminCommon.css';
+import { useLocation } from 'react-router-dom';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const getInitials = (first, last) => {
   if (!first && !last) return '?';
@@ -36,6 +38,13 @@ const A_Users = () => {
   const [wsModalChecked, setWsModalChecked] = useState([]);
   const [wsModalLoading, setWsModalLoading] = useState(false);
   const [wsModalSaving, setWsModalSaving] = useState(false);
+
+  const location = useLocation();
+  useEffect(() => {
+    // Close modal and dropdown on route change
+    setWsModalUser(null);
+    setSortOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     fetch("http://localhost:8081/users")
@@ -137,6 +146,7 @@ const A_Users = () => {
     <div className="admin-layout">
       <AdminSidebar />
       <main className="admin-main">
+        <LoadingOverlay loading={users.length === 0} />
         <div className="admin-header">
           <div className="header-left">
             <h1 className="admin-title">User Management</h1>

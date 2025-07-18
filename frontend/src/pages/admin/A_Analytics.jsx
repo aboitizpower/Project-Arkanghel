@@ -6,6 +6,7 @@ import {
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Analytics.css';
 import { Users, FileCheck, BookOpenCheck, Filter } from "lucide-react";
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
@@ -140,6 +141,7 @@ const A_Analytics = () => {
         <div className="analytics-container">
             <AdminSidebar />
             <main className="analytics-main">
+                <LoadingOverlay loading={loading} />
                 <h1 className="welcome-header">Welcome, {userName}!</h1>
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
