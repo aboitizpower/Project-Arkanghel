@@ -160,23 +160,29 @@ const E_Assessment = () => {
             const { totalScore, totalQuestions } = response.data;
             alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
             
-            // Ensure we have both workstreamId and chapterId when navigating back
-            if (!workstreamId || !chapterId) {
-                console.error('Missing navigation context:', { workstreamId, chapterId });
-                // Fallback to just navigating to modules if we somehow lost context
-                navigate('/employee/modules');
-                return;
-            }
+            // Check if this is a final assessment by looking at the chapter title
+            const isFinalAssessment = chapters.find(c => c.chapter_id === chapterId)?.title?.toLowerCase().includes('final assessment');
 
-            // Navigate back with full context
-            navigate('/employee/modules', { 
-                state: { 
-                    workstreamId: parseInt(workstreamId, 10), 
-                    chapterId: parseInt(chapterId, 10),
-                    refresh: Date.now()
-                },
-                replace: true // Use replace to prevent back button issues
-            });
+            if (isFinalAssessment) {
+                // If it's a final assessment, go back to the learning modules page
+                navigate('/employee/modules');
+            } else {
+                // For regular chapter assessments, go back to the specific chapter
+                if (!workstreamId || !chapterId) {
+                    console.error('Missing navigation context:', { workstreamId, chapterId });
+                    navigate('/employee/modules');
+                    return;
+                }
+
+                navigate('/employee/modules', { 
+                    state: { 
+                        workstreamId: parseInt(workstreamId, 10), 
+                        chapterId: parseInt(chapterId, 10),
+                        refresh: Date.now()
+                    },
+                    replace: true
+                });
+            }
         } catch (err) {
             setError('Failed to submit assessment.');
             console.error(err);
