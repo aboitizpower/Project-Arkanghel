@@ -1861,51 +1861,86 @@ app.get('/user-progress/:userId/:workstreamId', (req, res) => {
 
 // Get leaderboard data
 app.get('/leaderboard', (req, res) => {
-    const totalChaptersSql = 'SELECT COUNT(*) as total FROM module_chapters WHERE is_published = TRUE';
-    db.query(totalChaptersSql, (err, totalResult) => {
+    // Get all published workstreams and their chapters
+    const publishedWsSql = 'SELECT workstream_id FROM workstreams WHERE is_published = TRUE';
+    db.query(publishedWsSql, (err, wsResults) => {
         if (err) {
-            console.error('Error fetching total chapters for leaderboard:', err);
-            return res.status(500).json({ error: 'Database error while preparing leaderboard.' });
+            console.error('Error fetching published workstreams:', err);
+            return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
         }
-        const totalChapters = totalResult[0].total;
-
-        if (totalChapters === 0) {
-            // No published chapters, so leaderboard is empty.
+        const publishedWorkstreamIds = wsResults.map(ws => ws.workstream_id);
+        const total_workstreams = publishedWorkstreamIds.length;
+        if (total_workstreams === 0) {
             return res.json([]);
         }
-
-        const leaderboardSql = `
-            SELECT
-                u.user_id,
-                u.first_name,
-                u.last_name,
-                (
-                    SELECT COUNT(DISTINCT up.chapter_id)
-                    FROM user_progress up
-                    JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
-                    WHERE up.user_id = u.user_id AND up.is_completed = TRUE AND mc.is_published = TRUE
-                ) AS completed_chapters_count
-            FROM
-                users u
-            WHERE
-                u.isAdmin = FALSE
-            ORDER BY
-                completed_chapters_count DESC;
-        `;
-
-        db.query(leaderboardSql, (err, users) => {
+        // Get all chapters for published workstreams
+        const chaptersSql = `SELECT chapter_id, workstream_id FROM module_chapters WHERE workstream_id IN (${publishedWorkstreamIds.join(',')})`;
+        db.query(chaptersSql, (err, chapters) => {
             if (err) {
-                console.error('Error fetching user progress for leaderboard:', err);
-                return res.status(500).json({ error: 'Database error while generating leaderboard.' });
+                console.error('Error fetching chapters:', err);
+                return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
             }
-
-            const leaderboardData = users.map(user => ({
-                ...user,
-                overall_progress: (user.completed_chapters_count / totalChapters) * 100,
-                total_chapters: totalChapters
-            }));
-            
-            res.json(leaderboardData);
+            // Map workstream_id to chapter_ids
+            const wsToChapters = {};
+            chapters.forEach(ch => {
+                if (!wsToChapters[ch.workstream_id]) wsToChapters[ch.workstream_id] = [];
+                wsToChapters[ch.workstream_id].push(ch.chapter_id);
+            });
+            // Get all non-admin users
+            db.query('SELECT user_id, first_name, last_name FROM users WHERE isAdmin = FALSE', (err, users) => {
+                if (err) {
+                    console.error('Error fetching users:', err);
+                    return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
+                }
+                if (users.length === 0) return res.json([]);
+                // Get all user_progress for these users and chapters
+                const allChapterIds = chapters.map(ch => ch.chapter_id);
+                if (allChapterIds.length === 0) {
+                    // No chapters, so all progress is 0
+                    const results = users.map(u => ({
+                        user_id: u.user_id,
+                        employee_name: `${u.first_name} ${u.last_name}`,
+                        average_progress: 0,
+                        workstreams_with_progress: 0,
+                        total_workstreams
+                    }));
+                    return res.json(results);
+                }
+                db.query('SELECT user_id, chapter_id FROM user_progress WHERE is_completed = TRUE AND chapter_id IN (?)', [allChapterIds], (err, progressRows) => {
+                    if (err) {
+                        console.error('Error fetching user_progress:', err);
+                        return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
+                    }
+                    // Map user_id to completed chapters
+                    const userToChapters = {};
+                    progressRows.forEach(row => {
+                        if (!userToChapters[row.user_id]) userToChapters[row.user_id] = new Set();
+                        userToChapters[row.user_id].add(row.chapter_id);
+                    });
+                    // For each user, calculate progress per workstream
+                    const results = users.map(u => {
+                        let sumProgress = 0;
+                        let wsWithProgress = 0;
+                        publishedWorkstreamIds.forEach(wsId => {
+                            const chapterIds = wsToChapters[wsId] || [];
+                            if (chapterIds.length === 0) return;
+                            const completed = chapterIds.filter(cid => userToChapters[u.user_id] && userToChapters[u.user_id].has(cid)).length;
+                            const progress = (completed / chapterIds.length) * 100;
+                            if (progress > 0) wsWithProgress++;
+                            sumProgress += progress;
+                        });
+                        const average_progress = total_workstreams > 0 ? sumProgress / total_workstreams : 0;
+                        return {
+                            user_id: u.user_id,
+                            employee_name: `${u.first_name} ${u.last_name}`,
+                            average_progress: Math.round(average_progress * 100) / 100,
+                            workstreams_with_progress: wsWithProgress,
+                            total_workstreams
+                        };
+                    });
+                    res.json(results);
+                });
+            });
         });
     });
 });
@@ -2584,6 +2619,56 @@ app.put('/chapters/:id/publish', (req, res) => {
         console.log(`Chapter ID ${id} publish state updated to ${is_published} successfully.`);
         res.json({ success: true, message: 'Chapter publish state updated successfully.' });
     });
+});
+
+// --- Leaderboard by Workstream (Admin, Accurate Progress + Workstreams Completed) ---
+app.get('/leaderboard/workstream/:workstreamId', (req, res) => {
+    const { workstreamId } = req.params;
+    // Get total number of workstreams
+    const totalWsSql = 'SELECT COUNT(*) AS total_workstreams FROM workstreams';
+    db.query(totalWsSql, (err, totalResult) => {
+        if (err) {
+            console.error('Error fetching total workstreams:', err);
+            return res.status(500).json({ error: 'Failed to fetch leaderboard for workstream.' });
+        }
+        const total_workstreams = totalResult[0].total_workstreams;
+        // Main leaderboard query
+        const sql = `
+            SELECT 
+                u.user_id,
+                CONCAT(u.first_name, ' ', u.last_name) AS employee_name,
+                COALESCE(wp.progress_percent, 0.00) AS progress_percent,
+                (
+                    SELECT COUNT(DISTINCT wp2.workstream_id) FROM workstream_progress wp2
+                    WHERE wp2.user_id = u.user_id AND wp2.progress_percent = 100
+                ) AS workstreams_completed
+            FROM users u
+            JOIN user_workstream_permissions p 
+                ON u.user_id = p.user_id
+            LEFT JOIN workstream_progress wp 
+                ON wp.user_id = u.user_id AND wp.workstream_id = ?
+            WHERE p.workstream_id = ?
+              AND p.has_access = TRUE
+            ORDER BY progress_percent DESC, employee_name ASC
+        `;
+        db.query(sql, [workstreamId, workstreamId], (err, results) => {
+            if (err) {
+                console.error('Error fetching leaderboard for workstream:', err);
+                return res.status(500).json({ error: 'Failed to fetch leaderboard for workstream.' });
+            }
+            // Add total_workstreams to each row
+            const withTotals = results.map(row => ({ ...row, total_workstreams }));
+            res.json(withTotals);
+        });
+    });
+});
+
+// --- Debug endpoint to test users table ---
+app.get('/test-users', (req, res) => {
+  db.query('SELECT user_id, first_name, last_name, isAdmin FROM users', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 // Start server

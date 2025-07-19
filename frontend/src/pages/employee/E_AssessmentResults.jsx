@@ -75,17 +75,17 @@ const E_AssessmentResults = () => {
                     <h2 className="page-title" style={{ fontSize: '1.35rem', fontWeight: 700 }}>Assessment Results</h2>
                     <div className="workstream-filter-container compact-filter">
                         <label htmlFor="workstream-filter" className="workstream-filter-label">Workstream Filter</label>
-                        <select
+                    <select
                             id="workstream-filter"
-                            className="workstream-filter-dropdown"
-                            value={selectedWorkstream}
-                            onChange={e => { setSelectedWorkstream(e.target.value); setCurrentPage(1); }}
-                        >
-                            <option value="">All Workstreams</option>
-                            {workstreams.map(ws => (
-                                <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>
-                            ))}
-                        </select>
+                        className="workstream-filter-dropdown"
+                        value={selectedWorkstream}
+                        onChange={e => { setSelectedWorkstream(e.target.value); setCurrentPage(1); }}
+                    >
+                        <option value="">All Workstreams</option>
+                        {workstreams.map(ws => (
+                            <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>
+                        ))}
+                    </select>
                     </div>
                 </div>
                 <div className="table-container employee-white-container">

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 /* Compact header styles for consistency with admin list pages */
 .compact-header {
   min-height: 56px;
@@ -188,13 +189,13 @@
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-  height: 56px;
+  height: auto;
   margin-bottom: 2.2rem;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   width: 100%;
-  padding: 0 24px;
+  padding: 16px 24px 16px 24px;
   line-height: 1;
 }
 .assessment-header-ui * {
@@ -255,9 +256,11 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0 8px;
-  min-height: 36px;
-  height: 36px;
+  padding: 16px 24px 16px 24px;
+  /* Remove fixed height and min-height */
+  height: auto;
+  min-height: unset;
+  box-sizing: border-box;
 }
 .header-divider {
   display: none;
