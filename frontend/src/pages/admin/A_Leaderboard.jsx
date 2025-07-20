@@ -49,17 +49,17 @@ const A_Leaderboard = () => {
     }, [selectedWorkstream]);
 
     // Filtered leaderboard
-    // let filtered = leaderboardData;
-    // if (search.trim()) {
-    //     filtered = leaderboardData.filter(user => {
-    //         const name = user.employee_name ?? `${user.first_name ?? ''} ${user.last_name ?? ''}`;
-    //         return name.toLowerCase().includes(search.toLowerCase());
-    //     });
-    // }
+    let filtered = leaderboardData;
+    if (search.trim()) {
+        filtered = leaderboardData.filter(user => {
+            const name = user.employee_name ?? `${user.first_name ?? ''} ${user.last_name ?? ''}`;
+            return name.toLowerCase().includes(search.toLowerCase());
+        });
+    }
     // Pagination logic: slice filtered users for current page
     const indexOfLastUser = currentPage * usersPerPage;
     const indexOfFirstUser = indexOfLastUser - usersPerPage;
-    const currentUsers = leaderboardData.slice(indexOfFirstUser, indexOfLastUser);
+    const currentUsers = filtered.slice(indexOfFirstUser, indexOfLastUser);
     console.log('Current users for table:', currentUsers); // DEBUG
 
     // Get selected workstream name
@@ -122,14 +122,14 @@ const A_Leaderboard = () => {
                                     <tr key={user.user_id} className={user.user_id === currentUserId ? 'highlight-row' : ''}>
                                         <td className="rank-cell">{indexOfFirstUser + idx + 1}</td>
                                         <td className="user-cell">{user.employee_name ?? `${user.first_name ?? ''} ${user.last_name ?? ''}`}</td>
-                                        <td className="progress-cell" style={{ minWidth: '180px', maxWidth: '260px' }}>
+                                        <td className="progress-cell" style={{ minWidth: '220px', maxWidth: '340px' }}>
                                             <div className="progress-bar-container">
                                                 <div 
                                                     className="progress-bar"
-                                                    style={{ width: `${Number(user.average_progress) ?? 0}%` }}
+                                                    style={{ width: `${Number(selectedWorkstream ? user.progress_percent : user.average_progress) ?? 0}%` }}
                                                 ></div>
                                             </div>
-                                            <span className="progress-text">{`${Number(user.average_progress ?? 0).toFixed(2)}%`}</span>
+                                            <span className="progress-text">{`${Number(selectedWorkstream ? user.progress_percent : user.average_progress ?? 0).toFixed(2)}%`}</span>
                                         </td>
                                         <td className="status-cell">
                                             <span className="workstreams-completed">
