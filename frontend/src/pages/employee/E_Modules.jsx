@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
@@ -40,17 +40,16 @@ const E_Modules = () => {
     }, []);
 
     useEffect(() => {
-        // This effect will run when the component mounts and when the location state changes.
         const { workstreamId, chapterId, refresh } = location.state || {};
-        if (workstreamId && refresh) {
-            // If we are returning from an assessment, re-select the workstream.
-            // The chapters will be fetched by handleSelectWorkstream.
+        if (refresh && workstreamId && workstreams.length > 0) {
             const workstreamToSelect = workstreams.find(ws => ws.workstream_id === workstreamId);
             if (workstreamToSelect) {
-                handleSelectWorkstream(workstreamToSelect, chapterId); // Pass chapterId to handleSelectWorkstream
+                handleSelectWorkstream(workstreamToSelect, chapterId);
+                // Clear the refresh state to prevent re-triggering
+                navigate(location.pathname, { state: { ...location.state, refresh: false }, replace: true });
             }
         }
-    }, [location.state, workstreams]);
+    }, [location.state, workstreams, navigate]);
 
     useEffect(() => {
         // This effect runs when chapters are populated and location state has a chapterId

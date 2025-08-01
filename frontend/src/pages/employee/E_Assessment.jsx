@@ -160,29 +160,15 @@ const E_Assessment = () => {
             const { totalScore, totalQuestions } = response.data;
             alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
             
-            // Check if this is a final assessment by looking at the chapter title
-            const isFinalAssessment = chapters.find(c => c.chapter_id === chapterId)?.title?.toLowerCase().includes('final assessment');
-
-            if (isFinalAssessment) {
-                // If it's a final assessment, go back to the learning modules page
-                navigate('/employee/modules');
-            } else {
-                // For regular chapter assessments, go back to the specific chapter
-                if (!workstreamId || !chapterId) {
-                    console.error('Missing navigation context:', { workstreamId, chapterId });
-                    navigate('/employee/modules');
-                    return;
-                }
-
-                navigate('/employee/modules', { 
-                    state: { 
-                        workstreamId: parseInt(workstreamId, 10), 
-                        chapterId: parseInt(chapterId, 10),
-                        refresh: Date.now()
-                    },
-                    replace: true
-                });
-            }
+            // After submission, navigate back to the modules page with a refresh signal.
+            navigate('/employee/modules', {
+                state: {
+                    workstreamId: workstreamId,
+                    chapterId: chapterId,
+                    refresh: Date.now() // Use a unique value to always trigger a refresh
+                },
+                replace: true
+            });
         } catch (err) {
             setError('Failed to submit assessment.');
             console.error(err);

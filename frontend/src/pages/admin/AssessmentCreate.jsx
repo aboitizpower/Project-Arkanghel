@@ -117,7 +117,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       newQuestion = {
         id: Date.now(),
         question: modalQuestion,
-        options: [],
+        options: [], // Ensure options array exists for consistency
         correctAnswer: modalCorrectAnswer,
         type: 'identification'
       };
@@ -378,47 +378,15 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
 
                     <div className="answer-options">
                       {question.type === 'identification' ? (
-                        <div
-                          className="answer-option"
-                          style={{
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            background: question.correctAnswer ? '#e0f2fe' : undefined,
-                            border: question.correctAnswer ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                            borderRadius: 6,
-                            padding: '4px 8px',
-                            marginBottom: 4,
-                          }}
-                        >
+                        <div>
+                          <label>Correct Answer</label>
                           <input
                             type="text"
                             value={question.correctAnswer || ''}
                             onChange={(e) => updateQuestion(question.id, 'correctAnswer', e.target.value)}
                             className="form-control"
                             placeholder="Correct Answer"
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              outline: 'none',
-                              flex: 1,
-                              fontSize: '1em',
-                            }}
                           />
-                          {question.correctAnswer && (
-                            <span
-                              style={{
-                                color: '#3b82f6',
-                                fontWeight: 700,
-                                marginLeft: 8,
-                                position: 'absolute',
-                                right: 12,
-                                fontSize: '1.2em',
-                              }}
-                            >
-                              &#10003;
-                            </span>
-                          )}
                         </div>
                       ) : (
                         <>

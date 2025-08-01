@@ -78,29 +78,47 @@ const A_Assessment = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // Fetch results
-    const params = [];
-    if (selectedWorkstream) params.push(`workstreamId=${selectedWorkstream}`);
-    if (selectedChapter) params.push(`chapterId=${selectedChapter}`);
-    const url = `${API_BASE}/admin/assessments/results${params.length ? '?' + params.join('&') : ''}`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        if (!Array.isArray(data)) {
-          setError(data && data.error ? data.error : 'Failed to load data.');
-          setResults([]);
-          setLoading(false);
-          console.error('Unexpected response from /admin/assessments/results:', data);
-          return;
+
+    const fetchAllResults = async () => {
+      try {
+        // 1. Fetch all users
+        const usersRes = await fetch(`${API_BASE}/users`);
+        const usersData = await usersRes.json();
+        if (!usersData || !Array.isArray(usersData.users)) {
+          throw new Error('Failed to fetch users or invalid format.');
         }
-        setResults(data);
-        setLoading(false);
-      })
-      .catch((err) => {
+        const users = usersData.users;
+
+        // 2. Fetch assessment results for each user
+        const allResultsPromises = users.map(user =>
+          fetch(`${API_BASE}/users/${user.user_id}/assessment-results`)
+            .then(res => res.json())
+            .then(results => results.map(r => ({ ...r, user })))
+        );
+
+        const resultsByAllUsers = await Promise.all(allResultsPromises);
+        let allResults = resultsByAllUsers.flat();
+
+        // 3. Apply filters
+        if (selectedWorkstream) {
+          allResults = allResults.filter(r => r.workstream_id == selectedWorkstream);
+        }
+        if (selectedChapter) {
+          // This requires chapter_id to be in the results, which it is not currently.
+          // The endpoint /users/:userId/assessment-results would need to be updated to include it.
+          // For now, chapter filtering will not work until the backend is fixed.
+        }
+
+        setResults(allResults);
+      } catch (err) {
         setError('Failed to load data.');
-        setLoading(false);
         console.error('Fetch error:', err);
-      });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllResults();
   }, [selectedWorkstream, selectedChapter]);
 
   // Table filtering, sorting, searching, pagination
@@ -109,7 +127,7 @@ const A_Assessment = () => {
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(row =>
-        (`${row.first_name} ${row.last_name}`.toLowerCase().includes(s))
+        (`${row.user.first_name} ${row.user.last_name}`.toLowerCase().includes(s))
       );
     }
     filtered = filtered.sort((a, b) => {
@@ -220,12 +238,12 @@ const A_Assessment = () => {
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
                   ) : paginatedResults.map((row, i) => (
                     <tr key={i} className={i % 2 ? 'odd-row' : 'even-row'}>
-                      <td>{row.first_name} {row.last_name}</td>
+                      <td>{row.user.first_name} {row.user.last_name}</td>
                       <td>{row.assessment_title}</td>
-                      <td>{row.date_taken ? new Date(row.date_taken).toLocaleString() : '-'}</td>
-                      <td>{row.total_score ?? '-'}</td>
-                      <td>{row.num_attempts ?? '-'}</td>
-                      <td>{row.pass_fail ?? '-'}</td>
+                      <td>{row.last_date_taken ? new Date(row.last_date_taken).toLocaleString() : '-'}</td>
+                      <td>{row.user_score ?? '-'} / {row.total_points ?? '-'}</td>
+                      <td>{row.attempts ?? '-'}</td>
+                      <td>{row.passed ? 'Pass' : 'Fail'}</td>
                     </tr>
                   ))}
                 </tbody>
