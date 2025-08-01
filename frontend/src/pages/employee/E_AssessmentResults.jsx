@@ -112,8 +112,8 @@ const E_AssessmentResults = () => {
                                         <td>{result.assessment_title}</td>
                                         <td style={{ fontWeight: 600 }}>{result.user_score ?? '-'} / {result.total_points ?? '-'}</td>
                                         <td>{result.attempts ?? '-'}</td>
-                                        <td>{typeof result.passed === 'boolean' ? (result.passed ? '✅ Pass' : '❌ Fail') : '-'}</td>
-                                        <td>{result.last_date_taken ? new Date(result.last_date_taken).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}</td>
+                                        <td>{result.passed === 1 ? 'PASS' : result.passed === 0 ? 'FAIL' : '-'}</td>
+                                        <td>{result.last_date_taken ? new Date(result.last_date_taken).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true }) : '-'}</td>
                                     </tr>
                                 ))
                             )}

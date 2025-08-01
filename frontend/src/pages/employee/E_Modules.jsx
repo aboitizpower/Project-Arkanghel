@@ -15,6 +15,7 @@ const E_Modules = () => {
     const [selectedChapter, setSelectedChapter] = useState(null);
     const [assessmentForCurrentChapter, setAssessmentForCurrentChapter] = useState(null);
     const [isAssessmentPassed, setIsAssessmentPassed] = useState(false);
+    const [assessmentAttempts, setAssessmentAttempts] = useState(0);
     const [currentContentView, setCurrentContentView] = useState('video'); // 'video' or 'pdf'
     const [completedChapters, setCompletedChapters] = useState(new Set());
 
@@ -165,9 +166,11 @@ const E_Modules = () => {
                 try {
                     const passRes = await axios.get(`${API_URL}/user-assessment-progress/${userId}/${assessment.assessment_id}`);
                     setIsAssessmentPassed(passRes.data && passRes.data.is_passed);
+                    setAssessmentAttempts(passRes.data ? passRes.data.attempts : 0);
                 } catch (progressError) {
                     if (progressError.response && progressError.response.status === 404) {
                         setIsAssessmentPassed(false); // Not taken yet
+                        setAssessmentAttempts(0);
                     } else {
                         throw progressError; // A real error
                     }

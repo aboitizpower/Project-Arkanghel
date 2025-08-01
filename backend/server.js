@@ -82,6 +82,45 @@ app.get('/users', (req, res) => {
 });
 
 // Update user role endpoint
+// Get assessment results for a specific user
+app.get('/users/:userId/assessment-results', (req, res) => {
+    const { userId } = req.params;
+
+    const sql = `
+    SELECT 
+        a.assessment_id,
+        a.title AS assessment_title,
+        a.total_points,
+        mc.workstream_id,
+        sub.user_score,
+        sub.last_date_taken,
+        (sub.user_score / a.total_points) >= 0.8 AS passed, -- Assuming 80% is the passing grade
+        sub.attempts
+    FROM assessments a
+    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+    LEFT JOIN (
+        SELECT
+            q.assessment_id,
+            SUM(ans.score) AS user_score, -- Sum the score from the answers table
+            MAX(ans.answered_at) AS last_date_taken,
+            COUNT(DISTINCT ans.answered_at) AS attempts
+        FROM answers ans
+        JOIN questions q ON ans.question_id = q.question_id
+        WHERE ans.user_id = ?
+        GROUP BY q.assessment_id
+    ) AS sub ON a.assessment_id = sub.assessment_id
+    WHERE sub.assessment_id IS NOT NULL;
+    `;
+
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            console.error('Error fetching assessment results:', err);
+            return res.status(500).json({ error: 'Failed to fetch assessment results.' });
+        }
+        res.json(results);
+    });
+});
+
 app.put('/users/:id/role', (req, res) => {
     const { isAdmin } = req.body;
     const { id } = req.params;
@@ -2681,11 +2720,104 @@ app.get('/leaderboard/workstream/:workstreamId', (req, res) => {
     });
 });
 
+// Get user progress for a specific assessment (pass status and attempts)
+app.get('/user-assessment-progress/:userId/:assessmentId', (req, res) => {
+    const { userId, assessmentId } = req.params;
+
+    const sql = `
+        SELECT 
+            (sub.user_score / a.total_points) >= 0.8 AS is_passed,
+            sub.attempts
+        FROM assessments a
+        LEFT JOIN (
+            SELECT
+                q.assessment_id,
+                SUM(ans.score) AS user_score,
+                COUNT(DISTINCT ans.answered_at) AS attempts
+            FROM answers ans
+            JOIN questions q ON ans.question_id = q.question_id
+            WHERE ans.user_id = ? AND q.assessment_id = ?
+            GROUP BY q.assessment_id
+        ) AS sub ON a.assessment_id = sub.assessment_id
+        WHERE a.assessment_id = ?;
+    `;
+
+    db.query(sql, [userId, assessmentId, assessmentId], (err, results) => {
+        if (err) {
+            console.error('Error fetching user assessment progress:', err);
+            return res.status(500).json({ error: 'Failed to fetch user assessment progress.' });
+        }
+        if (results.length === 0 || results[0].attempts === null) {
+            return res.status(404).json({ message: 'No progress found for this assessment.' });
+        }
+        res.json(results[0]);
+    });
+});
+
 // --- Debug endpoint to test users table ---
 app.get('/test-users', (req, res) => {
   db.query('SELECT user_id, first_name, last_name, isAdmin FROM users', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
+    });
+});
+
+// Get all assessment results for the admin dashboard
+app.get('/admin/assessments/results', (req, res) => {
+    const { workstreamId, chapterId } = req.query;
+
+    let sql = `
+        SELECT
+            u.user_id,
+            u.first_name,
+            u.last_name,
+            a.assessment_id,
+            a.title AS assessment_title,
+            a.total_points,
+            MAX(ans.answered_at) AS date_taken,
+            SUM(ans.score) AS total_score,
+            COUNT(DISTINCT ans.answered_at) AS num_attempts,
+            CASE
+                WHEN SUM(ans.score) >= a.total_points * 0.8 THEN 'Pass'
+                ELSE 'Fail'
+            END AS pass_fail
+        FROM answers ans
+        JOIN users u ON ans.user_id = u.user_id
+        JOIN questions q ON ans.question_id = q.question_id
+        JOIN assessments a ON q.assessment_id = a.assessment_id
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+    `;
+
+    const params = [];
+    const whereClauses = [];
+
+    if (workstreamId) {
+        whereClauses.push('mc.workstream_id = ?');
+        params.push(workstreamId);
+    }
+    if (chapterId) {
+        whereClauses.push('mc.chapter_id = ?');
+        params.push(chapterId);
+    }
+
+    if (whereClauses.length > 0) {
+        sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += `
+        GROUP BY
+            u.user_id,
+            a.assessment_id
+        ORDER BY
+            date_taken DESC
+    `;
+
+    db.query(sql, params, (err, results) => {
+        if (err) {
+            console.error('Error fetching admin assessment results:', err);
+            return res.status(500).json({ error: 'Failed to fetch assessment results.' });
+        }
+        res.json(results);
     });
 });
 

@@ -86,7 +86,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  background: #fff;
+  background-color: white;
   margin-bottom: 0;
 }
 
@@ -271,11 +271,7 @@
   border-radius: 12px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.06);
   width: 100%;
-  box-sizing: border-box;
-}
-.page-header.assessment-header-ui.employee-white-container * {
-  margin: 0;
-  padding: 0;
+  max-height: 6rem;
   box-sizing: border-box;
 }
 
@@ -323,4 +319,8 @@
     max-width: 100%;
     justify-content: flex-start;
   }
+}
+
+.table-container.employee-white-container {
+  background-color: white;
 }
