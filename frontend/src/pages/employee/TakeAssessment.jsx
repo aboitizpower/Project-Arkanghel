@@ -8,7 +8,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
-const E_Assessment = () => {
+const TakeAssessments = () => {
     const { assessmentId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
@@ -271,4 +271,4 @@ const E_Assessment = () => {
     );
 };
 
-export default E_Assessment;
+export default TakeAssessments;

@@ -111,37 +111,10 @@ const E_Modules = () => {
         }
     };
 
-    const handleSelectWorkstream = async (workstream, targetChapterId = null) => {
-        setSelectedWorkstream(workstream);
-        setSelectedChapter(null);
-        setChapters([]);
-        setCompletedChapters(new Set()); // Reset progress for the new workstream
-        try {
-            const [chaptersRes, progressRes] = await Promise.all([
-                axios.get(`${API_URL}/employee/workstreams/${workstream.workstream_id}/chapters`),
-                axios.get(`${API_URL}/user-progress/${userId}/${workstream.workstream_id}`)
-            ]);
-            
-            const fetchedChapters = chaptersRes.data;
-            setChapters(fetchedChapters);
-            
-            const completedIds = progressRes.data.map(item => item.chapter_id);
-            setCompletedChapters(new Set(completedIds));
-
-            // If we have a target chapter ID, select that chapter
-            if (targetChapterId) {
-                const targetChapter = fetchedChapters.find(ch => ch.chapter_id === targetChapterId);
-                if (targetChapter) {
-                    _selectChapterForView(targetChapter);
-                }
-            } else if (fetchedChapters.length > 0) {
-                // Otherwise select the first chapter
-                _selectChapterForView(fetchedChapters[0]);
-            }
-        } catch (err) {
-            console.error('Error fetching chapters or progress:', err);
-            setError('Could not load chapters. Please try again.');
-        }
+    const handleSelectWorkstream = (workstream, targetChapterId = null) => {
+        // Navigate to the specific module route instead of handling internally
+        const state = targetChapterId ? { chapterId: targetChapterId } : {};
+        navigate(`/employee/modules/${workstream.workstream_id}`, { state });
     };
 
     const _selectChapterForView = async (chapter) => {

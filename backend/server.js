@@ -2862,6 +2862,193 @@ app.get('/admin/assessments/results', (req, res) => {
     });
 });
 
+// Employee-specific workstream endpoints
+
+// Get a single workstream for employee view (without image data)
+app.get('/employee/workstreams/:id', (req, res) => {
+    const { id } = req.params;
+    const { userId } = req.query;
+    
+    const sql = `
+        SELECT 
+            w.workstream_id, 
+            w.title, 
+            w.description, 
+            w.image_type, 
+            w.created_at, 
+            w.is_published,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) AS chapters_count,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
+            (
+                SELECT COUNT(DISTINCT a.assessment_id) 
+                FROM assessments a
+                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+            ) as assessments_count,
+            (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
+        FROM workstreams w
+        WHERE w.workstream_id = ? AND w.is_published = TRUE
+    `;
+    
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Workstream not found or not published.' });
+        }
+        res.json(results[0]);
+    });
+});
+
+// Get chapters for a specific workstream (employee view)
+app.get('/employee/workstreams/:id/chapters', (req, res) => {
+    const { id } = req.params;
+    
+    const sql = `
+        SELECT 
+            chapter_id,
+            workstream_id,
+            title,
+            content,
+            order_index,
+            is_published,
+            video_filename,
+            video_mime_type,
+            pdf_filename,
+            pdf_mime_type,
+            created_at
+        FROM module_chapters 
+        WHERE workstream_id = ? AND is_published = TRUE
+        ORDER BY order_index ASC
+    `;
+    
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Get user progress for a specific workstream
+app.get('/employee/progress/:userId/:workstreamId', (req, res) => {
+    const { userId, workstreamId } = req.params;
+    
+    const sql = `
+        SELECT 
+            up.user_id,
+            up.chapter_id,
+            up.status,
+            up.completed_at,
+            mc.title as chapter_title,
+            mc.workstream_id
+        FROM user_progress up
+        JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+        WHERE up.user_id = ? AND mc.workstream_id = ?
+        ORDER BY mc.order_index ASC
+    `;
+    
+    db.query(sql, [userId, workstreamId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Get assessment for a specific chapter (employee view)
+app.get('/employee/chapters/:chapterId/assessment', (req, res) => {
+    const { chapterId } = req.params;
+    
+    const sql = `
+        SELECT 
+            a.assessment_id,
+            a.title,
+            a.total_points,
+            a.passing_score,
+            a.chapter_id
+        FROM assessments a
+        WHERE a.chapter_id = ?
+        LIMIT 1
+    `;
+    
+    db.query(sql, [chapterId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ message: 'No assessment found for this chapter.' });
+        }
+        res.json(results[0]);
+    });
+});
+
+// Get assessment results for a user and specific assessment
+app.get('/employee/assessment-results/:userId/:assessmentId', (req, res) => {
+    const { userId, assessmentId } = req.params;
+    
+    const sql = `
+        SELECT 
+            ar.result_id,
+            ar.user_id,
+            ar.assessment_id,
+            ar.score,
+            ar.total_questions,
+            ar.completed_at,
+            a.passing_score,
+            (ar.score >= a.passing_score) as passed
+        FROM assessment_results ar
+        JOIN assessments a ON ar.assessment_id = a.assessment_id
+        WHERE ar.user_id = ? AND ar.assessment_id = ?
+        ORDER BY ar.completed_at DESC
+    `;
+    
+    db.query(sql, [userId, assessmentId], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
+});
+
+// Mark chapter progress (employee view)
+app.post('/employee/progress', (req, res) => {
+    const { user_id, chapter_id, workstream_id, status = 'viewed' } = req.body;
+    
+    if (!user_id || !chapter_id) {
+        return res.status(400).json({ error: 'user_id and chapter_id are required.' });
+    }
+    
+    // Check if progress already exists
+    const checkSql = 'SELECT * FROM user_progress WHERE user_id = ? AND chapter_id = ?';
+    db.query(checkSql, [user_id, chapter_id], (err, existing) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        if (existing.length > 0) {
+            // Update existing progress
+            const updateSql = 'UPDATE user_progress SET status = ?, completed_at = NOW() WHERE user_id = ? AND chapter_id = ?';
+            db.query(updateSql, [status, user_id, chapter_id], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                res.json({ success: 'Progress updated successfully.' });
+            });
+        } else {
+            // Insert new progress
+            const insertSql = 'INSERT INTO user_progress (user_id, chapter_id, status, completed_at) VALUES (?, ?, ?, NOW())';
+            db.query(insertSql, [user_id, chapter_id, status], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                res.json({ success: 'Progress recorded successfully.' });
+            });
+        }
+    });
+});
+
 // Start server
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {

@@ -7,7 +7,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
 
-const E_AssessmentResults = () => {
+const E_Assessments = () => {
     const [results, setResults] = useState([]);
     const [workstreams, setWorkstreams] = useState([]);
     const [selectedWorkstream, setSelectedWorkstream] = useState('');
@@ -144,4 +144,4 @@ const E_AssessmentResults = () => {
     );
 };
 
-export default E_AssessmentResults;
+export default E_Assessments;
