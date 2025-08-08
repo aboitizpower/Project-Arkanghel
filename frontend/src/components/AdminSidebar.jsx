@@ -3,7 +3,7 @@ import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle, FaUserTie, FaArrowLeft } from 'react-icons/fa';
-import '../styles/AdminSidebar.css';
+import '../styles/admin/AdminSidebar.css';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
