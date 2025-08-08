@@ -1,0 +1,418 @@
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '2')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+Error fetching assessment results: Error: Table 'arkanghel_db.assessment_results' doesn't exist
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sqlState: '42S02',
+  sqlMessage: "Table 'arkanghel_db.assessment_results' doesn't exist",
+  sql: '\n' +
+    '        SELECT \n' +
+    '            ar.result_id,\n' +
+    '            ar.user_id,\n' +
+    '            ar.assessment_id,\n' +
+    '            ar.score,\n' +
+    '            ar.total_questions,\n' +
+    '            ar.completed_at,\n' +
+    '            a.title as assessment_title,\n' +
+    '            a.total_points,\n' +
+    '            a.passing_score,\n' +
+    '            mc.title as chapter_title,\n' +
+    '            w.title as workstream_title,\n' +
+    '            (ar.score >= a.passing_score) as passed\n' +
+    '        FROM assessment_results ar\n' +
+    '        JOIN assessments a ON ar.assessment_id = a.assessment_id\n' +
+    '        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id\n' +
+    '        JOIN workstreams w ON mc.workstream_id = w.workstream_id\n' +
+    "        WHERE ar.user_id = '1'\n" +
+    '        ORDER BY ar.completed_at DESC\n' +
+    '    '
+}
+Error fetching assessment results: Error: Table 'arkanghel_db.assessment_results' doesn't exist
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sqlState: '42S02',
+  sqlMessage: "Table 'arkanghel_db.assessment_results' doesn't exist",
+  sql: '\n' +
+    '        SELECT \n' +
+    '            ar.result_id,\n' +
+    '            ar.user_id,\n' +
+    '            ar.assessment_id,\n' +
+    '            ar.score,\n' +
+    '            ar.total_questions,\n' +
+    '            ar.completed_at,\n' +
+    '            a.title as assessment_title,\n' +
+    '            a.total_points,\n' +
+    '            a.passing_score,\n' +
+    '            mc.title as chapter_title,\n' +
+    '            w.title as workstream_title,\n' +
+    '            (ar.score >= a.passing_score) as passed\n' +
+    '        FROM assessment_results ar\n' +
+    '        JOIN assessments a ON ar.assessment_id = a.assessment_id\n' +
+    '        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id\n' +
+    '        JOIN workstreams w ON mc.workstream_id = w.workstream_id\n' +
+    "        WHERE ar.user_id = '1'\n" +
+    '        ORDER BY ar.completed_at DESC\n' +
+    '    '
+}
+Error fetching assessment results: Error: Table 'arkanghel_db.assessment_results' doesn't exist
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sqlState: '42S02',
+  sqlMessage: "Table 'arkanghel_db.assessment_results' doesn't exist",
+  sql: '\n' +
+    '        SELECT \n' +
+    '            ar.result_id,\n' +
+    '            ar.user_id,\n' +
+    '            ar.assessment_id,\n' +
+    '            ar.score,\n' +
+    '            ar.total_questions,\n' +
+    '            ar.completed_at,\n' +
+    '            a.title as assessment_title,\n' +
+    '            a.total_points,\n' +
+    '            a.passing_score,\n' +
+    '            mc.title as chapter_title,\n' +
+    '            w.title as workstream_title,\n' +
+    '            (ar.score >= a.passing_score) as passed\n' +
+    '        FROM assessment_results ar\n' +
+    '        JOIN assessments a ON ar.assessment_id = a.assessment_id\n' +
+    '        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id\n' +
+    '        JOIN workstreams w ON mc.workstream_id = w.workstream_id\n' +
+    "        WHERE ar.user_id = '1'\n" +
+    '        ORDER BY ar.completed_at DESC\n' +
+    '    '
+}
+Error fetching assessment results: Error: Table 'arkanghel_db.assessment_results' doesn't exist
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sqlState: '42S02',
+  sqlMessage: "Table 'arkanghel_db.assessment_results' doesn't exist",
+  sql: '\n' +
+    '        SELECT \n' +
+    '            ar.result_id,\n' +
+    '            ar.user_id,\n' +
+    '            ar.assessment_id,\n' +
+    '            ar.score,\n' +
+    '            ar.total_questions,\n' +
+    '            ar.completed_at,\n' +
+    '            a.title as assessment_title,\n' +
+    '            a.total_points,\n' +
+    '            a.passing_score,\n' +
+    '            mc.title as chapter_title,\n' +
+    '            w.title as workstream_title,\n' +
+    '            (ar.score >= a.passing_score) as passed\n' +
+    '        FROM assessment_results ar\n' +
+    '        JOIN assessments a ON ar.assessment_id = a.assessment_id\n' +
+    '        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id\n' +
+    '        JOIN workstreams w ON mc.workstream_id = w.workstream_id\n' +
+    "        WHERE ar.user_id = '1'\n" +
+    '        ORDER BY ar.completed_at DESC\n' +
+    '    '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+[ERROR] Database query error: Error: Unknown column 'w.image_url' in 'field list'
+    at Packet.asError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packets\packet.js:740:17)
+    at Query.execute (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\commands\command.js:29:26)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:475:34)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5) {
+  code: 'ER_BAD_FIELD_ERROR',
+  errno: 1054,
+  sqlState: '42S22',
+  sqlMessage: "Unknown column 'w.image_url' in 'field list'",
+  sql: '\n' +
+    '            SELECT \n' +
+    '                w.workstream_id,\n' +
+    '                w.title,\n' +
+    '                w.description,\n' +
+    '                w.image_url,\n' +
+    '                COUNT(DISTINCT mc.chapter_id) as total_chapters,\n' +
+    "                COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,\n" +
+    '                CASE \n' +
+    '                    WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0\n' +
+    "                    ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / COUNT(DISTINCT mc.chapter_id), 2)\n" +
+    '                END as progress\n' +
+    '            FROM workstreams w\n' +
+    '            LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id AND mc.is_published = TRUE\n' +
+    "            LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = '1')\n" +
+    '            WHERE w.is_published = TRUE\n' +
+    '            GROUP BY w.workstream_id, w.title, w.description, w.image_url\n' +
+    '            ORDER BY w.title\n' +
+    '        '
+}
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior.
+    at Connection.protocolError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:407:17)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:446:14)
+    at PacketParser.onPacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:93:12)
+    at PacketParser.executeStart (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\packet_parser.js:75:16)
+    at Socket.<anonymous> (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:100:25)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23)
+Emitted 'error' event on Connection instance at:
+    at Connection.protocolError (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:410:10)
+    at Connection.handlePacket (C:\Users\baron\Downloads\Acads\3204\CAPSTONE\arkanghel_v3\backend\node_modules\mysql2\lib\base\connection.js:446:14)
+    [... lines matching original stack trace ...]
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  fatal: true,
+  code: 4031
+}
+
+Node.js v22.15.0
