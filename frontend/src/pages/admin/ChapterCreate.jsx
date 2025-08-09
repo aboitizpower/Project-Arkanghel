@@ -27,8 +27,8 @@ const ChapterCreate = () => {
       formData.append('workstream_id', workstreamId);
       formData.append('title', title);
       formData.append('content', content);
-      if (video) formData.append('video_file', video);
-      if (pdf) formData.append('pdf_file', pdf);
+      if (video) formData.append('video', video);
+      if (pdf) formData.append('pdf', pdf);
 
       await axios.post(`${API_URL}/chapters`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

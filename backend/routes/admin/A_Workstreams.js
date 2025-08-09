@@ -845,4 +845,77 @@ router.delete('/workstreams/:id', (req, res) => {
     });
 });
 
+/**
+ * @route GET /workstreams/:id/complete
+ * @description Get complete workstream data with chapters and assessments
+ * @access Private (Admin)
+ * @param {string} id - Workstream ID
+ * @returns {Object} Complete workstream data
+ */
+router.get('/workstreams/:id/complete', (req, res) => {
+    const { id } = req.params;
+    
+    if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Valid workstream ID is required.' });
+    }
+
+    // First, get the workstream data
+    const workstreamSql = 'SELECT * FROM workstreams WHERE workstream_id = ?';
+    req.db.query(workstreamSql, [id], (err, workstreamResults) => {
+        if (err) {
+            return res.status(500).json({ error: `Failed to fetch workstream: ${err.message}` });
+        }
+        
+        if (workstreamResults.length === 0) {
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+
+        const workstream = workstreamResults[0];
+        
+        // Get chapters ordered by order_index
+        const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+        req.db.query(chaptersSql, [id], (err, chapters) => {
+            if (err) {
+                return res.status(500).json({ error: `Failed to fetch chapters: ${err.message}` });
+            }
+
+            if (chapters.length === 0) {
+                return res.json({
+                    ...workstream,
+                    chapters: [],
+                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                });
+            }
+
+            // Get assessments for all chapters
+            const chapterIds = chapters.map(ch => ch.chapter_id);
+            const assessmentsSql = 'SELECT * FROM assessments WHERE chapter_id IN (?)';
+            
+            req.db.query(assessmentsSql, [chapterIds], (err, assessments) => {
+                if (err) {
+                    return res.status(500).json({ error: `Failed to fetch assessments: ${err.message}` });
+                }
+
+                // Group assessments by chapter_id
+                const assessmentsByChapter = assessments.reduce((acc, assessment) => {
+                    (acc[assessment.chapter_id] = acc[assessment.chapter_id] || []).push(assessment);
+                    return acc;
+                }, {});
+
+                // Add assessments to each chapter
+                const chaptersWithAssessments = chapters.map(chapter => ({
+                    ...chapter,
+                    assessments: assessmentsByChapter[chapter.chapter_id] || []
+                }));
+
+                res.json({
+                    ...workstream,
+                    chapters: chaptersWithAssessments,
+                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                });
+            });
+        });
+    });
+});
+
 export default router;

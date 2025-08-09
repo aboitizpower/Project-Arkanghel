@@ -7,6 +7,7 @@ import loginRoutes from './routes/auth/Login.js'
 import registerRoutes from './routes/auth/Register.js'
 import aUsersRoutes from './routes/admin/A_Users.js'
 import aModulesRoutes from './routes/admin/A_Modules.js'
+import aWorkstreamsRoutes from './routes/admin/A_Workstreams.js'
 import workstreamCreateRoutes from './routes/admin/WorkstreamCreate.js'
 import workstreamEditRoutes from './routes/admin/WorkstreamEdit.js'
 import chapterCreateRoutes from './routes/admin/ChapterCreate.js'
@@ -48,6 +49,7 @@ app.use('/', loginRoutes)           // Login.jsx
 app.use('/', registerRoutes)        // Register.jsx
 app.use('/', aUsersRoutes)          // A_Users.jsx
 app.use('/', aModulesRoutes)        // A_Modules.jsx
+app.use('/', aWorkstreamsRoutes)    // A_Workstreams.jsx (workstream management)
 app.use('/', workstreamCreateRoutes) // WorkstreamCreate.jsx
 app.use('/', workstreamEditRoutes)  // WorkstreamEdit.jsx
 app.use('/', chapterCreateRoutes)   // ChapterCreate.jsx

@@ -1,6 +1,6 @@
 // File: components/ChapterEdit.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaPencilAlt, FaRegFilePdf, FaVideo, FaBookOpen, FaSave, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import '../../styles/admin/ChapterEdit.css';
@@ -18,6 +18,13 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
 
   const [isEditing, setIsEditing] = useState({ title: false, content: false, video: false, pdf: false });
 
+  // Update local state when chapter prop changes
+  useEffect(() => {
+    setEditedTitle(chapter.title);
+    setEditedContent(chapter.content);
+    setIsPublished(chapter.is_published);
+  }, [chapter]);
+
   const handleSave = async (field) => {
     setIsSubmitting(true);
     setError(null);
@@ -27,15 +34,25 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
 
     if (field === 'title' && editedTitle !== chapter.title) {
       formData.append('title', editedTitle);
+      formData.append('content', chapter.content);
+      formData.append('order_index', chapter.order_index || 0);
       hasData = true;
     } else if (field === 'content' && editedContent !== chapter.content) {
+      formData.append('title', chapter.title);
       formData.append('content', editedContent);
+      formData.append('order_index', chapter.order_index || 0);
       hasData = true;
     } else if (field === 'video' && newVideo) {
-      formData.append('video_file', newVideo);
+      formData.append('title', chapter.title);
+      formData.append('content', chapter.content);
+      formData.append('order_index', chapter.order_index || 0);
+      formData.append('video', newVideo);
       hasData = true;
     } else if (field === 'pdf' && newPdf) {
-      formData.append('pdf_file', newPdf);
+      formData.append('title', chapter.title);
+      formData.append('content', chapter.content);
+      formData.append('order_index', chapter.order_index || 0);
+      formData.append('pdf', newPdf);
       hasData = true;
     }
 
@@ -50,6 +67,22 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setIsEditing(prev => ({ ...prev, [field]: false }));
+      
+      // Update local state with the response data
+      if (response.data) {
+        if (field === 'title') {
+          setEditedTitle(response.data.title);
+        } else if (field === 'content') {
+          setEditedContent(response.data.content);
+        }
+        // Reset file inputs after successful upload
+        if (field === 'video') {
+          setNewVideo(null);
+        } else if (field === 'pdf') {
+          setNewPdf(null);
+        }
+      }
+      
       onUpdated(response.data); // Pass updated chapter data back
     } catch (err) {
       console.error(`Failed to save ${field}:`, err.response ? err.response.data : err.message);
@@ -64,10 +97,13 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
     setError(null);
     try {
       const newPublishStatus = !isPublished;
-      await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus });
+      const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus });
       setIsPublished(newPublishStatus);
-      // No longer calling onUpdated() here to prevent navigating back to workstream edit
-      // onUpdated(); 
+      
+      // Update the chapter data with the response
+      if (response.data && onUpdated) {
+        onUpdated(response.data);
+      }
     } catch (err) {
       console.error('Error toggling publish status:', err);
       setError('Failed to update publish status.');
@@ -119,7 +155,7 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                       <button className="btn-cancel" onClick={() => handleCancel('title')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
-                ) : <p>{chapter.title}</p>}
+                ) : <p>{editedTitle}</p>}
               </div>
             </div>
             <div className="edit-card-modern">
@@ -136,7 +172,7 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                       <button className="btn-cancel" onClick={() => handleCancel('content')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
-                ) : <p>{chapter.content || 'No description provided.'}</p>}
+                ) : <p>{editedContent || 'No description provided.'}</p>}
               </div>
             </div>
           </div>
@@ -157,11 +193,11 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                       <button className="btn-cancel" onClick={() => handleCancel('video')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
-                ) : (
-                  chapter.video_url ? (
-                    <video src={`${API_URL}${chapter.video_url}`} controls className="video-preview" />
-                  ) : <p>No video uploaded.</p>
-                )}
+                 ) : (
+                   chapter.video_filename ? (
+                     <video src={`${API_URL}/chapters/${chapter.chapter_id}/video`} controls className="video-preview" />
+                   ) : <p>No video uploaded.</p>
+                 )}
               </div>
             </div>
             <div className="edit-card-modern">
@@ -178,11 +214,11 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
                       <button className="btn-cancel" onClick={() => handleCancel('pdf')}><FaTimes /> Cancel</button>
                     </div>
                   </div>
-                ) : (
-                  chapter.pdf_url ? (
-                    <a href={`${API_URL}${chapter.pdf_url}`} target="_blank" rel="noopener noreferrer">View PDF</a>
-                  ) : <p>No PDF uploaded.</p>
-                )}
+                 ) : (
+                   chapter.pdf_filename ? (
+                     <a href={`${API_URL}/chapters/${chapter.chapter_id}/pdf`} target="_blank" rel="noopener noreferrer">View PDF</a>
+                   ) : <p>No PDF uploaded.</p>
+                 )}
               </div>
             </div>
           </div>
