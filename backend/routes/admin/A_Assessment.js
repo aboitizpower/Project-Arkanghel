@@ -55,50 +55,30 @@ router.get('/assessments/:id', (req, res) => {
         
         const assessment = assessmentResults[0];
         
-        // Get questions and answers
+        // Get questions and their options
         const questionsSql = `
             SELECT 
-                q.question_id,
-                q.question_text,
-                q.question_type,
-                q.points,
-                a.answer_id,
-                a.answer_text,
-                a.is_correct
-            FROM questions q
-            LEFT JOIN answers a ON q.question_id = a.question_id
-            WHERE q.assessment_id = ?
-            ORDER BY q.question_id, a.answer_id
+                question_id,
+                question_text,
+                question_type,
+                correct_answer,
+                options
+            FROM questions
+            WHERE assessment_id = ?
+            ORDER BY question_id
         `;
-        
+
         req.db.query(questionsSql, [id], (err, questionResults) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
-            
-            // Group answers by question
-            const questionsMap = {};
-            questionResults.forEach(row => {
-                if (!questionsMap[row.question_id]) {
-                    questionsMap[row.question_id] = {
-                        question_id: row.question_id,
-                        question_text: row.question_text,
-                        question_type: row.question_type,
-                        points: row.points,
-                        answers: []
-                    };
-                }
-                
-                if (row.answer_id) {
-                    questionsMap[row.question_id].answers.push({
-                        answer_id: row.answer_id,
-                        answer_text: row.answer_text,
-                        is_correct: row.is_correct
-                    });
-                }
-            });
-            
-            assessment.questions = Object.values(questionsMap);
+
+            assessment.questions = questionResults.map(q => ({
+                ...q,
+                // Ensure options are parsed, default to empty array if null/invalid
+                options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options || []
+            }));
+
             res.json(assessment);
         });
     });

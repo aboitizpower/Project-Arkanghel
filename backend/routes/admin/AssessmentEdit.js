@@ -27,50 +27,30 @@ router.get('/assessments/:id', (req, res) => {
         
         const assessment = assessmentResults[0];
         
-        // Get questions and answers
+        // Get questions and their options
         const questionsSql = `
             SELECT 
-                q.question_id,
-                q.question_text,
-                q.question_type,
-                q.points,
-                a.answer_id,
-                a.answer_text,
-                a.is_correct
-            FROM questions q
-            LEFT JOIN answers a ON q.question_id = a.question_id
-            WHERE q.assessment_id = ?
-            ORDER BY q.question_id, a.answer_id
+                question_id,
+                question_text,
+                question_type,
+                correct_answer,
+                options
+            FROM questions
+            WHERE assessment_id = ?
+            ORDER BY question_id
         `;
-        
+
         req.db.query(questionsSql, [id], (err, questionResults) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
-            
-            // Group answers by question
-            const questionsMap = {};
-            questionResults.forEach(row => {
-                if (!questionsMap[row.question_id]) {
-                    questionsMap[row.question_id] = {
-                        question_id: row.question_id,
-                        question_text: row.question_text,
-                        question_type: row.question_type,
-                        points: row.points,
-                        answers: []
-                    };
-                }
-                
-                if (row.answer_id) {
-                    questionsMap[row.question_id].answers.push({
-                        answer_id: row.answer_id,
-                        answer_text: row.answer_text,
-                        is_correct: row.is_correct
-                    });
-                }
-            });
-            
-            assessment.questions = Object.values(questionsMap);
+
+            assessment.questions = questionResults.map(q => ({
+                ...q,
+                // Ensure options are parsed, default to empty array if null/invalid
+                options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options || []
+            }));
+
             res.json(assessment);
         });
     });
@@ -79,22 +59,45 @@ router.get('/assessments/:id', (req, res) => {
 // Update an assessment - Used by AssessmentEdit.jsx
 router.put('/assessments/:id', (req, res) => {
     const { id } = req.params;
-    const { title, total_points, passing_score } = req.body;
-    
-    if (!title || !total_points || !passing_score) {
-        return res.status(400).json({ error: 'title, total_points, and passing_score are required.' });
+    const { description, chapter_id } = req.body;
+
+    if (description === undefined || chapter_id === undefined) {
+        return res.status(400).json({ error: 'description and chapter_id are required.' });
     }
-    
-    const sql = 'UPDATE assessments SET title = ?, total_points = ?, passing_score = ? WHERE assessment_id = ?';
-    req.db.query(sql, [title, total_points, passing_score, id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Assessment not found.' });
-        }
-        res.json({ success: 'Assessment updated successfully!' });
-    });
+
+    const finalChapterId = chapter_id === 'final' ? null : chapter_id;
+
+    if (finalChapterId === null) {
+        // This is a final assessment
+        const sql = 'UPDATE assessments SET title = ?, description = ?, chapter_id = ? WHERE assessment_id = ?';
+        const params = ['Final Assessment', description, null, id];
+        req.db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error('Failed to update assessment:', err);
+                return res.status(500).json({ error: 'Failed to update assessment.', details: err.message });
+            }
+            res.json({ success: 'Assessment updated successfully!' });
+        });
+    } else {
+        // This is a chapter-specific assessment
+        req.db.query('SELECT title FROM module_chapters WHERE chapter_id = ?', [finalChapterId], (err, chapters) => {
+            if (err || chapters.length === 0) {
+                return res.status(404).json({ error: 'Chapter not found.' });
+            }
+            const chapterTitle = chapters[0].title;
+            const assessmentTitle = `Assessment: ${chapterTitle}`;
+
+            const sql = 'UPDATE assessments SET title = ?, description = ?, chapter_id = ? WHERE assessment_id = ?';
+            const params = [assessmentTitle, description, finalChapterId, id];
+            req.db.query(sql, params, (err, result) => {
+                if (err) {
+                    console.error('Failed to update assessment:', err);
+                    return res.status(500).json({ error: 'Failed to update assessment.', details: err.message });
+                }
+                res.json({ success: 'Assessment updated successfully!' });
+            });
+        });
+    }
 });
 
 // Delete an assessment - Used by AssessmentEdit.jsx
@@ -142,6 +145,89 @@ router.delete('/assessments/:id', (req, res) => {
             });
         });
     });
+});
+
+// === Question CRUD Routes ===
+
+// Create a new question for an assessment
+router.post('/questions', (req, res) => {
+    const { assessment_id, question_text, question_type, correct_answer, options } = req.body;
+    if (assessment_id == null || !question_text || !question_type || correct_answer == null) {
+        return res.status(400).json({ error: 'Missing required fields for question.' });
+    }
+    const sql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
+    const params = [assessment_id, question_text, question_type, correct_answer, JSON.stringify(options || [])];
+    req.db.query(sql, params, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Failed to create question: ${err.message}` });
+        }
+        res.status(201).json({ success: true, question_id: result.insertId });
+    });
+});
+
+// Update a question
+router.put('/questions/:id', (req, res) => {
+    const { id } = req.params;
+    const { question_text, question_type, correct_answer, options } = req.body;
+    if (!question_text || !question_type || correct_answer == null) {
+        return res.status(400).json({ error: 'Missing required fields for question update.' });
+    }
+    const sql = 'UPDATE questions SET question_text = ?, question_type = ?, correct_answer = ?, options = ? WHERE question_id = ?';
+    const params = [question_text, question_type, correct_answer, JSON.stringify(options || []), id];
+    req.db.query(sql, params, (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: `Failed to update question: ${err.message}` });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Question not found.' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// Delete a question
+router.delete('/questions/:id', async (req, res) => {
+    const { id } = req.params;
+    const db = req.db.promise();
+
+    try {
+        // Start a transaction to ensure atomicity.
+        await db.beginTransaction();
+
+        // Step 1: Delete all answers associated with this question.
+        // This is the primary dependency that prevents a question from being deleted.
+        const deleteAnswersSql = 'DELETE FROM answers WHERE question_id = ?';
+        await db.query(deleteAnswersSql, [id]);
+
+        // Step 2: With dependencies gone, delete the question itself.
+        const deleteQuestionSql = 'DELETE FROM questions WHERE question_id = ?';
+        const [result] = await db.query(deleteQuestionSql, [id]);
+
+        // Both operations were successful, so commit the transaction.
+        await db.commit();
+
+        if (result.affectedRows === 0) {
+            // This is not an error. It simply means the question was already gone.
+            // The desired state is achieved, so we return success.
+            return res.status(200).json({ success: true, message: 'Question not found or already deleted.' });
+        }
+
+        // The question was successfully deleted.
+        res.json({ success: true });
+
+    } catch (err) {
+        // If any error occurred, rollback the transaction to prevent partial data changes.
+        await db.rollback();
+
+        // Log the specific error to the server console for future debugging.
+        console.error(`Failed to delete question with ID ${id}:`, err);
+
+        // Send a generic but informative error message to the client.
+        res.status(500).json({
+            error: 'A server error occurred while deleting the question.',
+            details: err.message
+        });
+    }
 });
 
 export default router;

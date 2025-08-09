@@ -59,12 +59,16 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       setModalQuestion(question.question_text);
       
       // Handle options and correct answer based on type
-      if (modalQuestionType === 'multiple') {
-        // Parse options if needed
-        let options = Array.isArray(question.options) ? question.options :
-                     (typeof question.options === 'string' ? JSON.parse(question.options) : []);
+      if (question.question_type === 'multiple_choice' && question.options) {
+        const options = Array.isArray(question.options) ? question.options : JSON.parse(question.options);
+        // The correct_answer is an index for multiple_choice
+        const answerIndex = parseInt(question.correct_answer, 10);
+        if (options && !isNaN(answerIndex) && options[answerIndex] !== undefined) {
+          setModalCorrectAnswer(answerIndex);
+        } else {
+          setModalCorrectAnswer(0); // Default to the first option if not found
+        }
         setModalOptions(options.length > 0 ? options : ['', '', '', '']);
-        setModalCorrectAnswer(question.correct_answer || 0);
       } else if (modalQuestionType === 'truefalse') {
         setModalOptions(['True', 'False']);
         setModalCorrectAnswer(question.correct_answer === 0 ? 'true' : 'false');
@@ -80,7 +84,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       setModalType('multiple');
       setModalQuestion('');
       setModalOptions(['', '', '', '']);
-      setModalCorrectAnswer('');
+      setModalCorrectAnswer(0); // Default to Option 1 (index 0)
       setModalEditIndex(null);
     }
     setShowModal(true);
@@ -89,7 +93,9 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setShowModal(false);
   };
   const handleModalOptionChange = (idx, value) => {
-    setModalOptions(opts => opts.map((opt, i) => (i === idx ? value : opt)));
+    setModalOptions(currentOptions => 
+      currentOptions.map((opt, i) => (i === idx ? value : opt))
+    );
   };
   const handleAddModalOption = () => {
     setModalOptions(opts => [...opts, '']);
@@ -98,72 +104,42 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setModalOptions(opts => opts.filter((_, i) => i !== idx));
     setModalCorrectAnswer(ans => Math.max(0, Math.min(ans, modalOptions.length - 2)));
   };
-  const handleModalSubmit = () => {
+  const handleModalSubmit = async () => {
     if (!modalQuestion.trim()) return;
 
-    // Prepare the question data
-    const questionData = {
-      question_text: modalQuestion.trim(),
-      question_type: modalType === 'multiple' ? 'multiple_choice' : 
-                    modalType === 'truefalse' ? 'true_false' : 'identification'
-    };
+    let finalCorrectAnswer = modalCorrectAnswer;
 
-    // Handle options and correct answer based on type
-    if (modalType === 'multiple') {
-      const filteredOptions = modalOptions.filter(opt => opt.trim() !== '');
-      if (filteredOptions.length < 2) {
-        alert('Multiple choice questions must have at least 2 options.');
-        return;
-      }
-      questionData.options = filteredOptions;
-      questionData.correct_answer = parseInt(modalCorrectAnswer, 10) || 0;
-    } else if (modalType === 'truefalse') {
-      questionData.options = ['True', 'False'];
-      questionData.correct_answer = modalCorrectAnswer === 'true' ? 0 : 1;
-    } else {
-      // Identification questions have no options
-      questionData.options = [];
-      questionData.correct_answer = modalCorrectAnswer.trim();
-      if (!questionData.correct_answer) {
-        alert('Please provide an answer for the identification question.');
-        return;
-      }
+    if (modalType === 'truefalse') {
+      finalCorrectAnswer = modalCorrectAnswer ? 'True' : 'False';
+    } else if (modalType === 'multiple') {
+      // For multiple choice, the index is stored directly.
+      finalCorrectAnswer = modalCorrectAnswer;
     }
 
-    // If we're editing, use the existing question ID
-    if (modalEditIndex !== null) {
-      const existingQuestion = questions[modalEditIndex];
-      const questionId = existingQuestion.question_id || existingQuestion.id;
+    const questionPayload = {
+      question_text: modalQuestion,
+      question_type: modalType === 'multiple' ? 'multiple_choice' : (modalType === 'truefalse' ? 'true_false' : 'identification'),
+      options: modalType === 'multiple' ? modalOptions.filter(opt => opt.trim()) : [],
+      correct_answer: finalCorrectAnswer,
+      assessment_id: assessment.assessment_id
+    };
+
+    setIsSubmitting(true);
+    try {
+      if (modalEditIndex !== null && questions[modalEditIndex]?.question_id) {
+        const questionId = questions[modalEditIndex].question_id;
+        await axios.put(`${API_URL}/questions/${questionId}`, questionPayload);
+      } else {
+        await axios.post(`${API_URL}/questions`, questionPayload);
+      }
       
-      // Update existing question
-      axios.put(`${API_URL}/questions/${questionId}`, questionData)
-        .then(() => {
-          // Update the questions array with the new data
-          setQuestions(prevQuestions => 
-            prevQuestions.map((q, idx) => 
-              idx === modalEditIndex ? { ...q, ...questionData, question_id: questionId } : q
-            )
-          );
-          setShowModal(false);
-        })
-        .catch(err => {
-          console.error('Error updating question:', err);
-          alert('Failed to update question. Please try again.');
-        });
-    } else {
-      // Create new question
-      axios.post(`${API_URL}/questions`, {
-        ...questionData,
-        assessment_id: assessment.assessment_id
-      })
-        .then(response => {
-          setQuestions(prev => [...prev, response.data]);
-          setShowModal(false);
-        })
-        .catch(err => {
-          console.error('Error creating question:', err);
-          alert('Failed to create question. Please try again.');
-        });
+      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+      setQuestions(response.data.questions || []);
+      closeModal();
+    } catch (err) {
+      setError('Failed to save question: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -177,6 +153,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     const fetchWorkstream = async () => {
       try {
         let workstreamId = assessment.workstream_id;
+        // If workstreamId is not directly available, try to get it from the chapter
         if (!workstreamId && assessment.chapter_id) {
           try {
             const chapterRes = await axios.get(`${API_URL}/chapters/${assessment.chapter_id}`);
@@ -185,16 +162,17 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             console.error('Failed to get workstream ID from chapter:', err);
           }
         }
+
         if (workstreamId) {
-          const [workstreamRes, assessmentsRes] = await Promise.all([
-            axios.get(`${API_URL}/workstreams/${workstreamId}/complete`),
-            axios.get(`${API_URL}/workstreams/${workstreamId}/assessments`)
-          ]);
-          setWorkstream(workstreamRes.data);
-          // Build set of used chapter IDs, excluding the current assessment's chapter
-          const used = (assessmentsRes.data || [])
-            .filter(a => a.assessment_id !== assessment.assessment_id && a.chapter_id)
-            .map(a => a.chapter_id);
+          // Fetch the complete workstream data, which includes chapters and their assessments
+          const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`);
+          const workstreamData = response.data;
+          setWorkstream(workstreamData);
+
+          // Determine which chapters already have assessments
+          const used = (workstreamData.chapters || [])
+            .filter(ch => ch.assessments && ch.assessments.length > 0 && ch.id !== assessment.chapter_id)
+            .map(ch => ch.id);
           setUsedChapterIds(used);
         }
       } catch (err) {
@@ -208,123 +186,42 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   }, [assessment]);
 
   useEffect(() => {
-    // Always fetch questions for this assessment on mount
     const fetchAssessmentData = async () => {
-      try {
-        // Fetch both assessment details and questions
-        const [assessmentRes, questionsRes] = await Promise.all([
-          axios.get(`${API_URL}/assessments/${assessment.assessment_id}`),
-          axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`)
-        ]);
-
-        // Set description from assessment data
-        setEditedDescription(assessmentRes.data.description || '');
-
-        // Process questions
-        const processedQuestions = (questionsRes.data || []).map(q => {
-          let correctAnswer = q.correct_answer;
-          if (q.question_type === 'multiple_choice' || q.question_type === 'true_false') {
-            if (typeof correctAnswer === 'string') {
-              correctAnswer = parseInt(correctAnswer, 10);
-            }
-          }
-          return {
-            ...q,
-            correct_answer: correctAnswer
-          };
-        });
-        setQuestions(processedQuestions);
-
-      } catch (err) {
-        // Optionally set error
-        console.error("Failed to fetch assessment data:", err);
+      // Ensure we have a valid assessment ID before fetching
+      if (assessment && assessment.assessment_id) {
+        try {
+          const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+          const data = response.data;
+          // Set all relevant state from the fetched data
+          setEditedDescription(data.description || '');
+          setQuestions(data.questions || []);
+        } catch (err) {
+          setError('Failed to fetch assessment data.');
+          console.error('Error fetching assessment data:', err);
+        }
       }
     };
     fetchAssessmentData();
-  }, [assessment.assessment_id]);
+  }, [assessment.assessment_id]); // Depend only on the ID
 
-  // Overhauled question CRUD logic
-  const handleSaveAllChanges = async () => {
+    const handleSaveAllChanges = async () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      // 1. Save assessment details (chapter, title, description)
-      const assessmentData = {
-        ...assessment,
-        chapter_id: selectedChapterId !== 'final' ? selectedChapterId : null,
-        is_final: selectedChapterId === 'final',
-        title: autoTitle,
+      const payload = {
         description: editedDescription,
-        workstream_id: workstream?.workstream_id || assessment.workstream_id
+        chapter_id: selectedChapterId,
       };
-      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, assessmentData);
 
-      // 2. Save all questions
-      for (const q of questions) {
-        console.log('Saving question:', q); // Debug log
-        const payload = {
-          question_text: q.question_text || q.question,
-          options: Array.isArray(q.options) ? q.options : 
-                  (typeof q.options === 'string' ? JSON.parse(q.options) : []),
-          correct_answer: q.correct_answer,
-          question_type: q.question_type === 'multiple' ? 'multiple_choice' :
-                        q.question_type === 'truefalse' ? 'true_false' :
-                        q.question_type
-        };
-        console.log('Question payload:', payload); // Debug log
-        
-        if (q.question_id) {
-          await axios.put(`${API_URL}/questions/${q.question_id}`, payload);
-        } else {
-          await axios.post(`${API_URL}/questions`, {
-            ...payload,
-            assessment_id: assessment.assessment_id
-          });
-        }
-      }
+      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, payload);
       
-      // 3. Sync UI and close editing states
+      if (onUpdated) {
+        onUpdated(); // Callback to refresh the parent component's data
+      }
       setIsEditingDescription(false);
-      // Re-fetch questions to sync UI
-      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
-      console.log('Fetched updated questions:', res.data); // Debug log
-      setQuestions(res.data || []);
-      if (onUpdated) onUpdated();
-    } catch (err) {
-      console.error('Save error:', err); // Debug log
-      setError('Failed to save changes: ' + (err?.response?.data?.error || err.message));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
-  const handleDeleteQuestion = async (questionId) => {
-    if (!window.confirm('Are you sure you want to delete this question?')) return;
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await axios.delete(`${API_URL}/questions/${questionId}`);
-      // Re-fetch questions to sync UI
-      const res = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`);
-      setQuestions(res.data || []);
-      if (onUpdated) onUpdated();
     } catch (err) {
-      setError('Failed to delete question: ' + (err?.response?.data?.error || err.message));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteAssessment = async () => {
-    if (!window.confirm('Are you sure you want to delete this assessment and all its questions?')) return;
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await axios.delete(`${API_URL}/assessments/${assessment.assessment_id}`);
-      if (onCancel) onCancel();
-      else navigate('/admin/assessment');
-    } catch (err) {
-      setError('Failed to delete assessment');
+      setError('Failed to save changes: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsSubmitting(false);
     }
@@ -352,12 +249,19 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
     switch (question.question_type) {
       case 'multiple_choice':
-        // Show the actual option text that is correct
-        return options && options[question.correct_answer] ? (
-          <div className="answer-display">
-            {options[question.correct_answer]}
-          </div>
-        ) : null;
+        const answerIndex = parseInt(question.correct_answer, 10);
+        if (options && Array.isArray(options) && !isNaN(answerIndex) && options[answerIndex] !== undefined) {
+          return (
+            <div className="answer-display">
+              {options[answerIndex]}
+            </div>
+          );
+        }
+        return (
+            <div className="answer-display text-danger">
+              Invalid Answer
+            </div>
+        );
 
       case 'true_false':
         // Show True or False based on the 0/1 index
@@ -435,31 +339,6 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             &larr; Back
           </button>
           <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: 16 }}>
-            <button
-              className="btn-delete-assessment"
-              style={{
-                background: '#ef4444',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '0.5rem 1.25rem',
-                fontWeight: 600,
-                fontSize: '1rem',
-                boxShadow: '0 2px 8px rgba(239,68,68,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.7 : 1,
-                transition: 'background 0.2s',
-              }}
-              onClick={handleDeleteAssessment}
-              disabled={isSubmitting}
-              onMouseOver={e => e.currentTarget.style.background = '#b91c1c'}
-              onMouseOut={e => e.currentTarget.style.background = '#ef4444'}
-            >
-              <FaTrash style={{ marginRight: 8 }} /> Delete Assessment
-            </button>
             <button className="btn-primary" onClick={handleSaveAllChanges} disabled={isSubmitting}>
               <FaSave style={{ marginRight: 6 }} /> Save All Changes
             </button>
