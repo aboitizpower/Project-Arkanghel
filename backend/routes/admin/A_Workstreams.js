@@ -852,6 +852,152 @@ router.delete('/workstreams/:id', (req, res) => {
  * @param {string} id - Workstream ID
  * @returns {Object} Complete workstream data
  */
+/**
+ * @route GET /workstreams/:id/assessments
+ * @description Get all assessments for a specific workstream
+ * @access Private (Admin)
+ * @param {string} id - Workstream ID
+ * @returns {Array} List of assessments
+ */
+/**
+ * @route POST /workstreams/:id/assessments
+ * @description Create a new assessment for a workstream
+ * @access Private (Admin)
+ * @param {string} id - Workstream ID
+ * @returns {Object} Success message and ID of the new assessment
+ */
+router.post('/workstreams/:id/assessments', (req, res) => {
+    const { id: workstream_id } = req.params;
+    const { title, description, questions, chapter_id, is_final } = req.body;
+
+    if (!title || !questions || questions.length === 0) {
+        return res.status(400).json({ error: 'Title and at least one question are required.' });
+    }
+
+    const createAssessmentInTransaction = (target_chapter_id) => {
+        req.db.beginTransaction(err => {
+            if (err) {
+                console.error('Error starting transaction:', err);
+                return res.status(500).json({ error: 'Failed to create assessment.' });
+            }
+
+            const assessmentSql = `
+                INSERT INTO assessments (title, description, chapter_id, is_final, created_at, updated_at)
+                VALUES (?, ?, ?, ?, NOW(), NOW())
+            `;
+            const assessmentValues = [title, description, target_chapter_id, is_final ? 1 : 0];
+
+            req.db.query(assessmentSql, assessmentValues, (err, result) => {
+                if (err) {
+                    return req.db.rollback(() => {
+                        console.error('Error creating assessment:', err);
+                        res.status(500).json({ error: 'Failed to save assessment.' });
+                    });
+                }
+
+                const assessmentId = result.insertId;
+                const questionsSql = `
+                    INSERT INTO questions (assessment_id, question_text, question_type, options, correct_answer)
+                    VALUES ?
+                `;
+                const questionValues = questions.map(q => [
+                    assessmentId,
+                    q.question,
+                    q.question_type,
+                    JSON.stringify(q.options),
+                    JSON.stringify(q.correct_answer)
+                ]);
+
+                req.db.query(questionsSql, [questionValues], (err) => {
+                    if (err) {
+                        return req.db.rollback(() => {
+                            console.error('Error creating assessment questions:', err);
+                            res.status(500).json({ error: 'Failed to save questions.' });
+                        });
+                    }
+
+                    req.db.commit(err => {
+                        if (err) {
+                            return req.db.rollback(() => {
+                                console.error('Error committing transaction:', err);
+                                res.status(500).json({ error: 'Failed to finalize assessment creation.' });
+                            });
+                        }
+                        res.status(201).json({ 
+                            success: true, 
+                            message: 'Assessment created successfully!',
+                            assessmentId: assessmentId 
+                        });
+                    });
+                });
+            });
+        });
+    };
+
+    if (is_final) {
+        // For a final assessment, find or create a dedicated 'Final Assessment' chapter
+        const findChapterSql = `SELECT chapter_id FROM module_chapters WHERE workstream_id = ? AND is_assessment = 1 AND title = 'Final Assessment'`;
+        req.db.query(findChapterSql, [workstream_id], (err, chapters) => {
+            if (err) {
+                console.error('Error finding final assessment chapter:', err);
+                return res.status(500).json({ error: 'Failed to prepare final assessment.' });
+            }
+            if (chapters.length > 0) {
+                // Use existing final assessment chapter
+                createAssessmentInTransaction(chapters[0].chapter_id);
+            } else {
+                // Create a new final assessment chapter if it doesn't exist
+                const getNextOrderIndexSql = `SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM module_chapters WHERE workstream_id = ?`;
+                req.db.query(getNextOrderIndexSql, [workstream_id], (err, result) => {
+                    if (err) {
+                        console.error('Error getting next order index:', err);
+                        return res.status(500).json({ error: 'Failed to create final assessment chapter.' });
+                    }
+                    const nextOrderIndex = result[0].next_order;
+                    const createChapterSql = `INSERT INTO module_chapters (workstream_id, title, description, order_index, is_assessment) VALUES (?, ?, ?, ?, 1)`;
+                    const chapterTitle = `Final Assessment`;
+                    const chapterDesc = 'This is the final assessment for the workstream.';
+                    req.db.query(createChapterSql, [workstream_id, chapterTitle, chapterDesc, nextOrderIndex], (err, result) => {
+                        if (err) {
+                            console.error('Error creating final assessment chapter:', err);
+                            return res.status(500).json({ error: 'Failed to create final assessment chapter.' });
+                        }
+                        createAssessmentInTransaction(result.insertId);
+                    });
+                });
+            }
+        });
+    } else {
+        // For a regular chapter assessment
+        if (!chapter_id) {
+            return res.status(400).json({ error: 'Chapter ID is required for a non-final assessment.' });
+        }
+        createAssessmentInTransaction(chapter_id);
+    }
+});
+
+router.get('/workstreams/:id/assessments', (req, res) => {
+    const { id } = req.params;
+    if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'A valid workstream ID is required.' });
+    }
+
+    const sql = `
+        SELECT a.* 
+        FROM assessments a
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        WHERE mc.workstream_id = ?
+    `;
+
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching assessments for workstream ${id}:`, err);
+            return res.status(500).json({ error: 'Failed to fetch assessments.' });
+        }
+        res.json(results);
+    });
+});
+
 router.get('/workstreams/:id/complete', (req, res) => {
     const { id } = req.params;
     

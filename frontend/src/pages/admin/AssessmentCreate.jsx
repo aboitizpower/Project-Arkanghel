@@ -7,7 +7,7 @@ import axios from 'axios';
 import '../../styles/admin/AssessmentCreate.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
-const API_URL = 'http://localhost:8081';
+
 
 const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) => {
   const { workstreamId } = useParams();
@@ -39,8 +39,8 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       try {
         const targetWorkstreamId = propWorkstream?.workstream_id || stateWorkstream?.workstream_id || workstreamId;
         const [workstreamRes, assessmentsRes] = await Promise.all([
-          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/complete`),
-          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`)
+          axios.get(`/api/workstreams/${targetWorkstreamId}/complete`),
+          axios.get(`/api/workstreams/${targetWorkstreamId}/assessments`)
         ]);
         setWorkstream(workstreamRes.data);
         const used = (assessmentsRes.data || [])
@@ -211,7 +211,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         is_final: isFinalToSend
       };
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
-      await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
+      await axios.post(`/api/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       if (onCreated) onCreated();
       else navigate('/admin/modules');
     } catch (err) {

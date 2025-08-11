@@ -59,44 +59,67 @@ router.get('/assessments/:id', (req, res) => {
 // Update an assessment - Used by AssessmentEdit.jsx
 router.put('/assessments/:id', (req, res) => {
     const { id } = req.params;
-    const { description, chapter_id } = req.body;
+    const { title, description, is_final, chapter_id, workstream_id } = req.body;
 
-    if (description === undefined || chapter_id === undefined) {
-        return res.status(400).json({ error: 'description and chapter_id are required.' });
+    if (title === undefined || description === undefined || is_final === undefined) {
+        return res.status(400).json({ error: 'title, description, and is_final are required.' });
     }
 
-    const finalChapterId = chapter_id === 'final' ? null : chapter_id;
-
-    if (finalChapterId === null) {
-        // This is a final assessment
-        const sql = 'UPDATE assessments SET title = ?, description = ?, chapter_id = ? WHERE assessment_id = ?';
-        const params = ['Final Assessment', description, null, id];
+    const updateAssessment = (target_chapter_id) => {
+        const sql = 'UPDATE assessments SET title = ?, description = ?, is_final = ?, chapter_id = ?, updated_at = NOW() WHERE assessment_id = ?';
+        const params = [title, description, is_final, target_chapter_id, id];
         req.db.query(sql, params, (err, result) => {
             if (err) {
                 console.error('Failed to update assessment:', err);
                 return res.status(500).json({ error: 'Failed to update assessment.', details: err.message });
             }
-            res.json({ success: 'Assessment updated successfully!' });
+            res.json({ success: true, message: 'Assessment updated successfully!' });
         });
-    } else {
-        // This is a chapter-specific assessment
-        req.db.query('SELECT title FROM module_chapters WHERE chapter_id = ?', [finalChapterId], (err, chapters) => {
-            if (err || chapters.length === 0) {
-                return res.status(404).json({ error: 'Chapter not found.' });
-            }
-            const chapterTitle = chapters[0].title;
-            const assessmentTitle = `Assessment: ${chapterTitle}`;
+    };
 
-            const sql = 'UPDATE assessments SET title = ?, description = ?, chapter_id = ? WHERE assessment_id = ?';
-            const params = [assessmentTitle, description, finalChapterId, id];
-            req.db.query(sql, params, (err, result) => {
+    if (is_final) {
+        if (!workstream_id) {
+            return res.status(400).json({ error: 'Workstream ID is required to create a final assessment chapter.' });
+        }
+
+        req.db.query('SELECT title FROM workstreams WHERE workstream_id = ?', [workstream_id], (err, workstreams) => {
+            if (err || workstreams.length === 0) {
+                return res.status(404).json({ error: 'Workstream not found when creating final assessment chapter.' });
+            }
+            const workstreamTitle = workstreams[0].title;
+            const finalChapterTitle = `Final Assessment for: ${workstreamTitle}`;
+
+            const findChapterSql = `SELECT chapter_id FROM module_chapters WHERE workstream_id = ? AND title = ?`;
+            req.db.query(findChapterSql, [workstream_id, finalChapterTitle], (err, chapters) => {
                 if (err) {
-                    console.error('Failed to update assessment:', err);
-                    return res.status(500).json({ error: 'Failed to update assessment.', details: err.message });
+                    return res.status(500).json({ error: 'Failed to find final assessment chapter.' });
                 }
-                res.json({ success: 'Assessment updated successfully!' });
+
+                if (chapters.length > 0) {
+                    updateAssessment(chapters[0].chapter_id);
+                } else {
+                    const getNextOrderIndexSql = `SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM module_chapters WHERE workstream_id = ?`;
+                    req.db.query(getNextOrderIndexSql, [workstream_id], (err, result) => {
+                        if (err) {
+                            return res.status(500).json({ error: 'Failed to get next order index.' });
+                        }
+                        const nextOrderIndex = result[0].next_order;
+                        const createChapterSql = `INSERT INTO module_chapters (workstream_id, title, description, order_index, is_assessment) VALUES (?, ?, ?, ?, 1)`;
+                        req.db.query(createChapterSql, [workstream_id, finalChapterTitle, `Final assessment for the ${workstreamTitle} workstream.`, nextOrderIndex], (err, result) => {
+                            if (err) {
+                                return res.status(500).json({ error: 'Failed to create final assessment chapter.' });
+                            }
+                            updateAssessment(result.insertId);
+                        });
+                    });
+                }
             });
         });
+    } else {
+        if (chapter_id === undefined) {
+            return res.status(400).json({ error: 'chapter_id is required for non-final assessments.' });
+        }
+        updateAssessment(chapter_id);
     }
 });
 
