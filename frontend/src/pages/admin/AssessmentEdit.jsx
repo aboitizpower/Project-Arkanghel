@@ -29,6 +29,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [isLoadingWorkstream, setIsLoadingWorkstream] = useState(true);
   const navigate = useNavigate();
   const [usedChapterIds, setUsedChapterIds] = useState([]);
+  const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
 
   // Add Question Modal State
   const [showModal, setShowModal] = useState(false);
@@ -169,6 +170,12 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           const workstreamData = response.data;
           setWorkstream(workstreamData);
 
+          // Check if there's already a final assessment
+          const finalAssessmentExists = workstreamData.assessments?.some(
+            a => a.is_final && a.assessment_id !== assessment.assessment_id
+          );
+          setHasFinalAssessment(finalAssessmentExists);
+
           // Determine which chapters already have assessments
           const used = (workstreamData.chapters || [])
             .filter(ch => ch.assessments && ch.assessments.length > 0 && ch.id !== assessment.chapter_id)
@@ -208,9 +215,15 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setIsSubmitting(true);
     setError(null);
     try {
+      const is_final = selectedChapterId === 'final';
       const payload = {
+        title: autoTitle, // Use the auto-generated title
         description: editedDescription,
-        chapter_id: selectedChapterId,
+        is_final: is_final,
+        // Send chapter_id only if it's not a final assessment
+        chapter_id: is_final ? null : selectedChapterId,
+        // Ensure workstream_id is included for the backend logic
+        workstream_id: workstream?.workstream_id
       };
 
       await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, payload);
@@ -354,18 +367,41 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             </div>
             <div className="form-group">
               <label>Select Chapter or Final Assessment</label>
-              <select
-                id="chapter-select"
-                className="form-control"
-                value={selectedChapterId}
-                onChange={e => setSelectedChapterId(e.target.value)}
-              >
+              <div style={{ position: 'relative' }}>
+                <select
+                  id="chapter-select"
+                  className="form-control"
+                  value={selectedChapterId}
+                  onChange={e => setSelectedChapterId(e.target.value)}
+                  disabled={hasFinalAssessment && selectedChapterId !== 'final'}
+                  title={hasFinalAssessment && selectedChapterId !== 'final' ? "Cannot change chapter selection because a Final Assessment already exists" : ""}
+                  style={hasFinalAssessment && selectedChapterId !== 'final' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
+                >
                 <option value="">Select a chapter or final assessment</option>
                 {workstream?.chapters?.map(ch => (
                   <option key={ch.chapter_id} value={ch.chapter_id}>{ch.title}</option>
                 ))}
-                <option value="final">Final Assessment for: {workstream?.title || ''}</option>
-              </select>
+                  <option value="final">Final Assessment for: {workstream?.title || ''}</option>
+                </select>
+                {hasFinalAssessment && selectedChapterId !== 'final' && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#f8f9fa',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #dee2e6',
+                    marginTop: '4px',
+                    fontSize: '0.85rem',
+                    color: '#6c757d',
+                    zIndex: 10
+                  }}>
+                    Cannot change chapter selection because a Final Assessment already exists
+                  </div>
+                )}
+              </div>
             </div>
             <div className="form-group">
               <label>Assessment Name</label>

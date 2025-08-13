@@ -213,7 +213,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
       await axios.post(`/api/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       if (onCreated) onCreated();
-      else navigate('/admin/modules');
+      else navigate(`/admin/workstream/${targetWorkstreamId}/edit`);
     } catch (err) {
       let backendMsg = err?.response?.data?.error || err?.message || 'Failed to create assessment';
       setError('Failed to create assessment: ' + backendMsg);

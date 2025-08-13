@@ -293,229 +293,206 @@ const WorkstreamEdit = () => {
     );
   }
 
-  if (selectedAssessment) {
-    return (
-      <div className="workstream-edit-container">
-        <AdminSidebar />
-        <main className="workstream-edit-main-content">
-          <LoadingOverlay loading={isLoading} />
-          <AssessmentEdit 
-            assessment={selectedAssessment} 
-            onCancel={() => setSelectedAssessment(null)} 
-            onUpdated={() => {
-              setSelectedAssessment(null);
-              fetchWorkstream();
-            }}
-          />
-        </main>
-      </div>
-    );
-  }
-
+  // Main content layout
   return (
-    <div className="workstream-edit-container">
+    <div className="admin-layout">
       <AdminSidebar />
       <main className="workstream-edit-main-content">
         <LoadingOverlay loading={isLoading} />
-        <div className="workstream-edit-header">
-          <button className="back-button" onClick={() => navigate('/admin/modules')}>
-            &larr; Back to All Workstreams
-          </button>
-        </div>
-        <div className="workstream-edit-page">
-          <div className="workstream-edit-layout">
-            {/* Left Panel: Workstream Details */}
-            <div className="workstream-details-panel">
-              <div className="edit-card workstream-info-card">
-                
-                {/* Inline Title Edit */}
-                <div className="inline-edit-section">
-                  <div className="inline-edit-header">
-                    <label>Workstream Title</label>
-                    {!isEditing.title && (
-                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, title: true })}>
-                        <FaPencilAlt /> Edit title
-                      </button>
-                    )}
-                  </div>
-                  {isEditing.title ? (
-                    <div className="inline-edit-content">
-                      <input 
-                        type="text" 
-                        value={editedTitle}
-                        onChange={(e) => setEditedTitle(e.target.value)}
-                        className="inline-input"
-                      />
-                      <div className="inline-edit-actions">
-                        <button className="btn-cancel" onClick={() => handleCancel('title')}>Cancel</button>
-                        <button className="btn-save" onClick={() => handleSave('title')}>Save</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="inline-value">{workstream.title}</p>
-                  )}
-                </div>
 
-                <div className="divider-horizontal"></div>
-
-                {/* Inline Description Edit */}
-                <div className="inline-edit-section">
-                  <div className="inline-edit-header">
-                    <label>Workstream Description</label>
-                    {!isEditing.description && (
-                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, description: true })}>
-                        <FaPencilAlt /> Edit description
-                      </button>
-                    )}
-                  </div>
-                  {isEditing.description ? (
-                    <div className="inline-edit-content">
-                      <textarea 
-                        value={editedDescription}
-                        onChange={(e) => setEditedDescription(e.target.value)}
-                        className="inline-textarea"
-                      />
-                      <div className="inline-edit-actions">
-                        <button className="btn-cancel" onClick={() => handleCancel('description')}>Cancel</button>
-                        <button className="btn-save" onClick={() => handleSave('description')}>Save</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="inline-value">{workstream.description}</p>
-                  )}
-                </div>
-
-                <div className="divider-horizontal"></div>
-
-                {/* Inline Image Edit */}
-                <div className="inline-edit-section">
-                  <div className="inline-edit-header">
-                    <label>Workstream Image</label>
-                    {!isEditing.image && (
-                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, image: true })}>
-                        <FaPencilAlt /> Edit image
-                      </button>
-                    )}
-                  </div>
-                  {isEditing.image ? (
-                     <div className="inline-edit-content">
-                      <input 
-                        type="file" 
-                        onChange={(e) => setNewImage(e.target.files[0])}
-                        className="inline-input-file"
-                      />
-                      <div className="workstream-image-box">
-                        {newImage ? (
-                           <img src={URL.createObjectURL(newImage)} alt="New preview" className="workstream-image" />
-                        ) : workstream.image_url && (
-                          <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Current" className="workstream-image" />
-                        )}
-                      </div>
-                      <div className="inline-edit-actions">
-                        <button className="btn-cancel" onClick={() => handleCancel('image')}>Cancel</button>
-                        <button className="btn-save" onClick={() => handleSave('image')} disabled={!newImage}>Save</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="workstream-image-box">
-                      {workstream.image_url && (
-                        <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Workstream" className="workstream-image" />
-                      )}
-                    </div>
-                  )}
-                </div>
-
-              </div>
+        {selectedAssessment ? (
+          <AssessmentEdit 
+            assessment={selectedAssessment} 
+            workstream={workstream} // Pass the workstream object
+            onCancel={() => setSelectedAssessment(null)} 
+            onUpdated={() => {
+              setSelectedAssessment(null); // Hide the modal
+              fetchWorkstream(); // Refresh the workstream data
+            }}
+          />
+        ) : (
+          <>
+            <div className="workstream-edit-header">
+              <button className="back-button" onClick={() => navigate('/admin/workstreams')}>
+                &larr; Back to Workstreams
+              </button>
+              <h1 className="workstream-title">{workstream?.title || 'Loading...'}</h1>
+              <button className="btn-primary" onClick={handleSave} disabled={isSubmitting}>
+                <FaSave /> Save Changes
+              </button>
             </div>
 
-            {/* Upper Right Panel: Chapters */}
-            <div className="workstream-chapters-panel">
-              <div className="edit-card section-card">
-                <div className="section-header-container">
-                  <div className="section-header">Chapters</div>
-                  <button 
-                    className="btn-add" 
-                    onClick={() => navigate(`/admin/workstream/${workstreamId}/chapter/create`)}
-                  >
-                    <FaPlus /> Add
-                  </button>
+            {error && <div className="error-message">{error}</div>}
+
+            <div className="workstream-edit-container">
+              {/* Left Column: Details & Chapters */}
+              <div className="workstream-edit-left">
+                <div className="edit-card">
+                  <div className="card-header">
+                    <h2 className="card-title">Workstream Details</h2>
+                  </div>
+                  <div className="card-body">
+                    <div className="form-group">
+                      <label htmlFor="title">Title</label>
+                      <input
+                        id="title"
+                        type="text"
+                        className="form-control"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="description">Description</label>
+                      <textarea
+                        id="description"
+                        className="form-control"
+                        rows="4"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                      ></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="category">Category</label>
+                      <input
+                        id="category"
+                        type="text"
+                        className="form-control"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="divider"></div>
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="chapters">
-                    {(provided) => (
-                      <div 
-                        className="content-list"
-                        {...provided.droppableProps} 
-                        ref={provided.innerRef}
-                      >
-                        {chapters.length > 0 ? (
-                          chapters.map((ch, index) => (
-                            <Draggable key={ch.chapter_id} draggableId={String(ch.chapter_id)} index={index}>
-                              {(provided) => (
-                                <div 
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className="chapter-item"
-                                >
-                                  <span>{ch.title}</span>
-                                  <div className="chapter-actions">
-                                    <button className="btn-edit" onClick={() => setSelectedChapter(ch)}><FaPencilAlt /></button>
-                                    <button className="btn-delete" onClick={() => handleDeleteChapter(ch.chapter_id)}><FaTrash /></button>
+
+                <div className="edit-card">
+                  <div className="card-header">
+                    <h2 className="card-title">Chapters</h2>
+                    <button className="btn-add" onClick={handleAddChapter}>
+                      <FaPlus /> Add Chapter
+                    </button>
+                  </div>
+                  <div className="content-list">
+                    <DragDropContext onDragEnd={onDragEnd}>
+                      <Droppable droppableId="chapters">
+                        {(provided) => (
+                          <div {...provided.droppableProps} ref={provided.innerRef}>
+                            {chapters.map((chapter, index) => (
+                              <Draggable key={chapter.id} draggableId={String(chapter.id)} index={index}>
+                                {(provided) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className="list-item chapter-item"
+                                  >
+                                    <span>{chapter.title}</span>
+                                    <div className="item-actions">
+                                      <button className="btn-edit" onClick={() => handleEditChapter(chapter)}><FaPencilAlt /></button>
+                                      <button className="btn-delete" onClick={() => handleDeleteChapter(chapter.id)}><FaTrash /></button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))
-                        ) : (
-                          <p className="empty-list">No chapters yet.</p>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
                         )}
-                        {provided.placeholder}
+                      </Droppable>
+                    </DragDropContext>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Image & Assessments */}
+              <div className="workstream-edit-right">
+                <div className="edit-card">
+                  <div className="card-header">
+                    <h2 className="card-title">Workstream Image</h2>
+                  </div>
+                  <div className="card-body">
+                    <div className="image-upload-container">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="Workstream Preview" className="image-preview" />
+                      ) : (
+                        <div className="image-placeholder">No image uploaded</div>
+                      )}
+                      <input type="file" id="imageUpload" onChange={handleImageChange} accept="image/*" />
+                      <label htmlFor="imageUpload" className="btn-secondary">Upload Image</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="edit-card">
+                  <div className="card-header">
+                    <div className="section-header">Assessments</div>
+                    <button 
+                      className="btn-add" 
+                      onClick={() => navigate(`/admin/workstream/${workstreamId}/assessment/create`)}
+                    >
+                      <FaPlus /> Add
+                    </button>
+                  </div>
+                  <div className="divider"></div>
+                  <div className="content-list">
+                    {/* Final Assessment Section */}
+                    {(workstream?.final_assessments || []).length > 0 && (
+                      <div className="assessment-group">
+                        <h4 className="assessment-group-title">Final Assessment</h4>
+                        {(workstream.final_assessments).map(assessment => (
+                          <div key={assessment.assessment_id} className="assessment-item">
+                            <span>{assessment.title}</span>
+                            <div className="assessment-actions">
+                              <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
+                              <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </Droppable>
-                </DragDropContext>
+
+                    {/* Chapter-specific assessments */}
+                    {(workstream?.chapters || []).map(chapter => 
+                      (chapter.assessments && chapter.assessments.length > 0) && (
+                        <div key={chapter.id} className="assessment-group">
+                          <h4 className="assessment-group-title">Chapter: {chapter.title}</h4>
+                          {chapter.assessments.map(assessment => (
+                            <div key={assessment.assessment_id} className="assessment-item">
+                              <span>{assessment.title}</span>
+                              <div className="assessment-actions">
+                                <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
+                                <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
+
+                    {/* Message if no assessments exist at all */}
+                    {(!workstream?.final_assessments || workstream.final_assessments.length === 0) && (workstream?.chapters || []).every(ch => !ch.assessments || ch.assessments.length === 0) && (
+                        <p className="empty-list">No assessments yet.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Lower Right Panel: Assessments */}
-            <div className="workstream-assessments-panel">
-              <div className="edit-card section-card">
-                <div className="section-header-container">
-                  <div className="section-header">Assessments</div>
-                  <button 
-                    className="btn-add" 
-                    onClick={() => navigate(`/admin/workstream/${workstreamId}/assessment/create`)}
-                  >
-                    <FaPlus /> Add
-                  </button>
-                </div>
-                <div className="divider"></div>
-                <div className="content-list">
-                  {workstream && workstream.chapters && workstream.chapters.flatMap(ch => ch.assessments || []).length > 0 ? (
-                    workstream.chapters
-                      .flatMap(ch => ch.assessments || [])
-                      .map(assessment => (
-                        <div key={assessment.assessment_id} className="assessment-item">
-                          <span>{assessment.title}</span>
-                          <div className="assessment-actions">
-                            <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
-                            <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
-                          </div>
-                        </div>
-                      ))
-                  ) : (
-                    <p className="empty-list">No assessments yet.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            {selectedChapter && (
+              <ChapterEdit
+                chapter={selectedChapter}
+                onClose={() => setSelectedChapter(null)}
+                onSave={(updatedChapter) => {
+                  setChapters(chapters.map(c => c.id === updatedChapter.id ? updatedChapter : c));
+                  setSelectedChapter(null);
+                }}
+                workstreamId={workstreamId}
+              />
+            )}
+          </>
+        )}
       </main>
     </div>
   );
-};
 
 export default WorkstreamEdit;

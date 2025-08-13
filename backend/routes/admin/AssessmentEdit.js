@@ -61,6 +61,11 @@ router.put('/assessments/:id', (req, res) => {
     const { id } = req.params;
     const { title, description, is_final, chapter_id, workstream_id } = req.body;
 
+    // Automatically set is_final if the title is 'Final Assessment'
+    if (title && title.trim().toLowerCase() === 'final assessment') {
+        is_final = true;
+    }
+
     if (title === undefined || description === undefined || is_final === undefined) {
         return res.status(400).json({ error: 'title, description, and is_final are required.' });
     }

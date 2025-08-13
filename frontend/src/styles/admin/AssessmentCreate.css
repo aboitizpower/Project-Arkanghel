@@ -187,6 +187,7 @@
 }
 
 .form-control {
+    width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid #d1d5db;
     border-radius: 8px;
@@ -475,35 +476,36 @@ textarea.form-control {
 
 /* For browsers that support it, limit the dropdown height and enable scrolling */
 .modal-content select.form-control option {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  background-color: white;
+  color: #1f2937;
 }
 
-/* Custom dropdown menu for select (works in Chrome, Edge, Safari) */
-.modal-content select.form-control {
-  /* This only affects the input, not the dropdown list itself, but helps with appearance */
-  overflow-y: auto;
+/* For Firefox: limit dropdown height and add scrollbar */
+@-moz-document url-prefix() {
+  .modal-content select.form-control {
+    padding-right: 0.75rem;
+    background-image: none;
+  }
+  
+  .modal-content select.form-control {
+    max-height: 120px; /* Shows approximately 3 options */
+    overflow-y: auto;
+  }
 }
 
-/* Limit the visible height of the correct answer dropdown in the modal to 3 options, scroll for more */
-/* Note: This works in Chrome/Edge/Safari, but not in Firefox for native <select> dropdowns. */
-.modal-content select.form-control {
-  /* Show only 3 options at a time in the dropdown, then scroll */
-  /* This is a workaround for Webkit browsers */
-  /* For full control, a custom dropdown component is needed */
+/* For Webkit browsers: limit dropdown height */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .modal-content select.form-control {
+    max-height: 120px; /* Shows approximately 3 options */
+  }
 }
 
-.modal-content select.form-control option {
-  /* Option height is about 40px (depends on browser/font) */
-}
-
-/* Webkit-specific: limit dropdown height */
 .modal-content select.form-control::-webkit-dropdown-list {
   max-height: 120px; /* 3 options x ~40px */
   overflow-y: auto;
 }
 
-/* Optional: Custom scrollbar for dropdowns (Webkit browsers) */
 .modal-content select.form-control::-webkit-scrollbar {
   width: 8px;
   background: #f1f1f1;

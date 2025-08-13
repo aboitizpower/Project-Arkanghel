@@ -340,14 +340,10 @@ router.delete('/chapters/:id', (req, res) => {
             return res.status(500).json({ error: 'Failed to initiate chapter deletion.' });
         }
 
-        // Delete assessments first (if any)
-        const deleteAssessmentsSql = 'DELETE FROM assessments WHERE chapter_id = ?';
-        req.db.query(deleteAssessmentsSql, [id], (err) => {
-            if (err) {
-                return req.db.rollback(() => {
-                    res.status(500).json({ error: 'Failed to delete chapter assessments.' });
-                });
-            }
+        // Disassociate assessments from the chapter
+        const updateAssessmentsSql = 'UPDATE assessments SET chapter_id = NULL WHERE chapter_id = ?';
+        req.db.query(updateAssessmentsSql, [id], (err) => {
+            if (err) return req.db.rollback(() => res.status(500).json({ error: 'Failed to disassociate assessments from the chapter.' }));
 
             // Delete the chapter
             const deleteChapterSql = 'DELETE FROM module_chapters WHERE chapter_id = ?';

@@ -39,14 +39,7 @@ router.get('/workstreams', (req, res) => {
             w.created_at, 
             w.is_published,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) as chapters_count,
-            (SELECT COUNT(*) FROM module_chapters mc 
-             WHERE mc.workstream_id = w.workstream_id 
-             AND mc.is_published = TRUE 
-             AND mc.title NOT LIKE '%Final Assessment%') as published_chapters_count,
-            (SELECT COUNT(DISTINCT a.assessment_id) 
-             FROM assessments a
-             JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-             WHERE mc.workstream_id = w.workstream_id) as assessments_count
+            (SELECT COUNT(*) FROM assessments a JOIN module_chapters mc ON a.chapter_id = mc.chapter_id WHERE mc.workstream_id = w.workstream_id) as assessments_count
         FROM workstreams w
         ORDER BY w.created_at DESC
     `;
@@ -180,24 +173,33 @@ router.get('/workstreams/:id', (req, res) => {
                     });
                 }
                 
-                // Group assessments by chapter_id
-                const assessmentsByChapter = assessments.reduce((acc, assessment) => {
-                    (acc[assessment.chapter_id] = acc[assessment.chapter_id] || []).push(assessment);
+                const final_assessments = assessments.filter(a => a.is_final);
+                const chapterAssessments = assessments.filter(a => !a.is_final);
+
+                // Group chapter-specific assessments by chapter_id
+                const assessmentsByChapter = chapterAssessments.reduce((acc, assessment) => {
+                    const key = assessment.chapter_id;
+                    if (!acc[key]) {
+                        acc[key] = [];
+                    }
+                    acc[key].push(assessment);
                     return acc;
                 }, {});
-                
-                // Add assessments to their respective chapters
+
+                // Attach assessments to their respective chapters
                 const chaptersWithAssessments = chapters.map(chapter => ({
                     ...chapter,
                     assessments: assessmentsByChapter[chapter.id] || []
                 }));
-                
-                console.log(`Fetched workstream ${id} with ${chapters.length} chapters`);
+
+                console.log(`Fetched workstream ${id} with ${chapters.length} chapters and ${assessments.length} total assessments`);
+
                 res.json({
                     success: true,
                     workstream: {
                         ...workstream,
                         chapters: chaptersWithAssessments,
+                        final_assessments: final_assessments || [], // Add final assessments array to workstream object
                         image_url: workstream.image_type ? `/workstreams/${id}/image` : null
                     }
                 });
@@ -935,40 +937,10 @@ router.post('/workstreams/:id/assessments', (req, res) => {
     };
 
     if (is_final) {
-        // For a final assessment, find or create a dedicated 'Final Assessment' chapter
-        const findChapterSql = `SELECT chapter_id FROM module_chapters WHERE workstream_id = ? AND is_assessment = 1 AND title = 'Final Assessment'`;
-        req.db.query(findChapterSql, [workstream_id], (err, chapters) => {
-            if (err) {
-                console.error('Error finding final assessment chapter:', err);
-                return res.status(500).json({ error: 'Failed to prepare final assessment.' });
-            }
-            if (chapters.length > 0) {
-                // Use existing final assessment chapter
-                createAssessmentInTransaction(chapters[0].chapter_id);
-            } else {
-                // Create a new final assessment chapter if it doesn't exist
-                const getNextOrderIndexSql = `SELECT COALESCE(MAX(order_index), 0) + 1 as next_order FROM module_chapters WHERE workstream_id = ?`;
-                req.db.query(getNextOrderIndexSql, [workstream_id], (err, result) => {
-                    if (err) {
-                        console.error('Error getting next order index:', err);
-                        return res.status(500).json({ error: 'Failed to create final assessment chapter.' });
-                    }
-                    const nextOrderIndex = result[0].next_order;
-                    const createChapterSql = `INSERT INTO module_chapters (workstream_id, title, description, order_index, is_assessment) VALUES (?, ?, ?, ?, 1)`;
-                    const chapterTitle = `Final Assessment`;
-                    const chapterDesc = 'This is the final assessment for the workstream.';
-                    req.db.query(createChapterSql, [workstream_id, chapterTitle, chapterDesc, nextOrderIndex], (err, result) => {
-                        if (err) {
-                            console.error('Error creating final assessment chapter:', err);
-                            return res.status(500).json({ error: 'Failed to create final assessment chapter.' });
-                        }
-                        createAssessmentInTransaction(result.insertId);
-                    });
-                });
-            }
-        });
+        // For a final assessment, chapter_id is optional and can be null.
+        createAssessmentInTransaction(null); 
     } else {
-        // For a regular chapter assessment
+        // For a regular chapter assessment, a chapter_id is required.
         if (!chapter_id) {
             return res.status(400).json({ error: 'Chapter ID is required for a non-final assessment.' });
         }
@@ -997,7 +969,6 @@ router.get('/workstreams/:id/assessments', (req, res) => {
         res.json(results);
     });
 });
-
 router.get('/workstreams/:id/complete', (req, res) => {
     const { id } = req.params;
     
@@ -1005,58 +976,62 @@ router.get('/workstreams/:id/complete', (req, res) => {
         return res.status(400).json({ error: 'Valid workstream ID is required.' });
     }
 
-    // First, get the workstream data
+    // Fetch the workstream
     const workstreamSql = 'SELECT * FROM workstreams WHERE workstream_id = ?';
     req.db.query(workstreamSql, [id], (err, workstreamResults) => {
         if (err) {
             return res.status(500).json({ error: `Failed to fetch workstream: ${err.message}` });
         }
-        
         if (workstreamResults.length === 0) {
             return res.status(404).json({ error: 'Workstream not found.' });
         }
 
         const workstream = workstreamResults[0];
-        
-        // Get chapters ordered by order_index
+
+        // Fetch chapters (ordered)
         const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
         req.db.query(chaptersSql, [id], (err, chapters) => {
             if (err) {
                 return res.status(500).json({ error: `Failed to fetch chapters: ${err.message}` });
             }
 
-            if (chapters.length === 0) {
-                return res.json({
-                    ...workstream,
-                    chapters: [],
-                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
-                });
-            }
+            // Fetch ALL assessments for this workstream, including standalone/final (chapter_id IS NULL)
+            const assessmentsSql = `
+                SELECT 
+                    assessment_id, chapter_id, title, description, passing_score,
+                    total_points, time_limit_minutes, is_published, created_at, is_final
+                FROM assessments
+                WHERE workstream_id = ?
+                ORDER BY created_at ASC
+            `;
 
-            // Get assessments for all chapters
-            const chapterIds = chapters.map(ch => ch.chapter_id);
-            const assessmentsSql = 'SELECT * FROM assessments WHERE chapter_id IN (?)';
-            
-            req.db.query(assessmentsSql, [chapterIds], (err, assessments) => {
+            req.db.query(assessmentsSql, [id], (err, assessments) => {
                 if (err) {
                     return res.status(500).json({ error: `Failed to fetch assessments: ${err.message}` });
                 }
 
                 // Group assessments by chapter_id
-                const assessmentsByChapter = assessments.reduce((acc, assessment) => {
-                    (acc[assessment.chapter_id] = acc[assessment.chapter_id] || []).push(assessment);
+                const assessmentsByChapter = assessments.reduce((acc, a) => {
+                    if (a.chapter_id) {
+                        (acc[a.chapter_id] = acc[a.chapter_id] || []).push(a);
+                    }
                     return acc;
                 }, {});
 
-                // Add assessments to each chapter
-                const chaptersWithAssessments = chapters.map(chapter => ({
-                    ...chapter,
-                    assessments: assessmentsByChapter[chapter.chapter_id] || []
+                // Final/standalone assessments (no chapter_id)
+                const finalAssessments = assessments.filter(a => !a.chapter_id);
+
+                // Attach assessments to chapters
+                const chaptersWithAssessments = chapters.map(ch => ({
+                    ...ch,
+                    assessments: assessmentsByChapter[ch.chapter_id] || []
                 }));
 
+                // Respond
                 res.json({
                     ...workstream,
                     chapters: chaptersWithAssessments,
+                    final_assessments: finalAssessments,
                     image_url: workstream.image_type ? `/workstreams/${id}/image` : null
                 });
             });
