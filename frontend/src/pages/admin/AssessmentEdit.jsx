@@ -13,14 +13,11 @@ const API_URL = 'http://localhost:8081';
 const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(assessment.description || '');
-  // Remove manual title editing state and UI
-  // Add state for final assessment toggle
-  // Remove isFinal state and logic
-  // Use only selectedChapterId, where 'final' means final assessment
-  const [selectedChapterId, setSelectedChapterId] = useState(
-    assessment.is_final ? 'final' : (assessment.chapter_id || '')
-  );
-  const [questions, setQuestions] = useState(assessment.questions || []);
+  const [title, setTitle] = useState(assessment?.title || '');
+  const [description, setDescription] = useState(assessment?.description || '');
+  const [questions, setQuestions] = useState(assessment?.questions || []);
+  const [isFinal, setIsFinal] = useState(assessment?.is_final || false);
+  const [selectedChapter, setSelectedChapter] = useState(assessment?.chapter_id || '');
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [questionEdits, setQuestionEdits] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -215,13 +212,13 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     setIsSubmitting(true);
     setError(null);
     try {
-      const is_final = selectedChapterId === 'final';
+      const is_final = selectedChapter === 'final';
       const payload = {
         title: autoTitle, // Use the auto-generated title
         description: editedDescription,
         is_final: is_final,
         // Send chapter_id only if it's not a final assessment
-        chapter_id: is_final ? null : selectedChapterId,
+        chapter_id: is_final ? null : selectedChapter,
         // Ensure workstream_id is included for the backend logic
         workstream_id: workstream?.workstream_id
       };
@@ -241,10 +238,10 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   };
 
   // Auto-generate title based on dropdown selection
-  const autoTitle = selectedChapterId === 'final'
+  const autoTitle = selectedChapter === 'final'
     ? `Final Assessment for: ${workstream?.title || ''}`
-    : (selectedChapterId
-        ? `Assessment: ${workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId)?.title || ''}`
+    : (selectedChapter
+        ? `Assessment: ${workstream?.chapters?.find(ch => ch.chapter_id == selectedChapter)?.title || ''}`
         : assessment.title);
 
   const renderQuestionAnswer = (question) => {
@@ -368,22 +365,20 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             <div className="form-group">
               <label>Select Chapter or Final Assessment</label>
               <div style={{ position: 'relative' }}>
-                <select
+                <select 
                   id="chapter-select"
+                  value={selectedChapter}
+                  onChange={(e) => setSelectedChapter(e.target.value)}
                   className="form-control"
-                  value={selectedChapterId}
-                  onChange={e => setSelectedChapterId(e.target.value)}
-                  disabled={hasFinalAssessment && selectedChapterId !== 'final'}
-                  title={hasFinalAssessment && selectedChapterId !== 'final' ? "Cannot change chapter selection because a Final Assessment already exists" : ""}
-                  style={hasFinalAssessment && selectedChapterId !== 'final' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
+                  disabled={isFinal || assessment?.is_final}
                 >
-                <option value="">Select a chapter or final assessment</option>
-                {workstream?.chapters?.map(ch => (
-                  <option key={ch.chapter_id} value={ch.chapter_id}>{ch.title}</option>
-                ))}
+                  <option value="">Select a chapter or final assessment</option>
+                  {workstream?.chapters?.map(ch => (
+                    <option key={ch.chapter_id} value={ch.chapter_id}>{ch.title}</option>
+                  ))}
                   <option value="final">Final Assessment for: {workstream?.title || ''}</option>
                 </select>
-                {hasFinalAssessment && selectedChapterId !== 'final' && (
+                {hasFinalAssessment && selectedChapter !== 'final' && (
                   <div style={{
                     position: 'absolute',
                     top: '100%',

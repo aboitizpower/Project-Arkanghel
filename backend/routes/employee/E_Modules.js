@@ -43,7 +43,7 @@ router.get('/employee/workstreams', (req, res) => {
                 error: 'Failed to fetch workstreams. Please try again later.' 
             });
         }
-        res.json({ success: true, workstreams: results });
+        res.json(results);
     });
 });
 
@@ -65,7 +65,6 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
         });
     }
 
-    // First, get the workstream details
     const workstreamSql = `
         SELECT 
             w.workstream_id, 
@@ -95,7 +94,6 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
 
         const workstream = workstreamResults[0];
         
-        // Then get all published chapters for this workstream
         const chaptersSql = `
             SELECT 
                 mc.chapter_id,
@@ -107,24 +105,19 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
                 mc.video_mime_type,
                 mc.pdf_filename,
                 mc.pdf_mime_type,
-                up.status as user_status,
-                up.completed_at,
                 a.assessment_id,
                 (
                     SELECT COUNT(*) > 0 
                     FROM user_progress up2 
-                    WHERE up2.chapter_id = mc.chapter_id 
-                    AND up2.user_id = ? 
-                    AND up2.status = 'completed'
+                    WHERE up2.chapter_id = mc.chapter_id AND up2.user_id = ?
                 ) as is_completed
             FROM module_chapters mc
-            LEFT JOIN user_progress up ON mc.chapter_id = up.chapter_id AND up.user_id = ?
             LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
             WHERE mc.workstream_id = ? AND mc.is_published = TRUE
             ORDER BY mc.order_index ASC
         `;
 
-        req.db.query(chaptersSql, [userId, userId, workstreamId], (err, chaptersResults) => {
+        req.db.query(chaptersSql, [userId, workstreamId], (err, chaptersResults) => {
             if (err) {
                 console.error('Error fetching chapters:', err);
                 return res.status(500).json({
@@ -133,7 +126,6 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
                 });
             }
 
-            // Format the response
             const response = {
                 success: true,
                 workstream: {
@@ -153,13 +145,7 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
     });
 });
 
-/**
- * @route GET /employee/chapters/:chapterId
- * @description Get details of a specific chapter
- * @access Private (Employee)
- * @param {string} chapterId - The ID of the chapter
- * @returns {Object} Chapter details with content and media information
- */
+
 router.get('/employee/chapters/:chapterId', (req, res) => {
     const { chapterId } = req.params;
     const { userId } = req.query;
@@ -174,35 +160,29 @@ router.get('/employee/chapters/:chapterId', (req, res) => {
     const sql = `
         SELECT 
             mc.chapter_id,
-            mc.workstream_id,
             mc.title,
             mc.content,
             mc.order_index,
+            mc.is_published,
             mc.video_filename,
             mc.video_mime_type,
             mc.pdf_filename,
             mc.pdf_mime_type,
-            mc.created_at,
+            w.workstream_id,
             w.title as workstream_title,
-            w.image_type as workstream_image_type,
-            up.status as user_status,
-            up.completed_at,
-            a.assessment_id,
             (
                 SELECT COUNT(*) > 0 
                 FROM user_progress up2 
-                WHERE up2.chapter_id = mc.chapter_id 
-                AND up2.user_id = ? 
-                AND up2.status = 'completed'
-            ) as is_completed
+                WHERE up2.chapter_id = mc.chapter_id AND up2.user_id = ?
+            ) as is_completed,
+            a.assessment_id
         FROM module_chapters mc
         JOIN workstreams w ON mc.workstream_id = w.workstream_id
-        LEFT JOIN user_progress up ON mc.chapter_id = up.chapter_id AND up.user_id = ?
         LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
         WHERE mc.chapter_id = ? AND mc.is_published = TRUE AND w.is_published = TRUE
     `;
 
-    req.db.query(sql, [userId, userId, chapterId], (err, results) => {
+    req.db.query(sql, [userId, chapterId], (err, results) => {
         if (err) {
             console.error('Error fetching chapter:', err);
             return res.status(500).json({
@@ -214,36 +194,31 @@ router.get('/employee/chapters/:chapterId', (req, res) => {
         if (results.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'Chapter not found, not published, or you do not have access.'
+                error: 'Chapter not found or not published.'
             });
         }
 
         const chapter = results[0];
-        
-        // Format the response
+
         const response = {
             success: true,
             chapter: {
                 ...chapter,
                 video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
                 pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
-                workstream_image_url: chapter.workstream_image_type ? `/workstreams/${chapter.workstream_id}/image` : null,
                 has_assessment: !!chapter.assessment_id
             }
         };
 
-        // If this is the first time the user is viewing this chapter, mark it as started
-        if (userId && (!chapter.user_status || chapter.user_status === 'not_started')) {
+        if (userId && !chapter.is_completed) {
             const updateProgressSql = `
-                INSERT INTO user_progress (user_id, chapter_id, status, started_at)
-                VALUES (?, ?, 'in_progress', NOW())
-                ON DUPLICATE KEY UPDATE status = 'in_progress', updated_at = NOW()
+                INSERT INTO user_progress (user_id, chapter_id, started_at)
+                VALUES (?, ?, NOW())
+                ON DUPLICATE KEY UPDATE started_at = IF(started_at IS NULL, NOW(), started_at)
             `;
-            
             req.db.query(updateProgressSql, [userId, chapterId], (err) => {
                 if (err) {
                     console.error('Error updating user progress:', err);
-                    // Don't fail the request if progress update fails
                 }
             });
         }
@@ -252,35 +227,50 @@ router.get('/employee/chapters/:chapterId', (req, res) => {
     });
 });
 
-/**
- * @route POST /employee/progress
- * @description Update user progress for a chapter
- * @access Private (Employee)
- * @param {string} userId - The ID of the user
- * @param {string} chapterId - The ID of the chapter
- * @param {string} status - The status to set ('in_progress' or 'completed')
- * @returns {Object} Success or error message
- */
-router.post('/employee/progress', (req, res) => {
-    const { userId, chapterId, status } = req.body;
+router.get('/employee/chapters/:chapterId/assessment', (req, res) => {
+    const { chapterId } = req.params;
+    const { userId } = req.query;
 
-    if (!userId || !chapterId || !['in_progress', 'completed'].includes(status)) {
+    const sql = `
+        SELECT 
+            a.assessment_id, 
+            a.title, 
+            (SELECT COUNT(*) FROM questions WHERE assessment_id = a.assessment_id) as question_count
+        FROM assessments a
+        WHERE a.chapter_id = ?
+    `;
+
+    req.db.query(sql, [chapterId], (err, results) => {
+        if (err) {
+            console.error('Error fetching assessment for chapter:', err);
+            return res.status(500).json({ success: false, error: 'Failed to fetch assessment details.' });
+        }
+        if (results.length > 0) {
+            res.json({ success: true, assessment: results[0] });
+        } else {
+            res.json({ success: true, assessment: null });
+        }
+    });
+});
+
+
+router.post('/employee/progress', (req, res) => {
+    const { userId, chapterId } = req.body;
+
+    if (!userId || !chapterId) {
         return res.status(400).json({
             success: false,
-            error: 'User ID, chapter ID, and valid status are required.'
+            error: 'User ID and chapter ID are required.'
         });
     }
 
     const sql = `
-        INSERT INTO user_progress (user_id, chapter_id, status, started_at, completed_at)
-        VALUES (?, ?, ?, NOW(), ${status === 'completed' ? 'NOW()' : 'NULL'})
-        ON DUPLICATE KEY UPDATE 
-            status = VALUES(status),
-            ${status === 'completed' ? 'completed_at = NOW(),' : ''}
-            updated_at = NOW()
+        INSERT INTO user_progress (user_id, chapter_id, started_at, completed_at)
+        VALUES (?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE completed_at = NOW()
     `;
 
-    req.db.query(sql, [userId, chapterId, status], (err, result) => {
+    req.db.query(sql, [userId, chapterId], (err, result) => {
         if (err) {
             console.error('Error updating progress:', err);
             return res.status(500).json({
@@ -296,14 +286,7 @@ router.post('/employee/progress', (req, res) => {
     });
 });
 
-/**
- * @route GET /employee/workstreams/:workstreamId/progress
- * @description Get user's progress for a specific workstream
- * @access Private (Employee)
- * @param {string} workstreamId - The ID of the workstream
- * @param {string} userId - The ID of the user
- * @returns {Object} Progress information for the workstream
- */
+
 router.get('/employee/workstreams/:workstreamId/progress', (req, res) => {
     const { workstreamId } = req.params;
     const { userId } = req.query;
@@ -320,25 +303,17 @@ router.get('/employee/workstreams/:workstreamId/progress', (req, res) => {
             mc.chapter_id,
             mc.title as chapter_title,
             mc.order_index,
-            up.status,
-            up.started_at,
-            up.completed_at,
+            mc.video_filename,
+            mc.pdf_filename,
             a.assessment_id,
-            (
-                SELECT COUNT(*) > 0 
-                FROM user_progress up2 
-                WHERE up2.chapter_id = mc.chapter_id 
-                AND up2.user_id = ? 
-                AND up2.status = 'completed'
-            ) as is_completed
+            (SELECT COUNT(*) > 0 FROM user_progress up WHERE up.chapter_id = mc.chapter_id AND up.user_id = ?) as is_completed
         FROM module_chapters mc
-        LEFT JOIN user_progress up ON mc.chapter_id = up.chapter_id AND up.user_id = ?
         LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
         WHERE mc.workstream_id = ? AND mc.is_published = TRUE
         ORDER BY mc.order_index ASC
     `;
 
-    req.db.query(sql, [userId, userId, workstreamId], (err, results) => {
+    req.db.query(sql, [userId, workstreamId], (err, results) => {
         if (err) {
             console.error('Error fetching progress:', err);
             return res.status(500).json({
@@ -347,7 +322,6 @@ router.get('/employee/workstreams/:workstreamId/progress', (req, res) => {
             });
         }
 
-        // Calculate overall progress
         const totalChapters = results.length;
         const completedChapters = results.filter(chapter => chapter.is_completed).length;
         const progress = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
@@ -363,13 +337,47 @@ router.get('/employee/workstreams/:workstreamId/progress', (req, res) => {
                 chapter_id: chapter.chapter_id,
                 title: chapter.chapter_title,
                 order_index: chapter.order_index,
-                status: chapter.status || 'not_started',
-                started_at: chapter.started_at,
-                completed_at: chapter.completed_at,
+                is_completed: !!chapter.is_completed,
                 has_assessment: !!chapter.assessment_id,
-                is_completed: chapter.is_completed
+                video_filename: chapter.video_filename,
+                pdf_filename: chapter.pdf_filename
             }))
         });
+    });
+});
+
+
+// Serve chapter videos
+router.get('/chapters/:id/video', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT video_file, video_mime_type FROM module_chapters WHERE chapter_id = ?';
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (results.length === 0 || !results[0].video_file) {
+            return res.status(404).json({ error: 'Video not found.' });
+        }
+        const { video_file, video_mime_type } = results[0];
+        res.setHeader('Content-Type', video_mime_type);
+        res.send(video_file);
+    });
+});
+
+// Serve chapter PDFs
+router.get('/chapters/:id/pdf', (req, res) => {
+    const { id } = req.params;
+    const sql = 'SELECT pdf_file, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (results.length === 0 || !results[0].pdf_file) {
+            return res.status(404).json({ error: 'PDF not found.' });
+        }
+        const { pdf_file, pdf_mime_type } = results[0];
+        res.setHeader('Content-Type', pdf_mime_type);
+        res.send(pdf_file);
     });
 });
 

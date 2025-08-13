@@ -76,78 +76,69 @@ const ViewModules = () => {
     };
 
     const fetchUserProgress = async (workstreamId) => {
+        if (!userId) return;
         try {
-            const response = await axios.get(`${API_URL}/employee/progress/${userId}/${workstreamId}`);
-            const completedChapterIds = new Set(response.data.map(progress => progress.chapter_id));
-            setCompletedChapters(completedChapterIds);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/progress?userId=${userId}`);
+            const progressData = response.data.chapters.reduce((acc, chapter) => {
+                if (chapter.is_completed) {
+                    acc.add(chapter.chapter_id);
+                }
+                return acc;
+            }, new Set());
+            setCompletedChapters(progressData);
         } catch (err) {
             console.error('Failed to fetch user progress:', err);
         }
     };
 
     const _selectChapterForView = async (chapter) => {
+        if (!chapter) return;
+
         setSelectedChapter(chapter);
         setCurrentContentView('video'); // Default to video view
+        setAssessmentForCurrentChapter(null); // Reset assessment state
+        setIsAssessmentPassed(false);
 
         // Fetch assessment for this chapter
         try {
             const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`);
-            if (assessmentResponse.data) {
-                setAssessmentForCurrentChapter(assessmentResponse.data);
+            const assessmentData = assessmentResponse.data.assessment;
+
+            if (assessmentData && assessmentData.assessment_id) {
+                setAssessmentForCurrentChapter(assessmentData);
                 
-                // Check if user has passed this assessment
-                const resultResponse = await axios.get(`${API_URL}/employee/assessment-results/${userId}/${assessmentResponse.data.assessment_id}`);
-                if (resultResponse.data && resultResponse.data.length > 0) {
-                    const bestResult = resultResponse.data.reduce((best, current) => 
-                        current.score > best.score ? current : best
-                    );
-                    setIsAssessmentPassed(bestResult.score >= assessmentResponse.data.passing_score);
-                    setAssessmentAttempts(resultResponse.data.length);
-                } else {
-                    setIsAssessmentPassed(false);
-                    setAssessmentAttempts(0);
-                }
-            } else {
-                setAssessmentForCurrentChapter(null);
-                setIsAssessmentPassed(false);
-                setAssessmentAttempts(0);
+                // Assessment results check is disabled as the 'assessment_results' table does not exist.
             }
         } catch (err) {
             console.error('Error fetching assessment:', err);
-            setAssessmentForCurrentChapter(null);
-            setIsAssessmentPassed(false);
-            setAssessmentAttempts(0);
         }
     };
 
-    const handleSelectChapter = (chapter) => {
-        if (!userId) {
-            setError("You must be logged in to view chapters.");
+    const handleSelectChapter = async (chapter) => {
+        if (!userId || !chapter) {
+            setError("Cannot select chapter. User or chapter data is missing.");
             return;
         }
 
-        const fetchAndNavigate = async () => {
-            try {
-                await _selectChapterForView(chapter);
+        try {
+            await _selectChapterForView(chapter);
 
-                // Mark chapter as viewed
+            // Mark chapter as viewed only if a workstream is selected
+            if (selectedWorkstream && selectedWorkstream.workstream_id) {
                 await axios.post(`${API_URL}/employee/progress`, {
                     user_id: userId,
                     chapter_id: chapter.chapter_id,
-                    workstream_id: selectedWorkstream.workstream_id,
-                    status: 'viewed'
                 });
-
-                // Update completed chapters
-                setCompletedChapters(prev => new Set([...prev, chapter.chapter_id]));
-
-            } catch (err) {
-                console.error('Error selecting chapter:', err);
-                setError('Failed to load chapter. Please try again.');
+                // Optimistically update completed chapters
+                setCompletedChapters(prev => new Set(prev).add(chapter.chapter_id));
+            } else {
+                console.error("Cannot update progress: workstream not selected.");
             }
-        };
 
-        fetchAndNavigate();
+        } catch (err) {
+            console.error('Error selecting chapter:', err);
+            setError('Failed to load chapter. Please try again.');
+        }
     };
 
     const handleBackToWorkstreams = () => {
@@ -222,8 +213,8 @@ const ViewModules = () => {
         const isNextButtonDisabled = assessmentForCurrentChapter && !isAssessmentPassed;
 
         // Check if chapter has video or PDF content
-        const hasVideo = selectedChapter.video_url || selectedChapter.video_path;
-        const hasPdf = selectedChapter.pdf_url || selectedChapter.pdf_path;
+        const hasVideo = selectedChapter.video_filename;
+        const hasPdf = selectedChapter.pdf_file;
 
         return (
             <div className="module-view">
@@ -269,6 +260,7 @@ const ViewModules = () => {
                     <div className="chapter-media-container">
                          {hasVideo && currentContentView === 'video' ? (
                             <video 
+                                key={selectedChapter.chapter_id} // Add key to force re-render
                                 src={`${API_URL}/chapters/${selectedChapter.chapter_id}/video`}
                                 controls 
                                 autoPlay
@@ -280,6 +272,7 @@ const ViewModules = () => {
                             </video>
                         ) : hasPdf && currentContentView === 'pdf' ? (
                             <iframe 
+                                key={selectedChapter.chapter_id} // Add key to force re-render
                                 src={`${API_URL}/chapters/${selectedChapter.chapter_id}/pdf`}
                                 title={selectedChapter.title}
                                 width="100%"

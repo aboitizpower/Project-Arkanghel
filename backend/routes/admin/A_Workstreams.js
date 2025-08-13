@@ -898,11 +898,12 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                 return res.status(500).json({ error: 'Failed to create assessment.' });
             }
 
+            // Unified SQL for all assessments
             const assessmentSql = `
-                INSERT INTO assessments (title, description, chapter_id, workstream_id, is_final, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO assessments (title, description, chapter_id, is_final, created_at, updated_at)
+                VALUES (?, ?, ?, ?, NOW(), NOW())
             `;
-            const assessmentValues = [title, description, target_chapter_id, is_final ? workstream_id : null, is_final ? 1 : 0];
+            const assessmentValues = [title, description, target_chapter_id, is_final ? 1 : 0];
 
             req.db.query(assessmentSql, assessmentValues, (err, result) => {
                 if (err) {
@@ -940,10 +941,10 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                                 res.status(500).json({ error: 'Failed to finalize assessment creation.' });
                             });
                         }
-                        res.status(201).json({ 
-                            success: true, 
+                        res.status(201).json({
+                            success: true,
                             message: 'Assessment created successfully!',
-                            assessmentId: assessmentId 
+                            assessmentId: assessmentId
                         });
                     });
                 });
@@ -952,8 +953,31 @@ router.post('/workstreams/:id/assessments', (req, res) => {
     };
 
     if (is_final) {
-        // For a final assessment, chapter_id is optional and can be null.
-        createAssessmentInTransaction(null); 
+        // For a final assessment, create a new chapter dedicated to it.
+        req.db.beginTransaction(err => {
+            if (err) { return res.status(500).json({ error: 'Failed to start transaction.' }); }
+
+            const getMaxOrderSql = 'SELECT MAX(order_index) as max_order FROM module_chapters WHERE workstream_id = ?';
+            req.db.query(getMaxOrderSql, [workstream_id], (err, result) => {
+                if (err) {
+                    return req.db.rollback(() => res.status(500).json({ error: 'Failed to determine chapter order.' }));
+                }
+
+                const newOrder = (result[0].max_order || 0) + 1;
+                const chapterTitle = `Final Assessment`;
+
+                const createChapterSql = 'INSERT INTO module_chapters (workstream_id, title, order_index) VALUES (?, ?, ?)';
+                req.db.query(createChapterSql, [workstream_id, chapterTitle, newOrder], (err, chapterResult) => {
+                    if (err) {
+                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to create dedicated chapter for final assessment.' }));
+                    }
+
+                    const newChapterId = chapterResult.insertId;
+                    // Now call the original transaction function with the new chapter ID
+                    createAssessmentInTransaction(newChapterId);
+                });
+            });
+        });
     } else {
         // For a regular chapter assessment, a chapter_id is required.
         if (!chapter_id) {
@@ -1012,7 +1036,7 @@ router.get('/workstreams/:id/complete', (req, res) => {
 
             // Fetch ALL assessments for this workstream, including standalone/final (chapter_id IS NULL)
             const assessmentsSql = `
-                SELECT 
+                SELECT        
                     a.assessment_id, a.chapter_id, a.title, a.description, a.passing_score,
                     a.total_points, a.time_limit_minutes, a.is_published, a.created_at, a.is_final
                 FROM assessments a
@@ -1021,35 +1045,36 @@ router.get('/workstreams/:id/complete', (req, res) => {
                 ORDER BY a.created_at ASC
             `;
 
-            req.db.query(assessmentsSql, [id], (err, assessments) => {
+            req.db.query(assessmentsSql, [id, id], (err, assessments) => {
                 if (err) {
                     return res.status(500).json({ error: `Failed to fetch assessments: ${err.message}` });
                 }
 
-                // Group assessments by chapter_id
+                const finalAssessments = assessments.filter(a => a.is_final);
+                const finalAssessmentChapterIds = new Set(finalAssessments.map(a => a.chapter_id));
+
+                const regularChapters = chapters.filter(ch => !finalAssessmentChapterIds.has(ch.chapter_id));
+
                 const assessmentsByChapter = assessments.reduce((acc, a) => {
-                    if (a.chapter_id) {
+                    if (a.chapter_id && !a.is_final) {
                         (acc[a.chapter_id] = acc[a.chapter_id] || []).push(a);
                     }
                     return acc;
                 }, {});
 
-                // Final/standalone assessments (no chapter_id)
-                const finalAssessments = assessments.filter(a => !a.chapter_id);
-
-                // Attach assessments to chapters
-                const chaptersWithAssessments = chapters.map(ch => ({
+                const chaptersWithAssessments = regularChapters.map(ch => ({
                     ...ch,
                     assessments: assessmentsByChapter[ch.chapter_id] || []
                 }));
 
-                // Respond
-                res.json({
+                const responsePayload = {
                     ...workstream,
                     chapters: chaptersWithAssessments,
-                    final_assessments: finalAssessments,
+                    final_assessments: finalAssessments, // Send final assessments separately
                     image_url: workstream.image_type ? `/workstreams/${id}/image` : null
-                });
+                };
+
+                res.json(responsePayload);
             });
         });
     });

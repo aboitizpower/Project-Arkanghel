@@ -83,17 +83,22 @@ const E_Modules = () => {
     }, [userId]);
 
     const fetchChapters = async (workstreamId) => {
+        if (!userId) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
-            setChapters(response.data);
-            if (response.data.length > 0) {
-                // Automatically select the first chapter
-                handleSelectChapter(response.data[0]);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}?userId=${userId}`);
+            const fetchedChapters = response.data.chapters || [];
+            setChapters(fetchedChapters);
+
+            if (fetchedChapters.length > 0) {
+                // Automatically select the first chapter if none is selected
+                if (!selectedChapter) {
+                    handleSelectChapter(fetchedChapters[0]);
+                }
             }
             setError('');
         } catch (err) {
-            setError(`Failed to fetch chapters for workstream ${workstreamId}.`);
+            setError('Failed to fetch chapters. Please try again later.');
             console.error(err);
         }
         setIsLoading(false);
@@ -102,12 +107,17 @@ const E_Modules = () => {
     const fetchUserProgress = async (workstreamId) => {
         if (!userId) return;
         try {
-            const response = await axios.get(`${API_URL}/user-progress/${userId}/${workstreamId}`);
-            const completedIds = response.data.map(item => item.chapter_id);
-            setCompletedChapters(new Set(completedIds));
+            // Corrected API endpoint
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/progress?userId=${userId}`);
+            const progressData = response.data.chapters.reduce((acc, chapter) => {
+                if (chapter.is_completed) {
+                    acc.add(chapter.chapter_id);
+                }
+                return acc;
+            }, new Set());
+            setCompletedChapters(progressData);
         } catch (err) {
             console.error('Failed to fetch user progress:', err);
-            setError('Could not load your progress. Please refresh the page.');
         }
     };
 

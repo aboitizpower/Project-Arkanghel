@@ -17,7 +17,7 @@ const WorkstreamEdit = () => {
   const { workstreamId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [workstream, setWorkstream] = useState(null);
+  const [workstream, setWorkstream] = useState({ final_assessments: [] });
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,6 +32,7 @@ const WorkstreamEdit = () => {
 
   // Fetch workstream data
   const fetchWorkstream = useCallback(async () => {
+    if (!workstreamId) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -39,25 +40,22 @@ const WorkstreamEdit = () => {
       const data = response.data;
       console.log('Fetched workstream data:', data);
 
-      if (data) {
-        setWorkstream(data);
-        // Map chapters to include full URLs for video and PDF based on their existence
-        const chaptersWithUrls = (data.chapters || []).map(chapter => ({
-          ...chapter,
-          video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
-          pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
-        }));
-        setChapters(chaptersWithUrls);
-        setEditedTitle(data.title || '');
-        setEditedDescription(data.description || '');
-      } else {
-        // Handle case where API returns 200 OK but data is null (e.g., not found)
-        setError('Workstream not found.');
-        setWorkstream(null);
-      }
-    } catch (err) {
+      // The backend now returns a single workstream object with 'chapters' and 'final_assessments' arrays.
+      setWorkstream(data); 
+
+      const chaptersWithUrls = (data.chapters || []).map(chapter => ({
+        ...chapter,
+        video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
+        pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
+      }));
+      setChapters(chaptersWithUrls);
+
+      setEditedTitle(data.title);
+      setEditedDescription(data.description);
+
+    } catch (error) {
+      console.error('Failed to fetch workstream:', error);
       setError('Failed to fetch workstream');
-      console.error('Error fetching workstream:', err);
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +123,7 @@ const WorkstreamEdit = () => {
         };
       }
 
-      const response = await axios.put(`${API_URL}/workstreams/${workstreamId}`, payload, { headers });
+            const response = await axios.put(`${API_URL}/workstreams/${workstreamId}`, payload, { headers });
 
       // Success: backend now returns the full updated workstream object.
       // Use this data directly to update state, avoiding a race condition.
@@ -508,6 +506,9 @@ const WorkstreamEdit = () => {
                     ))
                   )}
 
+
+
+                  {/* Message if no assessments exist */}
                   {/* Final assessments */}
                   {(workstream?.final_assessments || []).map(assessment => (
                     <div key={assessment.assessment_id} className="assessment-item final-assessment">

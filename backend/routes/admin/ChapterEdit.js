@@ -327,9 +327,10 @@ router.get('/chapters/:id/pdf', (req, res) => {
 });
 
 // Delete a chapter - Used by WorkstreamEdit.jsx
+// Delete a chapter - Used by WorkstreamEdit.jsx
 router.delete('/chapters/:id', (req, res) => {
     const { id } = req.params;
-    
+
     if (!id || isNaN(parseInt(id))) {
         return res.status(400).json({ error: 'Valid chapter ID is required.' });
     }
@@ -340,36 +341,68 @@ router.delete('/chapters/:id', (req, res) => {
             return res.status(500).json({ error: 'Failed to initiate chapter deletion.' });
         }
 
-        // Disassociate assessments from the chapter
-        const updateAssessmentsSql = 'UPDATE assessments SET chapter_id = NULL WHERE chapter_id = ?';
-        req.db.query(updateAssessmentsSql, [id], (err) => {
-            if (err) return req.db.rollback(() => res.status(500).json({ error: 'Failed to disassociate assessments from the chapter.' }));
+        // 1. Find all assessments for the chapter
+        const findAssessmentsSql = 'SELECT assessment_id FROM assessments WHERE chapter_id = ?';
+        req.db.query(findAssessmentsSql, [id], (err, assessments) => {
+            if (err) {
+                return req.db.rollback(() => res.status(500).json({ error: 'Failed to find assessments for chapter.' }));
+            }
 
-            // Delete the chapter
-            const deleteChapterSql = 'DELETE FROM module_chapters WHERE chapter_id = ?';
-            req.db.query(deleteChapterSql, [id], (err, result) => {
-                if (err) {
-                    return req.db.rollback(() => {
-                        res.status(500).json({ error: 'Failed to delete chapter.' });
-                    });
-                }
+            const assessmentIds = assessments.map(a => a.assessment_id);
 
-                if (result.affectedRows === 0) {
-                    return req.db.rollback(() => {
-                        res.status(404).json({ error: 'Chapter not found.' });
-                    });
-                }
-
-                // Commit the transaction
-                req.db.commit(err => {
+            const deleteChapterAndCommit = () => {
+                const deleteChapterSql = 'DELETE FROM module_chapters WHERE chapter_id = ?';
+                req.db.query(deleteChapterSql, [id], (err) => {
                     if (err) {
-                        return req.db.rollback(() => {
-                            res.status(500).json({ error: 'Failed to commit chapter deletion.' });
-                        });
+                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to delete chapter.' }));
                     }
-                    res.json({ success: 'Chapter deleted successfully!' });
+                    req.db.commit(err => {
+                        if (err) {
+                            return req.db.rollback(() => res.status(500).json({ error: 'Failed to commit chapter deletion.' }));
+                        }
+                        res.json({ success: true, message: 'Chapter and all associated data deleted successfully.' });
+                    });
                 });
-            });
+            };
+
+            const deleteUserProgress = () => {
+                // Delete all user progress records for this chapter
+                const deleteUserProgressSql = 'DELETE FROM user_progress WHERE chapter_id = ?';
+                req.db.query(deleteUserProgressSql, [id], (err) => {
+                    if (err) {
+                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to delete user progress records.' }));
+                    }
+                    deleteChapterAndCommit();
+                });
+            };
+
+            const deleteAssessments = () => {
+                if (assessmentIds.length === 0) {
+                    return deleteUserProgress(); // No assessments to delete, proceed to user progress deletion
+                }
+                const deleteAssessmentsSql = 'DELETE FROM assessments WHERE assessment_id IN (?)';
+                req.db.query(deleteAssessmentsSql, [assessmentIds], (err) => {
+                    if (err) {
+                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to delete assessments.' }));
+                    }
+                    deleteUserProgress();
+                });
+            };
+
+            if (assessmentIds.length > 0) {
+                // 2. Delete all questions for those assessments
+                const deleteQuestionsSql = 'DELETE FROM questions WHERE assessment_id IN (?)';
+                req.db.query(deleteQuestionsSql, [assessmentIds], (err) => {
+                    if (err) {
+                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to delete questions.' }));
+                    }
+                    // 3. Delete the assessments
+                    deleteAssessments();
+                });
+            } else {
+                // No assessments, proceed to user progress deletion
+                deleteUserProgress();
+            }
         });
     });
 });
