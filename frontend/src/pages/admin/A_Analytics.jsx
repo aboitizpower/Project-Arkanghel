@@ -124,7 +124,7 @@ const A_Analytics = () => {
                 setTopUsers(leaderboardRes.data.slice(0, 5));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
-                setWorkstreams(workstreamsRes.data);
+                setWorkstreams(workstreamsRes.data.workstreams);
 
             } catch (error) {
                 console.error("Failed to fetch analytics data:", error);

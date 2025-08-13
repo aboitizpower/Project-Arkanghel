@@ -7,8 +7,6 @@ import axios from 'axios';
 import '../../styles/admin/AssessmentCreate.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
-
-
 const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) => {
   const { workstreamId } = useParams();
   if (!workstreamId) {
@@ -23,7 +21,6 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
   const stateWorkstream = location.state?.workstream;
   const [workstream, setWorkstream] = useState(propWorkstream || stateWorkstream);
   const [isLoading, setIsLoading] = useState(!propWorkstream && !stateWorkstream);
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState([]);
   const [selectedChapterId, setSelectedChapterId] = useState('');
@@ -31,6 +28,12 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const [usedChapterIds, setUsedChapterIds] = useState([]);
+  const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('multiple');
+  const [modalQuestion, setModalQuestion] = useState('');
+  const [modalOptions, setModalOptions] = useState(['', '', '', '']);
+  const [modalCorrectAnswer, setModalCorrectAnswer] = useState('');
 
   // Fetch workstream data if not provided as prop
   useEffect(() => {
@@ -43,10 +46,10 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
           axios.get(`/api/workstreams/${targetWorkstreamId}/assessments`)
         ]);
         setWorkstream(workstreamRes.data);
-        const used = (assessmentsRes.data || [])
-          .filter(a => a.chapter_id)
-          .map(a => a.chapter_id);
+        const assessments = assessmentsRes.data || [];
+        const used = assessments.filter(a => a.chapter_id).map(a => a.chapter_id);
         setUsedChapterIds(used);
+        setHasFinalAssessment(assessments.some(a => a.is_final));
         setIsLoading(false);
       } catch (err) {
         setError('Failed to load workstream data. Please check your connection or try again.');
@@ -55,13 +58,6 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
     };
     fetchData();
   }, [propWorkstream, stateWorkstream, workstreamId]);
-
-  // Modal state for adding a question
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('multiple');
-  const [modalQuestion, setModalQuestion] = useState('');
-  const [modalOptions, setModalOptions] = useState(['', '', '', '']);
-  const [modalCorrectAnswer, setModalCorrectAnswer] = useState('');
 
   const openModal = () => {
     setShowModal(true);
@@ -126,7 +122,6 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
     closeModal();
   };
 
-
   const removeQuestion = (questionId) => {
     setQuestions(questions.filter(q => q.id !== questionId));
   };
@@ -186,16 +181,16 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       let generatedTitle = '';
       let chapterIdToSend = null;
       let isFinalToSend = false;
+
       if (selectedChapterId === 'final') {
         generatedTitle = `Final Assessment for: ${workstream?.title || ''}`;
-        chapterIdToSend = null;
         isFinalToSend = true;
       } else {
         const chapter = workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId);
         generatedTitle = chapter ? `Assessment: ${chapter.title}` : '';
         chapterIdToSend = selectedChapterId ? Number(selectedChapterId) : null;
-        isFinalToSend = false;
       }
+
       const assessmentData = {
         title: generatedTitle,
         description: description || '',
@@ -270,7 +265,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
             {error && <div className="error-message">{error}</div>}
 
             <form onSubmit={handleSubmit} className="assessment-create-form">
-              {/* Chapter dropdown with Final Assessment option */}
+              {/* Chapter dropdown */}
               {workstream?.chapters && workstream.chapters.length > 0 && (
                 <div className="form-group">
                   <label htmlFor="chapter-select">Select Chapter or Final Assessment</label>
@@ -291,7 +286,9 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                         {ch.title}{usedChapterIds.includes(ch.chapter_id) ? ' (Already has assessment)' : ''}
                       </option>
                     ))}
-                    <option value="final">Final Assessment for: {workstream?.title || ''}</option>
+                    <option value="final" disabled={hasFinalAssessment}>
+                      Final Assessment{hasFinalAssessment ? ' (Already exists)' : ''}
+                    </option>
                   </select>
                 </div>
               )}

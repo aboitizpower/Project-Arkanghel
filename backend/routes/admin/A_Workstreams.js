@@ -147,24 +147,39 @@ router.get('/workstreams/:id', (req, res) => {
             }
             
             // Get all assessments for these chapters
-            const chapterIds = chapters.map(ch => ch.id);
             const assessmentsSql = `
                 SELECT 
-                    assessment_id as id,
-                    chapter_id,
-                    title,
-                    description,
-                    passing_score,
-                    total_points,
-                    time_limit_minutes,
-                    is_published,
-                    created_at
-                FROM assessments 
-                WHERE chapter_id IN (?)
+                    a.assessment_id as id,
+                    a.chapter_id,
+                    a.title,
+                    a.description,
+                    a.passing_score,
+                    a.total_points,
+                    a.time_limit_minutes,
+                    a.is_published,
+                    a.is_final,
+                    a.created_at
+                FROM assessments a
+                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                WHERE mc.workstream_id = ?
+                UNION
+                SELECT 
+                    a.assessment_id as id,
+                    a.chapter_id,
+                    a.title,
+                    a.description,
+                    a.passing_score,
+                    a.total_points,
+                    a.time_limit_minutes,
+                    a.is_published,
+                    a.is_final,
+                    a.created_at
+                FROM assessments a
+                WHERE a.workstream_id = ? AND a.is_final = 1
                 ORDER BY created_at ASC
             `;
             
-            req.db.query(assessmentsSql, [chapterIds], (err, assessments) => {
+            req.db.query(assessmentsSql, [id, id], (err, assessments) => {
                 if (err) {
                     console.error(`Error fetching assessments for workstream ${id}:`, err);
                     return res.status(500).json({
@@ -884,10 +899,10 @@ router.post('/workstreams/:id/assessments', (req, res) => {
             }
 
             const assessmentSql = `
-                INSERT INTO assessments (title, description, chapter_id, is_final, created_at, updated_at)
-                VALUES (?, ?, ?, ?, NOW(), NOW())
+                INSERT INTO assessments (title, description, chapter_id, workstream_id, is_final, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
             `;
-            const assessmentValues = [title, description, target_chapter_id, is_final ? 1 : 0];
+            const assessmentValues = [title, description, target_chapter_id, is_final ? workstream_id : null, is_final ? 1 : 0];
 
             req.db.query(assessmentSql, assessmentValues, (err, result) => {
                 if (err) {
@@ -998,11 +1013,12 @@ router.get('/workstreams/:id/complete', (req, res) => {
             // Fetch ALL assessments for this workstream, including standalone/final (chapter_id IS NULL)
             const assessmentsSql = `
                 SELECT 
-                    assessment_id, chapter_id, title, description, passing_score,
-                    total_points, time_limit_minutes, is_published, created_at, is_final
-                FROM assessments
-                WHERE workstream_id = ?
-                ORDER BY created_at ASC
+                    a.assessment_id, a.chapter_id, a.title, a.description, a.passing_score,
+                    a.total_points, a.time_limit_minutes, a.is_published, a.created_at, a.is_final
+                FROM assessments a
+                JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                WHERE mc.workstream_id = ?
+                ORDER BY a.created_at ASC
             `;
 
             req.db.query(assessmentsSql, [id], (err, assessments) => {
