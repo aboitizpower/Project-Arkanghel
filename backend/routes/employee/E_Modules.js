@@ -14,6 +14,15 @@ const upload = multer({ storage: storage });
  * @returns {Array} List of published workstreams with metadata
  */
 router.get('/employee/workstreams', (req, res) => {
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'User ID is required to fetch workstream progress.' 
+        });
+    }
+
     const sql = `
         SELECT 
             w.workstream_id, 
@@ -29,13 +38,19 @@ router.get('/employee/workstreams', (req, res) => {
                 JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
                 WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
             ) as assessments_count,
+            (
+                SELECT (COUNT(up.user_progress_id) * 100.0) / NULLIF(COUNT(mc_inner.chapter_id), 0)
+                FROM module_chapters mc_inner
+                LEFT JOIN user_progress up ON mc_inner.chapter_id = up.chapter_id AND up.user_id = ?
+                WHERE mc_inner.workstream_id = w.workstream_id AND mc_inner.is_published = TRUE AND mc_inner.title NOT LIKE '%Final Assessment%'
+            ) as progress,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
         WHERE w.is_published = TRUE
         ORDER BY w.created_at DESC
     `;
-    
-    req.db.query(sql, (err, results) => {
+
+    req.db.query(sql, [userId], (err, results) => {
         if (err) {
             console.error('Error fetching workstreams:', err);
             return res.status(500).json({ 

@@ -35,6 +35,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [animateOut, setAnimateOut] = useState(false);
   const navigate = useNavigate();
   const authContext = useContext(AuthContext);
@@ -65,9 +66,11 @@ const Login = () => {
             e.preventDefault();
             setMessage("");
             setIsError(false);
+            setIsLoading(true);
             const result = await loginUser(email, password);
+            setIsLoading(false);
             if (result.ok) {
-              setMessage(result.success);
+              setMessage("Login Successfully");
               setIsError(false);
               if (result.user) {
                 localStorage.setItem('user', JSON.stringify({
@@ -138,11 +141,12 @@ const Login = () => {
             <button
               type="submit"
               className="login-btn"
+              disabled={isLoading}
               style={{ width: '60%', alignSelf: 'center', margin: '18px 0 6px 0', background: '#5DADE2', color: '#fff', borderRadius: '18px', fontWeight: 700, fontSize: '1.08rem', padding: '10px 0', transition: 'background 0.2s' }}
               onMouseOver={e => e.currentTarget.style.background = '#3498DB'}
               onMouseOut={e => e.currentTarget.style.background = '#5DADE2'}
             >
-              Login
+              {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
           {message && (
