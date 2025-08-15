@@ -367,16 +367,72 @@ router.get('/chapters/:id/video', (req, res) => {
 // Serve chapter PDFs
 router.get('/chapters/:id/pdf', (req, res) => {
     const { id } = req.params;
-    const sql = 'SELECT pdf_file, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
+    const sql = 'SELECT pdf_file, pdf_mime_type, pdf_filename FROM module_chapters WHERE chapter_id = ?';
     req.db.query(sql, [id], (err, results) => {
         if (err) {
+            console.error('PDF query error:', err);
             return res.status(500).json({ error: err.message });
         }
-        if (results.length === 0 || !results[0].pdf_file) {
-            return res.status(404).json({ error: 'PDF not found.' });
+        
+        console.log(`PDF request for chapter ${id}:`, {
+            found: results.length > 0,
+            pdf_filename: results[0]?.pdf_filename,
+            has_pdf_file: !!results[0]?.pdf_file,
+            pdf_mime_type: results[0]?.pdf_mime_type
+        });
+        
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Chapter not found.' });
         }
+        
+        if (!results[0].pdf_file) {
+            // If no binary data but filename exists, return a placeholder message
+            if (results[0].pdf_filename) {
+                const placeholderHTML = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>PDF Not Available</title>
+                        <style>
+                            body { 
+                                font-family: Arial, sans-serif; 
+                                text-align: center; 
+                                padding: 50px; 
+                                background-color: #f5f5f5; 
+                            }
+                            .message { 
+                                background: white; 
+                                padding: 30px; 
+                                border-radius: 8px; 
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+                                max-width: 500px; 
+                                margin: 0 auto; 
+                            }
+                            .filename { 
+                                color: #666; 
+                                font-style: italic; 
+                                margin-top: 10px; 
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="message">
+                            <h2>📄 PDF File Not Available</h2>
+                            <p>The PDF file exists but the content was not properly uploaded to the database.</p>
+                            <div class="filename">Expected file: ${results[0].pdf_filename}</div>
+                            <p><strong>Solution:</strong> Please re-upload this PDF file through the admin panel.</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                res.setHeader('Content-Type', 'text/html');
+                return res.send(placeholderHTML);
+            }
+            return res.status(404).json({ error: 'PDF file data not found in database.' });
+        }
+        
         const { pdf_file, pdf_mime_type } = results[0];
-        res.setHeader('Content-Type', pdf_mime_type);
+        res.setHeader('Content-Type', pdf_mime_type || 'application/pdf');
         res.send(pdf_file);
     });
 });

@@ -24,82 +24,62 @@ router.post('/assessments', (req, res) => {
 
 // Create questions for an assessment - Used by AssessmentCreate.jsx
 router.post('/assessments/:id/questions', (req, res) => {
-    const { id } = req.params;
+    const { id: assessmentId } = req.params;
     const { questions } = req.body;
-    
-    if (!questions || !Array.isArray(questions)) {
-        return res.status(400).json({ error: 'questions array is required.' });
+
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+        return res.status(400).json({ error: 'A non-empty array of questions is required.' });
     }
-    
-    req.db.beginTransaction(err => {
+
+    req.db.beginTransaction(async (err) => {
         if (err) {
-            return res.status(500).json({ error: 'Failed to start transaction.' });
+            return res.status(500).json({ error: 'Failed to start transaction.', details: err.message });
         }
-        
-        let completedQuestions = 0;
-        const totalQuestions = questions.length;
-        
-        if (totalQuestions === 0) {
-            return req.db.commit(err => {
-                if (err) {
-                    return req.db.rollback(() => res.status(500).json({ error: 'Failed to commit transaction.' }));
-                }
-                res.json({ success: 'Assessment questions created successfully!' });
-            });
-        }
-        
-        questions.forEach((question, index) => {
-            const { question_text, question_type, points, answers } = question;
-            
-            const questionSql = 'INSERT INTO questions (assessment_id, question_text, question_type, points) VALUES (?, ?, ?, ?)';
-            req.db.query(questionSql, [id, question_text, question_type, points], (err, questionResult) => {
-                if (err) {
-                    return req.db.rollback(() => res.status(500).json({ error: `Failed to create question ${index + 1}: ${err.message}` }));
-                }
+
+        try {
+            for (const question of questions) {
+                const { question_text, question_type, points, correct_answer, options } = question;
+
+                // Ensure options are properly formatted as JSON string
+                let optionsString = '[]'; // Default to empty array
                 
-                const questionId = questionResult.insertId;
-                
-                if (!answers || answers.length === 0) {
-                    completedQuestions++;
-                    if (completedQuestions === totalQuestions) {
-                        req.db.commit(err => {
-                            if (err) {
-                                return req.db.rollback(() => res.status(500).json({ error: 'Failed to commit transaction.' }));
-                            }
-                            res.json({ success: 'Assessment questions created successfully!' });
-                        });
+                if (options) {
+                    if (Array.isArray(options) && options.length > 0) {
+                        // Clean and validate options array
+                        const cleanOptions = options.filter(opt => opt && opt.toString().trim() !== '');
+                        optionsString = JSON.stringify(cleanOptions);
+                    } else if (typeof options === 'string' && options.trim() !== '') {
+                        // If options is a string, try to parse it or split by comma
+                        try {
+                            const parsed = JSON.parse(options);
+                            optionsString = JSON.stringify(Array.isArray(parsed) ? parsed : [parsed]);
+                        } catch (e) {
+                            // Split by comma and clean
+                            const splitOptions = options.split(',').map(s => s.trim()).filter(s => s);
+                            optionsString = JSON.stringify(splitOptions);
+                        }
                     }
-                    return;
                 }
-                
-                let completedAnswers = 0;
-                const totalAnswers = answers.length;
-                
-                answers.forEach((answer, answerIndex) => {
-                    const { answer_text, is_correct } = answer;
-                    const answerSql = 'INSERT INTO answers (question_id, answer_text, is_correct) VALUES (?, ?, ?)';
-                    
-                    req.db.query(answerSql, [questionId, answer_text, is_correct], (err, answerResult) => {
-                        if (err) {
-                            return req.db.rollback(() => res.status(500).json({ error: `Failed to create answer ${answerIndex + 1} for question ${index + 1}: ${err.message}` }));
-                        }
-                        
-                        completedAnswers++;
-                        if (completedAnswers === totalAnswers) {
-                            completedQuestions++;
-                            if (completedQuestions === totalQuestions) {
-                                req.db.commit(err => {
-                                    if (err) {
-                                        return req.db.rollback(() => res.status(500).json({ error: 'Failed to commit transaction.' }));
-                                    }
-                                    res.json({ success: 'Assessment questions created successfully!' });
-                                });
-                            }
-                        }
+
+                console.log(`Creating question ${question_text.substring(0, 50)}... with options:`, optionsString);
+
+                const questionSql = 'INSERT INTO questions (assessment_id, question_text, question_type, points, correct_answer, options) VALUES (?, ?, ?, ?, ?, ?)';
+                await req.db.promise().query(questionSql, [assessmentId, question_text, question_type, points, correct_answer, optionsString]);
+            }
+
+            req.db.commit((err) => {
+                if (err) {
+                    return req.db.rollback(() => {
+                        res.status(500).json({ error: 'Failed to commit transaction.', details: err.message });
                     });
-                });
+                }
+                res.status(201).json({ success: 'Assessment questions created successfully!' });
             });
-        });
+        } catch (error) {
+            req.db.rollback(() => {
+                res.status(500).json({ error: 'Failed to create assessment questions.', details: error.message });
+            });
+        }
     });
 });
 

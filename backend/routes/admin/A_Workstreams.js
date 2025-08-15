@@ -623,7 +623,7 @@ router.put('/workstreams/:id/publish', (req, res) => {
     }
     
     function updatePublishStatus() {
-        const updateSql = 'UPDATE workstreams SET is_published = ?, updated_at = NOW() WHERE workstream_id = ?';
+        const updateSql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
         
         req.db.query(updateSql, [is_published ? 1 : 0, id], (err, result) => {
             if (err) {

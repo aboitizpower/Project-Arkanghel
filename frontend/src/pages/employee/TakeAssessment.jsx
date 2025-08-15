@@ -34,12 +34,7 @@ const TakeAssessments = () => {
                 setAssessment(assessmentRes.data);
 
                 const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
-                const processedQuestions = questionsRes.data.map(q => ({
-                    ...q,
-                    options: typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []),
-                    question_text: q.question_text || q.question
-                }));
-                setQuestions(processedQuestions);
+                setQuestions(questionsRes.data);
             } catch (err) {
                 setError('Failed to load assessment data.');
                 console.error(err);
@@ -76,32 +71,43 @@ const TakeAssessments = () => {
     };
 
     const renderQuestionInputs = (q) => {
-        const options = Array.isArray(q.options) ? q.options : [];
+        // Use both 'answers' and 'options' arrays with fallback logic
+        let optionsToRender = [];
+        
+        // Try to get options from multiple sources
+        if (Array.isArray(q.answers) && q.answers.length > 0) {
+            optionsToRender = q.answers;
+        } else if (Array.isArray(q.options) && q.options.length > 0) {
+            // Convert options array to answers format
+            optionsToRender = q.options.map((optionText, index) => ({
+                answer_id: index + 1,
+                answer_text: optionText.toString()
+            }));
+        }
+
+        console.log(`Rendering question ${q.question_id}:`, {
+            question_type: q.question_type,
+            answers: q.answers,
+            options: q.options,
+            optionsToRender: optionsToRender
+        });
+
         switch (q.question_type) {
             case 'multiple_choice':
-                return options.map((option, index) => (
-                    <label key={index} className="option-label">
-                        <input 
-                            type="radio" 
-                            name={`question-${q.question_id}`} 
-                            value={index}
-                            checked={answers[q.question_id] === index}
-                            onChange={() => handleAnswerChange(q.question_id, index)} 
-                        />
-                        {option}
-                    </label>
-                ));
             case 'true_false':
-                return ['True', 'False'].map((option, index) => (
-                    <label key={option} className="option-label">
+                if (optionsToRender.length === 0) {
+                    return <p className="error-message">No options available for this question.</p>;
+                }
+                return optionsToRender.map((option, index) => (
+                    <label key={option.answer_id || index} className="option-label">
                         <input 
                             type="radio" 
                             name={`question-${q.question_id}`} 
-                            value={index}
-                            checked={answers[q.question_id] === index}
-                            onChange={() => handleAnswerChange(q.question_id, index)} 
+                            value={option.answer_text}
+                            checked={answers[q.question_id] === option.answer_text}
+                            onChange={() => handleAnswerChange(q.question_id, option.answer_text)} 
                         />
-                        {option}
+                        {option.answer_text}
                     </label>
                 ));
             case 'short_answer':
@@ -132,33 +138,36 @@ const TakeAssessments = () => {
             return;
         }
 
-        const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => {
-            const question = questions.find(q => q.question_id === parseInt(questionId, 10));
-            let formattedAnswer = answer;
-            
-            // Format the answer based on question type
-            if (question) {
-                if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
-                    formattedAnswer = parseInt(answer); // Ensure we send a number for index-based answers
-                }
-                // For identification/short_answer, keep the text answer as is
-            }
-            
-            return {
-                questionId: parseInt(questionId, 10),
-                answer: formattedAnswer
-            };
+        const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
+            question_id: parseInt(questionId, 10),
+            answer: answer
+        }));
+
+        console.log('Submitting assessment:', {
+            assessmentId,
+            userId: parseInt(userId, 10),
+            answers: formattedAnswers
         });
 
         setIsLoading(true);
         try {
-            const response = await axios.post(`${API_URL}/answers`, {
-                userId: parseInt(userId, 10),
-                answers: formattedAnswers,
-                assessmentId: parseInt(assessmentId, 10)
+            const response = await axios.post(`${API_URL}/assessments/${assessmentId}/submit`, {
+                user_id: parseInt(userId, 10),
+                answers: formattedAnswers
             });
-            const { totalScore, totalQuestions } = response.data;
-            alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
+            
+            console.log('Submission response:', response.data);
+            
+            const { totalScore, correctAnswers, totalQuestions, percentage, message } = response.data;
+            
+            if (response.data.success) {
+                alert(`${message}\n\nResults:\n` +
+                      `Correct Answers: ${correctAnswers} out of ${totalQuestions}\n` +
+                      `Score: ${totalScore}\n` +
+                      `Percentage: ${percentage}%`);
+            } else {
+                alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
+            }
             
             // After submission, navigate back to the modules page with a refresh signal.
             navigate('/employee/modules', {
@@ -169,9 +178,18 @@ const TakeAssessments = () => {
                 },
                 replace: true
             });
-        } catch (err) {
-            setError('Failed to submit assessment.');
-            console.error(err);
+        } catch (error) {
+            console.error('Failed to submit assessment:', error);
+            console.error('Error response:', error.response?.data);
+            
+            let errorMessage = 'Failed to submit assessment. Please try again.';
+            if (error.response?.data?.details) {
+                errorMessage += `\n\nError details: ${error.response.data.details}`;
+            } else if (error.response?.data?.error) {
+                errorMessage += `\n\nError: ${error.response.data.error}`;
+            }
+            
+            alert(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -246,8 +264,34 @@ const TakeAssessments = () => {
                         {currentQuestions.map((q, index) => (
                             <div key={q.question_id}>
                                 <h2 className="question-title-new">Question {currentPage * questionsPerPage + index + 1}:</h2>
-                                <p className="question-text-new">{q.question_text}</p>
-                                <div className="options-container-new">{renderQuestionInputs(q)}</div>
+                                <p className="question-text-new">{q.question_text || q.question}</p>
+                                <div className="options-container-new">
+                                    {q.question_type === 'multiple_choice' || q.question_type === 'true_false' ? (
+                                        (q.answers || []).map((option, index) => (
+                                            <label key={option.answer_id || index} className="option-label">
+                                                <input 
+                                                    type="radio" 
+                                                    name={`question-${q.question_id}`} 
+                                                    value={option.answer_text} 
+                                                    checked={answers[q.question_id] === option.answer_text}
+                                                    onChange={() => handleAnswerChange(q.question_id, option.answer_text)} 
+                                                />
+                                                {option.answer_text}
+                                            </label>
+                                        ))
+                                    ) : q.question_type === 'identification' || q.question_type === 'short_answer' ? (
+                                        <input 
+                                            type="text" 
+                                            className="identification-input" 
+                                            name={`question-${q.question_id}`}
+                                            value={answers[q.question_id] || ''}
+                                            onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
+                                            placeholder="Type your answer here" 
+                                        />
+                                    ) : (
+                                        <p>Unsupported question type: {q.question_type}</p>
+                                    )}
+                                </div>
                             </div>
                         ))}
                         <div className="assessment-navigation-new">

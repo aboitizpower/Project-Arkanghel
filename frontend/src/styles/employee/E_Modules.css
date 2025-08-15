@@ -487,6 +487,12 @@
     font-weight: 500;
 }
 
+.module-view {
+    display: flex;
+    gap: 1.5rem; /* Adds space between sidebar and content */
+    height: 100%;
+}
+
 .module-view-content {
     flex-grow: 1;
     padding: 1.5rem;

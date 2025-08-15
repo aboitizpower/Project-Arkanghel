@@ -95,7 +95,16 @@ const ViewModules = () => {
         if (!chapter) return;
 
         setSelectedChapter(chapter);
-        setCurrentContentView('video'); // Default to video view
+        
+        // Set default content view based on what's available
+        if (chapter.video_filename) {
+            setCurrentContentView('video');
+        } else if (chapter.pdf_filename) {
+            setCurrentContentView('pdf');
+        } else {
+            setCurrentContentView('video'); // fallback
+        }
+        
         setAssessmentForCurrentChapter(null); // Reset assessment state
         setIsAssessmentPassed(false);
 
@@ -214,7 +223,7 @@ const ViewModules = () => {
 
         // Check if chapter has video or PDF content
         const hasVideo = selectedChapter.video_filename;
-        const hasPdf = selectedChapter.pdf_file;
+        const hasPdf = selectedChapter.pdf_filename;
 
         return (
             <div className="module-view">
@@ -323,7 +332,6 @@ const ViewModules = () => {
 
     return (
         <div className="e-modules-page">
-            <EmployeeSidebar />
             <main className="modules-main-content module-view-active">
                 <LoadingOverlay loading={isLoading} />
                 {error && <p className="error-message">{error}</p>}

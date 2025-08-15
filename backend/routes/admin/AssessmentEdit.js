@@ -200,8 +200,32 @@ router.put('/questions/:id', (req, res) => {
     if (!question_text || !question_type || correct_answer == null) {
         return res.status(400).json({ error: 'Missing required fields for question update.' });
     }
+
+    // Ensure options are properly formatted as JSON string
+    let optionsString = '[]'; // Default to empty array
+    
+    if (options) {
+        if (Array.isArray(options) && options.length > 0) {
+            // Clean and validate options array
+            const cleanOptions = options.filter(opt => opt && opt.toString().trim() !== '');
+            optionsString = JSON.stringify(cleanOptions);
+        } else if (typeof options === 'string' && options.trim() !== '') {
+            // If options is a string, try to parse it or split by comma
+            try {
+                const parsed = JSON.parse(options);
+                optionsString = JSON.stringify(Array.isArray(parsed) ? parsed : [parsed]);
+            } catch (e) {
+                // Split by comma and clean
+                const splitOptions = options.split(',').map(s => s.trim()).filter(s => s);
+                optionsString = JSON.stringify(splitOptions);
+            }
+        }
+    }
+
+    console.log(`Updating question ${id} with options:`, optionsString);
+
     const sql = 'UPDATE questions SET question_text = ?, question_type = ?, correct_answer = ?, options = ? WHERE question_id = ?';
-    const params = [question_text, question_type, correct_answer, JSON.stringify(options || []), id];
+    const params = [question_text, question_type, correct_answer, optionsString, id];
     req.db.query(sql, params, (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Failed to update question: ${err.message}` });
