@@ -7,7 +7,6 @@ import loginRoutes from './routes/auth/Login.js'
 import registerRoutes from './routes/auth/Register.js'
 import aUsersRoutes from './routes/admin/A_Users.js'
 import aModulesRoutes from './routes/admin/A_Modules.js'
-import aWorkstreamsRoutes from './routes/admin/A_Workstreams.js'
 import workstreamCreateRoutes from './routes/admin/WorkstreamCreate.js'
 import workstreamEditRoutes from './routes/admin/WorkstreamEdit.js'
 import chapterCreateRoutes from './routes/admin/ChapterCreate.js'
@@ -17,6 +16,7 @@ import assessmentCreateRoutes from './routes/admin/AssessmentCreate.js'
 import assessmentEditRoutes from './routes/admin/AssessmentEdit.js'
 import aAnalyticsRoutes from './routes/admin/A_Analytics.js'
 import aLeaderboardRoutes from './routes/admin/A_Leaderboard.js'
+
 import eModulesRoutes from './routes/employee/E_Modules.js'
 import viewModulesRoutes from './routes/employee/ViewModules.js'
 import takeAssessmentsRoutes from './routes/employee/TakeAssessments.js'
@@ -49,7 +49,6 @@ app.use('/', loginRoutes)           // Login.jsx
 app.use('/', registerRoutes)        // Register.jsx
 app.use('/', aUsersRoutes)          // A_Users.jsx
 app.use('/', aModulesRoutes)        // A_Modules.jsx
-app.use('/', aWorkstreamsRoutes)    // A_Workstreams.jsx (workstream management)
 app.use('/', workstreamCreateRoutes) // WorkstreamCreate.jsx
 app.use('/', workstreamEditRoutes)  // WorkstreamEdit.jsx
 app.use('/', chapterCreateRoutes)   // ChapterCreate.jsx
@@ -59,6 +58,7 @@ app.use('/', assessmentCreateRoutes) // AssessmentCreate.jsx
 app.use('/', assessmentEditRoutes)  // AssessmentEdit.jsx
 app.use('/', aAnalyticsRoutes)      // A_Analytics.jsx
 app.use('/', aLeaderboardRoutes)    // A_Leaderboard.jsx
+
 app.use('/', eModulesRoutes)        // E_Modules.jsx
 app.use('/', viewModulesRoutes)     // ViewModules.jsx
 app.use('/', takeAssessmentsRoutes) // TakeAssessments.jsx

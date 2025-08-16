@@ -128,80 +128,55 @@ router.get('/users/:userId/assessment-results', (req, res) => {
 router.put('/users/:id/role', (req, res) => {
     const { id } = req.params;
     const { isAdmin } = req.body;
-    
-    console.log(`Upating role for user ${id}, isAdmin: ${isAdmin}`);
-    
-    // Input validation
-    if (isAdmin === undefined || isAdmin === null) {
-        console.warn('Missing isAdmin in request body');
-        return res.status(400).json({
-            success: false,
-            error: 'isAdmin field is required.'
-        });
+
+    console.log(`Updating role for user ${id}, isAdmin: ${isAdmin}`);
+
+    if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ success: false, error: 'A valid user ID is required.' });
     }
-    
-    if (isNaN(parseInt(id))) {
-        console.warn('Invalid user ID provided:', id);
-        return res.status(400).json({
-            success: false,
-            error: 'A valid user ID is required.'
-        });
-    }
-    
-    // Prevent demoting the last admin
-    if (isAdmin === false) {
-        const checkAdminCountSql = 'SELECT COUNT(*) as adminCount FROM users WHERE isAdmin = TRUE AND user_id != ?';
-        req.db.query(checkAdminCountSql, [id], (err, results) => {
-            if (err) {
-                console.error('Error checking admin count:', err);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Failed to verify admin status. Please try again.'
-                });
-            }
-            
-            if (results[0].adminCount === 0) {
-                console.warn('Attempt to demote the last admin');
-                return res.status(400).json({
-                    success: false,
-                    error: 'Cannot demote the last admin. Please assign another admin first.'
-                });
-            }
-            
-            // Proceed with the update if there are other admins
-            updateUserRole();
-        });
-    } else {
-        updateUserRole();
-    }
-    
-    function updateUserRole() {
-        const updateSql = 'UPDATE users SET isAdmin = ?, updated_at = NOW() WHERE user_id = ?';
-        req.db.query(updateSql, [isAdmin ? 1 : 0, id], (err, result) => {
+
+    const performUpdate = () => {
+        const sql = 'UPDATE users SET isAdmin = ? WHERE user_id = ?';
+        req.db.query(sql, [isAdmin, id], (err, result) => {
             if (err) {
                 console.error(`Error updating role for user ${id}:`, err);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Failed to update user role. Please try again.'
-                });
+                return res.status(500).json({ success: false, error: 'A database error occurred.' });
             }
-            
             if (result.affectedRows === 0) {
-                console.warn(`User not found with ID: ${id}`);
-                return res.status(404).json({
-                    success: false,
-                    error: 'User not found.'
-                });
+                return res.status(404).json({ success: false, error: 'User not found.' });
             }
-            
-            console.log(`Successfully updated role for user ${id}, isAdmin: ${isAdmin}`);
-            res.json({
-                success: true,
-                message: 'User role updated successfully.',
-                userId: id,
-                isAdmin
+            console.log(`Successfully updated role for user ${id}`);
+            res.json({ success: true, message: 'User role updated successfully.' });
+        });
+    };
+
+    // If demoting a user, first check if they are the last admin.
+    if (isAdmin === false || isAdmin === 0) {
+        const checkAdminCountSql = 'SELECT COUNT(*) as adminCount FROM users WHERE isAdmin = TRUE';
+        req.db.query(checkAdminCountSql, (err, results) => {
+            if (err) {
+                console.error('Error checking admin count:', err);
+                return res.status(500).json({ success: false, error: 'A database error occurred while verifying admin status.' });
+            }
+
+            const adminCount = results[0].adminCount;
+            // Check if the user being demoted is currently an admin
+            const checkCurrentUserSql = 'SELECT isAdmin FROM users WHERE user_id = ?';
+            req.db.query(checkCurrentUserSql, [id], (err, userResult) => {
+                if (err) {
+                     return res.status(500).json({ success: false, error: 'A database error occurred while verifying user.' });
+                }
+                if (userResult.length > 0 && userResult[0].isAdmin && adminCount <= 1) {
+                    console.warn(`Attempt to demote the last admin (user ID: ${id})`);
+                    return res.status(403).json({ success: false, error: 'Cannot demote the last admin.' });
+                }
+                // If not the last admin, or not an admin at all, proceed with update.
+                performUpdate();
             });
         });
+    } else {
+        // If promoting to admin, no special check is needed.
+        performUpdate();
     }
 });
 
@@ -369,6 +344,120 @@ router.delete('/users/:id', (req, res) => {
             });
         });
     }
+});
+
+
+/**
+ * @route GET /users/:userId/workstreams
+ * @description Get the workstreams a specific user has access to.
+ * @access Private (Admin)
+ * @returns {object} An object containing an array of workstream IDs.
+ */
+router.get('/users/:id/workstreams', (req, res) => {
+    const { id } = req.params;
+    console.log(`Fetching workstream access for user ID: ${id}`);
+
+    const sql = 'SELECT workstream_id FROM user_workstream_permissions WHERE user_id = ? AND has_access = TRUE';
+    
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error(`Error fetching workstream access for user ${id}:`, err);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch workstream permissions.'
+            });
+        }
+        
+        const workstream_ids = results.map(row => row.workstream_id);
+        console.log(`User ${id} has access to workstream IDs:`, workstream_ids);
+        res.json({ success: true, workstream_ids });
+    });
+});
+
+/**
+ * @route PUT /users/:id/workstreams
+ * @description Update the workstreams a specific user has access to.
+ * @access Private (Admin)
+ * @param {array} workstream_ids - An array of workstream IDs the user should have access to. An empty array means access to all.
+ * @returns {object} Success or error message.
+ */
+router.put('/users/:id/workstreams', (req, res) => {
+    const { id } = req.params;
+    const { workstream_ids } = req.body;
+
+    console.log(`Updating workstream access for user ID: ${id} with workstreams:`, workstream_ids);
+
+    if (!Array.isArray(workstream_ids)) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'workstream_ids must be an array.' 
+        });
+    }
+
+    req.db.beginTransaction(err => {
+        if (err) {
+            console.error('Error starting transaction for workstream access:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to update permissions.' 
+            });
+        }
+
+        const deleteSql = 'DELETE FROM user_workstream_permissions WHERE user_id = ?';
+
+        req.db.query(deleteSql, [id], (err, result) => {
+            if (err) {
+                console.error('Error deleting old workstream permissions:', err);
+                return req.db.rollback(() => {
+                    res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to update permissions.' 
+                    });
+                });
+            }
+
+            if (workstream_ids.length > 0) {
+                const insertSql = 'INSERT INTO user_workstream_permissions (user_id, workstream_id, has_access) VALUES ?';
+                const values = workstream_ids.map(ws_id => [id, ws_id, true]);
+
+                req.db.query(insertSql, [values], (err, result) => {
+                    if (err) {
+                        console.error('Error inserting new workstream permissions:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({ 
+                                success: false, 
+                                error: 'Failed to update permissions.' 
+                            });
+                        });
+                    }
+                    
+                    commitTransaction();
+                });
+            } else {
+                // If the array is empty, it means the user has access to all workstreams, so we just commit after deleting the specific permissions.
+                commitTransaction();
+            }
+        });
+
+        const commitTransaction = () => {
+            req.db.commit(err => {
+                if (err) {
+                    console.error('Error committing transaction for workstream access:', err);
+                    return req.db.rollback(() => {
+                        res.status(500).json({ 
+                            success: false, 
+                            error: 'Failed to save permissions.' 
+                        });
+                    });
+                }
+                console.log(`Successfully updated workstream access for user ID: ${id}`);
+                res.json({ 
+                    success: true, 
+                    message: 'Workstream permissions updated successfully.' 
+                });
+            });
+        };
+    });
 });
 
 export default router;

@@ -49,29 +49,38 @@ const A_Users = () => {
   useEffect(() => {
     fetch("http://localhost:8081/users")
       .then(res => res.json())
-      .then(data => setUsers(data.users || []));
+      .then(data => {
+        // Keep isAdmin as an integer (1/0) for consistency
+        setUsers(data.users || []);
+      });
     fetch("http://localhost:8081/workstreams")
       .then(res => res.json())
       .then(data => setWorkstreams(data || []));
   }, []);
 
-  const handleRoleChange = async (userId, newRole) => {
+  const handleRoleChange = async (userId, currentIsAdmin) => {
     setUpdatingId(userId);
+    const newIsAdmin = currentIsAdmin === 1 ? 0 : 1; // Toggle 1 and 0
     try {
       const res = await fetch(`http://localhost:8081/users/${userId}/role`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isAdmin: newRole === "Admin" }),
+        body: JSON.stringify({ isAdmin: newIsAdmin }), // Send integer
       });
       if (res.ok) {
-        setUsers(users =>
-          users.map(u =>
-            u.id === userId ? { ...u, isAdmin: newRole === "Admin" } : u
+        // Update the local state with the new integer value
+        setUsers(currentUsers =>
+          currentUsers.map(u =>
+            u.id === userId ? { ...u, isAdmin: newIsAdmin } : u
           )
         );
+      } else {
+        // If the API call fails, show an error and don't change the UI
+        const errorData = await res.json().catch(() => ({ error: 'An unknown error occurred.' }));
+        alert(`Failed to update role: ${errorData.error}`);
       }
     } catch (err) {
-      alert("Failed to update role.");
+      alert("Failed to update role. Please check the server connection.");
     }
     setUpdatingId(null);
   };
@@ -104,38 +113,49 @@ const A_Users = () => {
   const saveWsModal = async () => {
     setWsModalSaving(true);
     try {
-      await fetch(`http://localhost:8081/users/${wsModalUser.id}/workstreams`, {
+      const res = await fetch(`http://localhost:8081/users/${wsModalUser.id}/workstreams`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workstream_ids: wsModalChecked.length === workstreams.length ? [] : wsModalChecked })
+        body: JSON.stringify({ workstream_ids: wsModalChecked })
       });
-      closeWsModal();
-    } catch {
+
+      if (res.ok) {
+        setUsers(currentUsers =>
+          currentUsers.map(u =>
+            u.id === wsModalUser.id ? { ...u, workstream_ids: wsModalChecked } : u
+          )
+        );
+        closeWsModal();
+      } else {
+        alert('Failed to save workstream permissions.');
+      }
+    } catch (err) {
       alert('Failed to save workstream permissions.');
-      setWsModalSaving(false);
     }
+    setWsModalSaving(false);
   };
 
   // Helper to get summary for a user
   const getUserWsSummary = (user) => {
-    // This is a simple approach: if user has custom permissions, show count, else 'All'
-    // For performance, you may want to cache this in state if many users
-    // But for now, fetch synchronously (not ideal for large tables)
-    // We'll just show 'All' for now, or 'Custom' if not all (for demo)
-    // Optionally, you can fetch and cache per user on mount
-    return <button className="ws-configure-btn" onClick={() => openWsModal(user)}><FaCog style={{marginRight:4}}/>Configure</button>;
+    const userWorkstreams = workstreams.filter(w => user.workstream_ids?.includes(w.workstream_id));
+    if (!user.workstream_ids || user.workstream_ids.length === 0) {
+        return `${workstreams.length} Workstreams`;
+    }
+    if (userWorkstreams.length > 2) return `${userWorkstreams.length} Workstreams`;
+    return userWorkstreams.map(w => w.title).join(', ');
   };
 
-  let filteredUsers = users.filter(
-    user =>
-      `${user.first_name} ${user.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const searchTerm = search.toLowerCase();
+    return fullName.includes(searchTerm) || email.includes(searchTerm);
+  });
 
   if (sortOrder === "admin") {
-    filteredUsers = [...filteredUsers].sort((a, b) => b.isAdmin - a.isAdmin);
+    filteredUsers.sort((a, b) => b.isAdmin - a.isAdmin);
   } else if (sortOrder === "employee") {
-    filteredUsers = [...filteredUsers].sort((a, b) => a.isAdmin - b.isAdmin);
+    filteredUsers.sort((a, b) => a.isAdmin - b.isAdmin);
   }
 
   const indexOfLastUser = currentPage * usersPerPage;
@@ -158,14 +178,13 @@ const A_Users = () => {
                 placeholder="Search by name or email"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="search-input"
-                style={{ paddingRight: search ? '2.5rem' : '2rem' }}
               />
+              <FaSearch className="search-icon" />
               {search && (
                 <button
+                  className="clear-search-btn"
                   onClick={() => setSearch("")}
-                  className="clear-search"
-                  title="Clear search"
+                  aria-label="Clear search"
                 >
                   ×
                 </button>
@@ -182,31 +201,32 @@ const A_Users = () => {
                 aria-haspopup="listbox"
                 aria-expanded={sortOpen}
               >
-                <FaSort style={{ marginRight: 8 }} />
-                {sortOrder === "admin"
-                  ? "Sort: Admin"
-                  : sortOrder === "employee"
-                  ? "Sort: Employee"
-                  : "Sort by Role"}
-                <FaChevronDown style={{ marginLeft: 8, fontSize: 13 }} />
+                <FaSort />
+                <span>Sort by Role</span>
+                <FaChevronDown className={`sort-chevron${sortOpen ? " open" : ""}`} />
               </button>
-              <div
-                className="sort-dropdown-content"
-                style={{ display: sortOpen ? "block" : "none" }}
-              >
-                <div
-                  className={`sort-dropdown-item${sortOrder === "admin" ? " active" : ""}`}
-                  onClick={() => { setSortOrder("admin"); setSortOpen(false); }}
-                >
-                  Admin
+              {sortOpen && (
+                <div className="sort-dropdown-menu">
+                  <div
+                    className="sort-dropdown-item"
+                    onClick={() => { setSortOrder("none"); setSortOpen(false); }}
+                  >
+                    None
+                  </div>
+                  <div
+                    className="sort-dropdown-item"
+                    onClick={() => { setSortOrder("admin"); setSortOpen(false); }}
+                  >
+                    Admin
+                  </div>
+                  <div
+                    className="sort-dropdown-item"
+                    onClick={() => { setSortOrder("employee"); setSortOpen(false); }}
+                  >
+                    Employee
+                  </div>
                 </div>
-                <div
-                  className={`sort-dropdown-item${sortOrder === "employee" ? " active" : ""}`}
-                  onClick={() => { setSortOrder("employee"); setSortOpen(false); }}
-                >
-                  Employee
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -214,58 +234,58 @@ const A_Users = () => {
           <table className="admin-table">
             <thead>
               <tr>
-                <th className="avatar-col">Avatar</th>
-                <th className="fullname-col">Full Name</th>
-                <th className="email-col">Email</th>
-                <th className="role-col">Role</th>
-                <th className="workstream-col">Workstream</th>
-                <th className="date-col">Date Created</th>
+                <th className="admin-users-avatar-col">Avatar</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Workstreams</th>
+                <th>Date Created</th>
               </tr>
             </thead>
             <tbody>
               {currentUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="admin-users-no-users">No users found.</td>
+                  <td colSpan="6" className="admin-table-empty">
+                    No users found matching your search or filter.
+                  </td>
                 </tr>
               ) : (
                 currentUsers.map(user => (
                   <tr key={user.id}>
-                    <td className="admin-users-avatar-cell">
-                      <div
-                        className="admin-users-avatar"
-                        style={{ background: getAvatarColor(user.first_name, user.last_name) }}
-                        title={`${user.first_name} ${user.last_name}`}
-                      >
+                    <td className="admin-users-avatar-col">
+                      <div className="admin-users-avatar" style={{ backgroundColor: getAvatarColor(user.first_name, user.last_name) }}>
                         {getInitials(user.first_name, user.last_name)}
                       </div>
                     </td>
-                    <td className="admin-users-fullname">{user.first_name} {user.last_name}</td>
-                    <td className="admin-users-email">{user.email}</td>
-                    <td className="admin-users-role">
+                    <td>{user.first_name} {user.last_name}</td>
+                    <td>{user.email}</td>
+                    <td>
                       <div className="role-select-wrapper">
                         <select
-                          value={user.isAdmin ? "Admin" : "Employee"}
-                          onChange={e => handleRoleChange(user.id, e.target.value)}
+                          className={`role-select ${user.isAdmin ? 'admin' : 'employee'}`}
+                          value={user.isAdmin ? '1' : '0'}
+                          onChange={() => handleRoleChange(user.id, user.isAdmin)}
                           disabled={updatingId === user.id}
-                          className={`role-select ${user.isAdmin ? "admin" : "employee"}`}
                         >
-                          <option value="Employee">Employee</option>
-                          <option value="Admin">Admin</option>
+                          <option value="0">Employee</option>
+                          <option value="1">Admin</option>
                         </select>
-                        <span className="role-dropdown-arrow">&#9662;</span>
+                        <FaChevronDown className="role-dropdown-arrow" />
                       </div>
                     </td>
                     <td className="admin-users-workstream">
-                      {getUserWsSummary(user)}
+                      <div className="ws-summary">{getUserWsSummary(user)}</div>
+                      <button onClick={() => openWsModal(user)} className="ws-configure-btn">
+                        <FaCog />
+                        <span>Configure</span>
+                      </button>
                     </td>
-                    <td className="admin-users-date">
-                      {user.created_at
-                        ? new Date(user.created_at).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })
-                        : ''}
+                    <td>
+                      {new Date(user.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
                     </td>
                   </tr>
                 ))

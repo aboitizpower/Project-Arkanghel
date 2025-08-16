@@ -41,7 +41,12 @@ const A_Assessment = () => {
     fetch(`${API_BASE}/workstreams`)
       .then(res => res.json())
       .then(data => {
-        setWorkstreams(data);
+        // The new endpoint returns an array directly, not an object with a 'workstreams' property.
+        setWorkstreams(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('Failed to fetch workstreams:', err);
+        setWorkstreams([]); // Ensure workstreams is an array on error
       });
   }, []);
 
@@ -57,91 +62,92 @@ const A_Assessment = () => {
     setSelectedChapter('');
   }, [selectedWorkstream]);
 
-  // Fetch KPIs from backend endpoints
+  // Fetch KPIs from consolidated backend endpoint
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/kpi/total-workstreams`).then(res => res.json()),
-      fetch(`${API_BASE}/kpi/total-chapters`).then(res => res.json()),
-      fetch(`${API_BASE}/kpi/total-assessments`).then(res => res.json()),
-      fetch(`${API_BASE}/kpi/total-assessments-taken`).then(res => res.json()),
-    ]).then(([ws, ch, as, taken]) => {
-      setKpis({
-        totalWorkstreams: ws.count,
-        totalChapters: ch.count,
-        totalAssessments: as.count,
-        totalAssessmentsTaken: taken.count,
+    fetch(`${API_BASE}/kpi`)
+      .then(res => res.json())
+      .then(data => {
+        // Ensure all keys exist to prevent errors, providing default 0
+        setKpis({
+          totalWorkstreams: data.totalWorkstreams || 0,
+          totalChapters: data.totalChapters || 0,
+          totalAssessments: data.totalAssessments || 0,
+          totalAssessmentsTaken: data.totalAssessmentsTaken || 0,
+        });
+      })
+      .catch(err => {
+        console.error('Failed to fetch KPIs:', err);
+        // Set KPIs to 0 on error to avoid display issues
+        setKpis({
+          totalWorkstreams: 0,
+          totalChapters: 0,
+          totalAssessments: 0,
+          totalAssessmentsTaken: 0,
+        });
       });
-    });
-  }, [selectedWorkstream, selectedChapter]);
+  }, []);
 
   // Fetch results when filters change
   useEffect(() => {
     setLoading(true);
     setError(null);
 
-    const fetchAllResults = async () => {
-      try {
-        // 1. Fetch all users
-        const usersRes = await fetch(`${API_BASE}/users`);
-        const usersData = await usersRes.json();
-        if (!usersData || !Array.isArray(usersData.users)) {
-          throw new Error('Failed to fetch users or invalid format.');
+    const url = new URL(`${API_BASE}/assessment-results`);
+    if (selectedWorkstream) url.searchParams.append('workstream_id', selectedWorkstream);
+    if (selectedChapter) url.searchParams.append('chapter_id', selectedChapter);
+
+    fetch(url)
+      .then(async res => {
+        if (!res.ok) {
+          // Get more detailed error from backend
+          const errorData = await res.json().catch(() => ({ error: 'Failed to parse error response.' }));
+          const errorTitle = errorData.error || 'Network error';
+          const errorDetails = errorData.details || 'No specific details available.';
+          throw new Error(`Error ${res.status}: ${errorTitle}\nDetails: ${errorDetails}`);
         }
-        const users = usersData.users;
-
-        // 2. Fetch assessment results for each user
-        const allResultsPromises = users.map(user =>
-          fetch(`${API_BASE}/users/${user.user_id}/assessment-results`)
-            .then(res => res.json())
-            .then(results => results.map(r => ({ ...r, user })))
-        );
-
-        const resultsByAllUsers = await Promise.all(allResultsPromises);
-        let allResults = resultsByAllUsers.flat();
-
-        // 3. Apply filters
-        if (selectedWorkstream) {
-          allResults = allResults.filter(r => r.workstream_id == selectedWorkstream);
-        }
-        if (selectedChapter) {
-          // This requires chapter_id to be in the results, which it is not currently.
-          // The endpoint /users/:userId/assessment-results would need to be updated to include it.
-          // For now, chapter filtering will not work until the backend is fixed.
-        }
-
-        setResults(allResults);
-      } catch (err) {
-        setError('Failed to load data.');
-        console.error('Fetch error:', err);
-      } finally {
+        return res.json();
+      })
+      .then(data => {
+        setResults(data);
+      })
+      .catch(err => {
+        // Display the specific error message from the backend
+        setError(err.message);
+        console.error('Fetch error:', err.message);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    };
-
-    fetchAllResults();
+      });
   }, [selectedWorkstream, selectedChapter]);
 
   // Table filtering, sorting, searching, pagination
   const filteredResults = useMemo(() => {
     let filtered = results;
+
     if (search) {
       const s = search.toLowerCase();
       filtered = filtered.filter(row =>
-        (`${row.user.first_name} ${row.user.last_name}`.toLowerCase().includes(s))
+        (`${row.first_name} ${row.last_name}`.toLowerCase().includes(s))
       );
     }
+
+    // Note: Sorting logic might need adjustment based on the actual data keys.
     filtered = filtered.sort((a, b) => {
-      let vA = a[sortBy], vB = b[sortBy];
-      if (sortBy === 'date_taken') {
+      let vA = a[sortBy];
+      let vB = b[sortBy];
+
+      if (sortBy === 'completed_at') { // Assuming 'completed_at' is the key for date
         vA = vA ? new Date(vA) : 0;
         vB = vB ? new Date(vB) : 0;
       }
+
       if (vA < vB) return sortDir === 'asc' ? -1 : 1;
       if (vA > vB) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
+
     return filtered;
-  }, [results, search, sortBy, sortDir]);
+  }, [results, search, sortBy, sortDir, selectedWorkstream, selectedChapter]);
 
   const paginatedResults = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -237,13 +243,17 @@ const A_Assessment = () => {
                   {paginatedResults.length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
                   ) : paginatedResults.map((row, i) => (
-                    <tr key={i} className={i % 2 ? 'odd-row' : 'even-row'}>
-                      <td>{row.user.first_name} {row.user.last_name}</td>
+                    <tr key={row.result_id} className={i % 2 ? 'odd-row' : 'even-row'}>
+                      <td>{row.first_name} {row.last_name}</td>
                       <td>{row.assessment_title}</td>
-                      <td>{row.last_date_taken ? new Date(row.last_date_taken).toLocaleString() : '-'}</td>
-                      <td>{row.user_score ?? '-'} / {row.total_points ?? '-'}</td>
-                      <td>{row.attempts ?? '-'}</td>
-                      <td>{row.passed ? 'Pass' : 'Fail'}</td>
+                      <td>{row.completed_at === 'N/A' ? 'N/A' : new Date(row.completed_at).toLocaleString()}</td>
+                      <td>{`${row.user_score} / ${row.total_questions}`}</td>
+                      <td>{row.total_attempts === 'N/A' ? 'N/A' : row.total_attempts}</td>
+                      <td>
+                        <span className={`status-badge ${row.passed === 'N/A' ? 'na' : row.passed ? 'passed' : 'failed'}`}>
+                          {row.passed === 'N/A' ? 'N/A' : row.passed ? 'Passed' : 'Failed'}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

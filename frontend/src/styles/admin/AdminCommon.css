@@ -124,6 +124,12 @@
   border: 1px solid #fecaca;
 }
 
+.status-badge.na {
+  background-color: #f5f5f5;
+  color: #616161;
+  border: 1px solid #e0e0e0;
+}
+
 .btn-primary {
   background-color: #3b82f6;
   color: white;
@@ -207,20 +213,33 @@
   flex-shrink: 0;
 }
 
-.search-container, .assessment-search-bar {
-  width: 700px !important;
+.search-container {
+  position: relative;
+  width: 350px;
   max-width: 100%;
-  flex-shrink: 0;
 }
-.search-input {
-  width: 100% !important;
-  min-width: 0;
+
+.search-container input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.search-input:focus, .search-input:hover {
+
+.search-container input:focus {
   outline: none;
-  border-color: #3b82f6;
-  background-color: #fff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  color: #9ca3af;
 }
 .clear-search {
   position: absolute;
