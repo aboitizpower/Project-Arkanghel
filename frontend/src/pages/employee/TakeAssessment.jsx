@@ -158,22 +158,18 @@ const TakeAssessments = () => {
             
             console.log('Submission response:', response.data);
             
-            const { totalScore, correctAnswers, totalQuestions, percentage, message } = response.data;
-            
-            if (response.data.success) {
-                alert(`${message}\n\nResults:\n` +
-                      `Correct Answers: ${correctAnswers} out of ${totalQuestions}\n` +
-                      `Score: ${totalScore}\n` +
-                      `Percentage: ${percentage}%`);
-            } else {
-                alert(`Assessment submitted! You scored ${totalScore} out of ${totalQuestions}.`);
-            }
-            
+            const { totalScore, correctAnswers, totalQuestions, percentage, message, success } = response.data;
+
+            alert(`${message}\n\nResults:\n` +
+                  `Correct Answers: ${correctAnswers} out of ${totalQuestions}\n` +
+                  `Score: ${totalScore}\n` +
+                  `Percentage: ${percentage}%`);
+
             // After submission, navigate back to the modules page with a refresh signal.
-            navigate('/employee/modules', {
+            navigate(`/employee/modules/${workstreamId}`, {
                 state: {
-                    workstreamId: workstreamId,
                     chapterId: chapterId,
+                    assessmentPassed: success,
                     refresh: Date.now() // Use a unique value to always trigger a refresh
                 },
                 replace: true

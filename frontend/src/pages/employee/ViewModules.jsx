@@ -42,7 +42,8 @@ const ViewModules = () => {
         setIsLoading(true);
         try {
             const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}?userId=${userId}`);
-            setSelectedWorkstream(response.data);
+            const workstream = response.data.workstream;
+            setSelectedWorkstream(workstream);
             await fetchChapters(workstreamId);
             await fetchUserProgress(workstreamId);
             setError('');
@@ -57,17 +58,6 @@ const ViewModules = () => {
         try {
             const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
             setChapters(response.data);
-            if (response.data.length > 0) {
-                // Check if there's a specific chapter ID in the location state
-                const { chapterId } = location.state || {};
-                const targetChapter = chapterId 
-                    ? response.data.find(ch => ch.chapter_id === chapterId)
-                    : response.data[0];
-                
-                if (targetChapter) {
-                    handleSelectChapter(targetChapter);
-                }
-            }
             setError('');
         } catch (err) {
             setError('Failed to fetch chapters. Please try again later.');
@@ -91,7 +81,7 @@ const ViewModules = () => {
         }
     };
 
-    const _selectChapterForView = async (chapter) => {
+    const _selectChapterForView = async (chapter, preserveAssessmentStatus = false) => {
         if (!chapter) return;
 
         setSelectedChapter(chapter);
@@ -106,7 +96,10 @@ const ViewModules = () => {
         }
         
         setAssessmentForCurrentChapter(null); // Reset assessment state
-        setIsAssessmentPassed(false);
+        
+        if (!preserveAssessmentStatus) {
+            setIsAssessmentPassed(false);
+        }
 
         // Fetch assessment for this chapter
         try {
@@ -123,20 +116,20 @@ const ViewModules = () => {
         }
     };
 
-    const handleSelectChapter = async (chapter) => {
+    const handleSelectChapter = async (chapter, workstream = selectedWorkstream, preserveAssessmentStatus = false) => {
         if (!userId || !chapter) {
             setError("Cannot select chapter. User or chapter data is missing.");
             return;
         }
 
         try {
-            await _selectChapterForView(chapter);
+            await _selectChapterForView(chapter, preserveAssessmentStatus);
 
             // Mark chapter as viewed only if a workstream is selected
-            if (selectedWorkstream && selectedWorkstream.workstream_id) {
+            if (workstream && workstream.workstream_id) {
                 await axios.post(`${API_URL}/employee/progress`, {
-                    user_id: userId,
-                    chapter_id: chapter.chapter_id,
+                    userId: userId,
+                    chapterId: chapter.chapter_id,
                 });
                 // Optimistically update completed chapters
                 setCompletedChapters(prev => new Set(prev).add(chapter.chapter_id));
@@ -198,18 +191,32 @@ const ViewModules = () => {
         }
     }, [moduleId, userId]);
 
-    // Handle navigation state updates
+    // This useEffect is the single source of truth for selecting a chapter.
     useEffect(() => {
-        const { chapterId, refresh } = location.state || {};
-        if (chapterId && refresh && chapters.length > 0) {
+        // Don't run if chapters haven't loaded yet.
+        if (chapters.length === 0 || !selectedWorkstream) return;
+
+        const { chapterId, refresh, assessmentPassed } = location.state || {};
+
+        // This block runs ONLY when returning from an assessment.
+        if (refresh && chapterId) {
             const chapterToSelect = chapters.find(ch => ch.chapter_id === chapterId);
             if (chapterToSelect) {
-                handleSelectChapter(chapterToSelect);
-                // Clear the refresh state to prevent re-triggering
-                navigate(location.pathname, { state: {}, replace: true });
+                const preserveStatus = assessmentPassed === true;
+                if (preserveStatus) {
+                    setIsAssessmentPassed(true);
+                    setCompletedChapters(prev => new Set(prev).add(chapterToSelect.chapter_id));
+                }
+                handleSelectChapter(chapterToSelect, selectedWorkstream, preserveStatus);
             }
+            // IMPORTANT: Clear the state so this block doesn't run again.
+            navigate(location.pathname, { state: {}, replace: true });
+        
+        // This block runs ONLY on the initial load of the page.
+        } else if (!selectedChapter) { // Check !selectedChapter to run only once.
+            handleSelectChapter(chapters[0], selectedWorkstream);
         }
-    }, [chapters, location.state]);
+    }, [chapters, selectedWorkstream, location.state, navigate]);
 
     const renderModuleView = () => {
         if (!selectedWorkstream || !selectedChapter) return null;
@@ -218,8 +225,10 @@ const ViewModules = () => {
         const isFirstChapter = currentChapterIndex === 0;
         const isLastChapter = currentChapterIndex === chapters.length - 1;
         
-        // Check if next button should be disabled
-        const isNextButtonDisabled = assessmentForCurrentChapter && !isAssessmentPassed;
+        // A chapter is considered complete if it's in the completed set.
+        const isCurrentChapterCompleted = completedChapters.has(selectedChapter.chapter_id);
+        // The 'Next' button is disabled if the current chapter has an assessment that has not yet been passed.
+        const isNextButtonDisabled = assessmentForCurrentChapter && !isCurrentChapterCompleted;
 
         // Check if chapter has video or PDF content
         const hasVideo = selectedChapter.video_filename;

@@ -38,19 +38,64 @@ router.get('/employee/workstreams', (req, res) => {
                 JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
                 WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
             ) as assessments_count,
-            (
-                SELECT (COUNT(up.user_progress_id) * 100.0) / NULLIF(COUNT(mc_inner.chapter_id), 0)
-                FROM module_chapters mc_inner
-                LEFT JOIN user_progress up ON mc_inner.chapter_id = up.chapter_id AND up.user_id = ?
-                WHERE mc_inner.workstream_id = w.workstream_id AND mc_inner.is_published = TRUE AND mc_inner.title NOT LIKE '%Final Assessment%'
-            ) as progress,
+            COALESCE((
+                SELECT 
+                    CASE 
+                        WHEN total_items = 0 THEN 0
+                        ELSE (completed_items * 100.0) / total_items
+                    END
+                FROM (
+                    SELECT 
+                        -- Count completed chapters
+                        COALESCE((
+                            SELECT COUNT(DISTINCT up.chapter_id)
+                            FROM user_progress up
+                            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                            WHERE up.user_id = ? 
+                              AND mc.workstream_id = w.workstream_id 
+                              AND up.is_completed = TRUE
+                              AND mc.is_published = TRUE
+                        ), 0) +
+                        -- Count passed assessments
+                        COALESCE((
+                            SELECT COUNT(DISTINCT a.assessment_id)
+                            FROM assessments a
+                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM answers ans
+                                  JOIN questions q ON ans.question_id = q.question_id
+                                  WHERE q.assessment_id = a.assessment_id 
+                                    AND ans.user_id = ?
+                                  GROUP BY q.assessment_id
+                                  HAVING SUM(ans.score) >= a.passing_score
+                              )
+                        ), 0) as completed_items,
+                        -- Total chapters + assessments
+                        COALESCE((
+                            SELECT COUNT(*) 
+                            FROM module_chapters mc 
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                        ), 0) +
+                        COALESCE((
+                            SELECT COUNT(DISTINCT a.assessment_id) 
+                            FROM assessments a 
+                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                        ), 0) as total_items
+                ) as progress_calc
+            ), 0) as progress,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
         WHERE w.is_published = TRUE
         ORDER BY w.created_at DESC
     `;
 
-    req.db.query(sql, [userId], (err, results) => {
+    req.db.query(sql, [userId, userId], (err, results) => {
         if (err) {
             console.error('Error fetching workstreams:', err);
             return res.status(500).json({ 
@@ -121,18 +166,25 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
                 mc.pdf_filename,
                 mc.pdf_mime_type,
                 a.assessment_id,
+                a.passing_score,
                 (
                     SELECT COUNT(*) > 0 
-                    FROM user_progress up2 
-                    WHERE up2.chapter_id = mc.chapter_id AND up2.user_id = ?
-                ) as is_completed
+                    FROM user_progress up 
+                    WHERE up.chapter_id = mc.chapter_id AND up.user_id = ? AND up.is_completed = TRUE
+                ) as is_completed,
+                (
+                    SELECT SUM(ans.score)
+                    FROM answers ans
+                    JOIN questions q ON ans.question_id = q.question_id
+                    WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
+                ) as user_score
             FROM module_chapters mc
             LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
             WHERE mc.workstream_id = ? AND mc.is_published = TRUE
             ORDER BY mc.order_index ASC
         `;
 
-        req.db.query(chaptersSql, [userId, workstreamId], (err, chaptersResults) => {
+        req.db.query(chaptersSql, [userId, userId, workstreamId], (err, chaptersResults) => {
             if (err) {
                 console.error('Error fetching chapters:', err);
                 return res.status(500).json({
@@ -141,18 +193,34 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
                 });
             }
 
+            let previousChapterCleared = true;
+            const chaptersWithLockStatus = chaptersResults.map(chapter => {
+                const hasAssessment = chapter.assessment_id !== null;
+                const assessmentPassed = hasAssessment && chapter.user_score >= chapter.passing_score;
+                const chapterCompleted = !!chapter.is_completed;
+
+                const isCleared = chapterCompleted && (!hasAssessment || assessmentPassed);
+                const isLocked = !previousChapterCleared;
+
+                previousChapterCleared = isCleared;
+
+                return {
+                    ...chapter,
+                    video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
+                    pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
+                    has_assessment: hasAssessment,
+                    is_locked: isLocked,
+                    assessment_passed: assessmentPassed
+                };
+            });
+
             const response = {
                 success: true,
                 workstream: {
                     ...workstream,
                     image_url: workstream.image_type ? `/workstreams/${workstream.workstream_id}/image` : null
                 },
-                chapters: chaptersResults.map(chapter => ({
-                    ...chapter,
-                    video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
-                    pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
-                    has_assessment: !!chapter.assessment_id
-                }))
+                chapters: chaptersWithLockStatus
             };
 
             res.json(response);
@@ -280,9 +348,9 @@ router.post('/employee/progress', (req, res) => {
     }
 
     const sql = `
-        INSERT INTO user_progress (user_id, chapter_id, started_at, completed_at)
-        VALUES (?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE completed_at = NOW()
+        INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time)
+        VALUES (?, ?, TRUE, NOW())
+        ON DUPLICATE KEY UPDATE is_completed = TRUE, completion_time = NOW()
     `;
 
     req.db.query(sql, [userId, chapterId], (err, result) => {
