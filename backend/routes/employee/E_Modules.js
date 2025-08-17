@@ -14,6 +14,7 @@ const upload = multer({ storage: storage });
  * @returns {Array} List of published workstreams with metadata
  */
 router.get('/employee/workstreams', (req, res) => {
+    const db = req.db;
     const { userId } = req.query;
 
     if (!userId) {
@@ -38,64 +39,14 @@ router.get('/employee/workstreams', (req, res) => {
                 JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
                 WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
             ) as assessments_count,
-            COALESCE((
-                SELECT 
-                    CASE 
-                        WHEN total_items = 0 THEN 0
-                        ELSE (completed_items * 100.0) / total_items
-                    END
-                FROM (
-                    SELECT 
-                        -- Count completed chapters
-                        COALESCE((
-                            SELECT COUNT(DISTINCT up.chapter_id)
-                            FROM user_progress up
-                            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
-                            WHERE up.user_id = ? 
-                              AND mc.workstream_id = w.workstream_id 
-                              AND up.is_completed = TRUE
-                              AND mc.is_published = TRUE
-                        ), 0) +
-                        -- Count passed assessments
-                        COALESCE((
-                            SELECT COUNT(DISTINCT a.assessment_id)
-                            FROM assessments a
-                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-                            WHERE mc.workstream_id = w.workstream_id 
-                              AND mc.is_published = TRUE
-                              AND EXISTS (
-                                  SELECT 1
-                                  FROM answers ans
-                                  JOIN questions q ON ans.question_id = q.question_id
-                                  WHERE q.assessment_id = a.assessment_id 
-                                    AND ans.user_id = ?
-                                  GROUP BY q.assessment_id
-                                  HAVING SUM(ans.score) >= a.passing_score
-                              )
-                        ), 0) as completed_items,
-                        -- Total chapters + assessments
-                        COALESCE((
-                            SELECT COUNT(*) 
-                            FROM module_chapters mc 
-                            WHERE mc.workstream_id = w.workstream_id 
-                              AND mc.is_published = TRUE
-                        ), 0) +
-                        COALESCE((
-                            SELECT COUNT(DISTINCT a.assessment_id) 
-                            FROM assessments a 
-                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
-                            WHERE mc.workstream_id = w.workstream_id 
-                              AND mc.is_published = TRUE
-                        ), 0) as total_items
-                ) as progress_calc
-            ), 0) as progress,
+            0 as progress,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
         WHERE w.is_published = TRUE
         ORDER BY w.created_at DESC
     `;
 
-    req.db.query(sql, [userId, userId], (err, results) => {
+        db.query(sql, [], (err, results) => {
         if (err) {
             console.error('Error fetching workstreams:', err);
             return res.status(500).json({ 

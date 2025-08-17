@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { WorkstreamProvider } from './context/WorkstreamContext';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 import Login from './pages/Login';
@@ -74,7 +75,8 @@ function RequireAdmin({ children }) {
 export default function App() {
     return (
         <AuthProvider>
-            <Router>
+            <WorkstreamProvider>
+                <Router>
                 <Routes>
                     <Route path="/" element={<Login />} />
                     <Route path="/register" element={<Register />} />
@@ -105,6 +107,7 @@ export default function App() {
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </Router>
+        </WorkstreamProvider>
         </AuthProvider>
     );
 }

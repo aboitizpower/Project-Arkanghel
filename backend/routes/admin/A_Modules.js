@@ -244,4 +244,81 @@ router.get('/workstreams/:id/image', (req, res) => {
     });
 });
 
+// Delete a workstream and all its related data manually within a transaction
+router.delete('/workstreams/:id', async (req, res) => {
+    const workstreamId = req.params.id;
+    if (!workstreamId) {
+        return res.status(400).json({ error: 'Workstream ID is required.' });
+    }
+
+    const connection = req.db;
+
+    try {
+        // Start a transaction
+        await connection.promise().beginTransaction();
+        console.log(`Transaction started for deleting workstream ${workstreamId}.`);
+
+        // 1. Get all chapter_ids for the workstream
+        const [chapters] = await connection.promise().query('SELECT chapter_id FROM module_chapters WHERE workstream_id = ?', [workstreamId]);
+        const chapterIds = chapters.map(c => c.chapter_id);
+        console.log(`Found chapter IDs: ${chapterIds.join(', ')}`);
+
+        if (chapterIds.length > 0) {
+            // 2. Get all assessment_ids for these chapters
+            const [assessments] = await connection.promise().query('SELECT assessment_id FROM assessments WHERE chapter_id IN (?)', [chapterIds]);
+            const assessmentIds = assessments.map(a => a.assessment_id);
+            console.log(`Found assessment IDs: ${assessmentIds.join(', ')}`);
+
+            if (assessmentIds.length > 0) {
+                // Get all question_ids for these assessments
+                const [questions] = await connection.promise().query('SELECT question_id FROM questions WHERE assessment_id IN (?)', [assessmentIds]);
+                const questionIds = questions.map(q => q.question_id);
+
+                if (questionIds.length > 0) {
+                    // Delete answers associated with these questions first
+                    await connection.promise().query('DELETE FROM answers WHERE question_id IN (?)', [questionIds]);
+                }
+
+                // Delete questions for these assessments
+                await connection.promise().query('DELETE FROM questions WHERE assessment_id IN (?)', [assessmentIds]);
+            }
+
+            // 6. Delete user progress for these chapters
+            console.log('Deleting user progress...');
+            await connection.promise().query('DELETE FROM user_progress WHERE chapter_id IN (?)', [chapterIds]);
+
+            // 7. Delete assessments for these chapters
+            console.log('Deleting assessments...');
+            await connection.promise().query('DELETE FROM assessments WHERE chapter_id IN (?)', [chapterIds]);
+        }
+
+        // 8. Delete chapters for the workstream
+        console.log('Deleting module chapters...');
+        await connection.promise().query('DELETE FROM module_chapters WHERE workstream_id = ?', [workstreamId]);
+
+        // 9. Finally, delete the workstream itself
+        console.log('Deleting workstream...');
+        const [result] = await connection.promise().query('DELETE FROM workstreams WHERE workstream_id = ?', [workstreamId]);
+
+        if (result.affectedRows === 0) {
+            // If the workstream was not found, rollback and send an error
+            await connection.promise().rollback();
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+
+        // Commit the transaction
+        await connection.promise().commit();
+        console.log(`Transaction committed for workstream ${workstreamId}.`);
+
+        res.json({ success: 'Workstream and all associated data deleted successfully.' });
+
+    } catch (err) {
+        // If any error occurs, rollback the transaction
+        console.error(`Error during deletion transaction for workstream ${workstreamId}:`, err);
+        await connection.promise().rollback();
+        console.log('Transaction rolled back.');
+        res.status(500).json({ error: `Database error during deletion: ${err.message}` });
+    }
+});
+
 export default router;

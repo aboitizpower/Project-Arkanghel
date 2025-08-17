@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useWorkstream } from '../../context/WorkstreamContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
@@ -29,6 +30,7 @@ const E_Modules = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
+    const { needsRefresh, resetRefresh } = useWorkstream();
 
     useEffect(() => {
         const loggedInUserId = localStorage.getItem('userId');
@@ -40,16 +42,15 @@ const E_Modules = () => {
     }, []);
 
     useEffect(() => {
-        const { workstreamId, chapterId, refresh } = location.state || {};
-        if (refresh && workstreamId && workstreams.length > 0) {
+        const { workstreamId, chapterId } = location.state || {};
+
+        if (workstreamId && workstreams.length > 0) {
             const workstreamToSelect = workstreams.find(ws => ws.workstream_id === workstreamId);
             if (workstreamToSelect) {
                 handleSelectWorkstream(workstreamToSelect, chapterId);
-                // Clear the refresh state to prevent re-triggering
-                navigate(location.pathname, { state: { ...location.state, refresh: false }, replace: true });
             }
         }
-    }, [location.state, workstreams, navigate]);
+    }, [location.state, workstreams]);
 
     useEffect(() => {
         // This effect runs when chapters are populated and location state has a chapterId
@@ -64,11 +65,14 @@ const E_Modules = () => {
         }
     }, [chapters, location.state]);
 
-    const fetchWorkstreams = async () => {
+    const fetchWorkstreams = useCallback(async () => {
         if (!userId) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
+            const url = `${API_URL}/employee/workstreams?userId=${userId}&force-refresh=true&_=${new Date().getTime()}`;
+            console.log('Fetching workstreams with URL:', url);
+            const response = await axios.get(url);
+            console.log('Workstreams data received:', response.data);
             setWorkstreams(response.data);
             setError('');
         } catch (err) {
@@ -76,13 +80,20 @@ const E_Modules = () => {
             console.error(err);
         }
         setIsLoading(false);
-    };
+    }, [userId]);
+
+    useEffect(() => {
+        if (needsRefresh) {
+            fetchWorkstreams();
+            resetRefresh();
+        }
+    }, [needsRefresh, fetchWorkstreams, resetRefresh]);
 
     useEffect(() => {
         fetchWorkstreams();
-    }, [userId]);
+    }, [fetchWorkstreams]);
 
-    const fetchChapters = async (workstreamId) => {
+    const fetchChapters = async (workstreamId, targetChapterId = null) => {
         if (!userId) return;
         setIsLoading(true);
         try {
@@ -91,8 +102,14 @@ const E_Modules = () => {
             setChapters(fetchedChapters);
 
             if (fetchedChapters.length > 0) {
-                // Automatically select the first chapter if none is selected
-                if (!selectedChapter) {
+                const chapterToSelect = targetChapterId 
+                    ? fetchedChapters.find(c => c.chapter_id === targetChapterId) 
+                    : fetchedChapters[0];
+                
+                if (chapterToSelect) {
+                    handleSelectChapter(chapterToSelect);
+                } else if (targetChapterId) {
+                    // If a specific chapter was requested but not found, select the first one as a fallback.
                     handleSelectChapter(fetchedChapters[0]);
                 }
             }
@@ -100,8 +117,9 @@ const E_Modules = () => {
         } catch (err) {
             setError('Failed to fetch chapters. Please try again later.');
             console.error(err);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const fetchUserProgress = async (workstreamId) => {
@@ -122,9 +140,9 @@ const E_Modules = () => {
     };
 
     const handleSelectWorkstream = (workstream, targetChapterId = null) => {
-        // Navigate to the specific module route instead of handling internally
-        const state = targetChapterId ? { chapterId: targetChapterId } : {};
-        navigate(`/employee/modules/${workstream.workstream_id}`, { state });
+        setSelectedWorkstream(workstream);
+        fetchChapters(workstream.workstream_id, targetChapterId);
+        fetchUserProgress(workstream.workstream_id);
     };
 
     const _selectChapterForView = async (chapter) => {
@@ -339,9 +357,9 @@ const E_Modules = () => {
                                 <div className="card-ws-content">
                                     <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
                                     <div className="card-ws-stats">
-                                        <span>{ws.chapters_count || 0} Chapters</span>
+                                        <span>{ws.chapters_count || 0} {ws.chapters_count === 1 ? 'Chapter' : 'Chapters'}</span>
                                         <span>•</span>
-                                        <span>{ws.assessments_count || 0} Assessments</span>
+                                        <span>{ws.assessments_count || 0} {ws.assessments_count === 1 ? 'Assessment' : 'Assessments'}</span>
                                     </div>
                                     {hasContent ? (
                                         <>
