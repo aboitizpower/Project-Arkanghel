@@ -55,6 +55,135 @@ router.get('/workstreams', (req, res) => {
     });
 });
 
+// Delete a workstream and all its related data
+router.delete('/workstreams/:id', (req, res) => {
+    const { id } = req.params;
+
+    if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Valid workstream ID is required.' });
+    }
+
+    // Use a simpler approach with sequential deletes based on actual database schema
+    const deleteUserProgress = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE up FROM user_progress up JOIN module_chapters mc ON up.chapter_id = mc.chapter_id WHERE mc.workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteAnswers = () => {
+        return new Promise((resolve, reject) => {
+            const sql = `DELETE ans FROM answers ans 
+                        JOIN questions q ON ans.question_id = q.question_id 
+                        JOIN assessments a ON q.assessment_id = a.assessment_id 
+                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                        WHERE mc.workstream_id = ?`;
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteQuestions = () => {
+        return new Promise((resolve, reject) => {
+            const sql = `DELETE q FROM questions q 
+                        JOIN assessments a ON q.assessment_id = a.assessment_id 
+                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                        WHERE mc.workstream_id = ?`;
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteAssessmentVisibility = () => {
+        return new Promise((resolve, reject) => {
+            const sql = `DELETE av FROM assessment_visibility av 
+                        JOIN assessments a ON av.assessment_id = a.assessment_id 
+                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                        WHERE mc.workstream_id = ?`;
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteAssessments = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE a FROM assessments a JOIN module_chapters mc ON a.chapter_id = mc.chapter_id WHERE mc.workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteChapters = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE FROM module_chapters WHERE workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteWorkstreamProgress = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE FROM workstream_progress WHERE workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteUserWorkstreamPermissions = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE FROM user_workstream_permissions WHERE workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+    };
+
+    const deleteWorkstream = () => {
+        return new Promise((resolve, reject) => {
+            const sql = 'DELETE FROM workstreams WHERE workstream_id = ?';
+            req.db.query(sql, [id], (err, result) => {
+                if (err) reject(err);
+                else if (result.affectedRows === 0) reject(new Error('Workstream not found'));
+                else resolve(result);
+            });
+        });
+    };
+
+    // Execute deletions in sequence based on foreign key dependencies
+    deleteUserProgress()
+        .then(() => deleteAnswers())
+        .then(() => deleteQuestions())
+        .then(() => deleteAssessmentVisibility())
+        .then(() => deleteAssessments())
+        .then(() => deleteChapters())
+        .then(() => deleteWorkstreamProgress())
+        .then(() => deleteUserWorkstreamPermissions())
+        .then(() => deleteWorkstream())
+        .then(() => {
+            res.json({ success: true, message: 'Workstream deleted successfully.' });
+        })
+        .catch(err => {
+            console.error('Error deleting workstream:', err);
+            res.status(500).json({ error: `Failed to delete workstream: ${err.message}` });
+        });
+});
+
 // Read a single workstream (including image) - Used by WorkstreamEdit.jsx and for serving workstream images
 router.get('/workstreams/:id', (req, res) => {
     const { id } = req.params;
@@ -224,6 +353,27 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
                 });
             });
         });
+    });
+});
+
+// Toggle publish status of a workstream
+router.put('/workstreams/:workstreamId/publish', (req, res) => {
+    const { workstreamId } = req.params;
+    const { is_published } = req.body;
+
+    if (typeof is_published !== 'boolean') {
+        return res.status(400).json({ error: 'is_published must be a boolean.' });
+    }
+
+    const sql = 'UPDATE workstreams SET is_published = ? WHERE workstream_id = ?';
+    req.db.query(sql, [is_published, workstreamId], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+        res.json({ success: true, message: `Workstream publish status updated to ${is_published}.` });
     });
 });
 

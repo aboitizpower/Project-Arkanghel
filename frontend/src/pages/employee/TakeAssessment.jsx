@@ -13,14 +13,18 @@ const TakeAssessments = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { workstreamId, chapterId } = location.state || {};
+    
+    console.log('TakeAssessment - Received location.state:', location.state);
+    console.log('TakeAssessment - Extracted values:', { workstreamId, chapterId });
     const [assessment, setAssessment] = useState(null);
     const [questions, setQuestions] = useState([]);
     const [answers, setAnswers] = useState({});
     const [error, setError] = useState('');
-    const [workstream, setWorkstream] = useState(null);
-    const [chapters, setChapters] = useState([]);
-    const [completedChapters, setCompletedChapters] = useState(new Set());
     const [isLoading, setIsLoading] = useState(true);
+    const [showResultsModal, setShowResultsModal] = useState(false);
+    const [assessmentResults, setAssessmentResults] = useState(null);
+    const [workstreamInfo, setWorkstreamInfo] = useState(null);
+    const [isFinalAssessment, setIsFinalAssessment] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(0);
@@ -35,6 +39,20 @@ const TakeAssessments = () => {
 
                 const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
                 setQuestions(questionsRes.data);
+
+                // Check if this is a final assessment and get workstream info
+                if (chapterId && workstreamId) {
+                    const chapterRes = await axios.get(`${API_URL}/employee/chapters/${chapterId}`);
+                    const chapter = chapterRes.data.chapter;
+                    
+                    if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
+                        setIsFinalAssessment(true);
+                        
+                        // Get workstream info
+                        const workstreamRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`);
+                        setWorkstreamInfo(workstreamRes.data);
+                    }
+                }
             } catch (err) {
                 setError('Failed to load assessment data.');
                 console.error(err);
@@ -44,27 +62,8 @@ const TakeAssessments = () => {
         };
 
         fetchAssessmentData();
-    }, [assessmentId]);
+    }, [assessmentId, chapterId, workstreamId]);
 
-    // Fetch sidebar data
-    useEffect(() => {
-        const fetchSidebarData = async () => {
-            if (!workstreamId) return;
-            try {
-                const wsRes = await axios.get(`${API_URL}/employee/workstreams?userId=${localStorage.getItem('userId')}`);
-                const ws = wsRes.data.find(w => w.workstream_id === workstreamId);
-                setWorkstream(ws);
-                const chaptersRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
-                setChapters(chaptersRes.data);
-                const progressRes = await axios.get(`${API_URL}/user-progress/${localStorage.getItem('userId')}/${workstreamId}`);
-                const completedIds = progressRes.data.map(item => item.chapter_id);
-                setCompletedChapters(new Set(completedIds));
-            } catch (err) {
-                console.error('Sidebar fetch error:', err);
-            }
-        };
-        fetchSidebarData();
-    }, [workstreamId]);
 
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -160,20 +159,16 @@ const TakeAssessments = () => {
             
             const { totalScore, correctAnswers, totalQuestions, percentage, message, success } = response.data;
 
-            alert(`${message}\n\nResults:\n` +
-                  `Correct Answers: ${correctAnswers} out of ${totalQuestions}\n` +
-                  `Score: ${totalScore}\n` +
-                  `Percentage: ${percentage}%`);
-
-            // After submission, navigate back to the modules page with a refresh signal.
-            navigate(`/employee/modules/${workstreamId}`, {
-                state: {
-                    chapterId: chapterId,
-                    assessmentPassed: success,
-                    refresh: Date.now() // Use a unique value to always trigger a refresh
-                },
-                replace: true
+            // Show results modal instead of alert
+            setAssessmentResults({
+                message,
+                correctAnswers,
+                totalQuestions,
+                totalScore,
+                percentage,
+                passed: percentage >= 75
             });
+            setShowResultsModal(true);
         } catch (error) {
             console.error('Failed to submit assessment:', error);
             console.error('Error response:', error.response?.data);
@@ -191,13 +186,6 @@ const TakeAssessments = () => {
         }
     };
 
-    const handleSelectChapter = (ch) => {
-        const chapterIndex = chapters.findIndex(c => c.chapter_id === ch.chapter_id);
-        if (chapterIndex > 0 && !completedChapters.has(chapters[chapterIndex - 1].chapter_id)) {
-            return;
-        }
-        navigate('/employee/modules', { state: { workstreamId, chapterId: ch.chapter_id, refresh: Date.now() } });
-    };
 
     const totalPages = Math.ceil(questions.length / questionsPerPage);
     const currentQuestions = questions.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
@@ -206,55 +194,142 @@ const TakeAssessments = () => {
     if (isLoading) return <LoadingOverlay loading={true} />;
     if (error) return <div className="error-message">{error}</div>;
 
-    const regularChapters = chapters.filter(c => !c.title?.toLowerCase().includes('final assessment'));
-    const finalAssessmentChapter = chapters.find(c => c.title?.toLowerCase().includes('final assessment'));
-    const areAllChaptersComplete = regularChapters.every(c => completedChapters.has(c.chapter_id));
+    const handleBackToChapter = async () => {
+        console.log('TakeAssessment - handleBackToChapter called with:', { chapterId, workstreamId });
+        
+        try {
+            // Check if this is a final assessment by fetching the chapter details
+            console.log('Fetching chapter details for chapterId:', chapterId);
+            const chapterResponse = await axios.get(`${API_URL}/employee/chapters/${chapterId}`);
+            const chapter = chapterResponse.data.chapter;
+            
+            console.log('Chapter details received:', chapter);
+            console.log('Chapter title:', chapter?.title);
+            console.log('Is final assessment?', chapter?.title?.toLowerCase().includes('final assessment'));
+            
+            // If this is a final assessment, navigate to the last regular chapter
+            if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
+                console.log('Detected final assessment, fetching all chapters for workstream:', workstreamId);
+                
+                // Fetch all chapters in the workstream to find the last regular chapter
+                const chaptersResponse = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
+                const chapters = chaptersResponse.data;
+                
+                console.log('All chapters in workstream:', chapters);
+                
+                // Find the last regular chapter (not a final assessment)
+                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
+                console.log('Regular chapters (filtered):', regularChapters);
+                
+                const lastRegularChapter = regularChapters[regularChapters.length - 1];
+                console.log('Last regular chapter:', lastRegularChapter);
+                
+                if (lastRegularChapter) {
+                    console.log('Navigating to last regular chapter:', lastRegularChapter.chapter_id);
+                    navigate(`/employee/modules/${workstreamId}`, {
+                        state: { 
+                            chapterId: lastRegularChapter.chapter_id,
+                            workstreamId: workstreamId,
+                            refresh: true
+                        }
+                    });
+                    return;
+                } else {
+                    console.log('No regular chapters found, falling back to default behavior');
+                }
+            } else {
+                console.log('Not a final assessment, using regular navigation');
+            }
+        } catch (error) {
+            console.error('Error checking chapter type:', error);
+            console.error('Error details:', error.response?.data);
+        }
+        
+        // Fallback to regular behavior for non-final assessments or on error
+        console.log('Using fallback navigation to chapterId:', chapterId);
+        navigate(`/employee/modules/${workstreamId}`, {
+            state: { 
+                chapterId: chapterId,
+                workstreamId: workstreamId,
+                refresh: true
+            }
+        });
+    };
+
+    const handleCloseResultsModal = async () => {
+        setShowResultsModal(false);
+        
+        // For final assessments that are passed, navigate back to workstreams list
+        if (isFinalAssessment && assessmentResults?.passed) {
+            navigate('/employee/modules');
+        } else if (isFinalAssessment && !assessmentResults?.passed) {
+            // For failed final assessments, navigate to the last regular chapter
+            try {
+                const chaptersResponse = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
+                const chapters = chaptersResponse.data;
+                
+                // Find the last regular chapter (not a final assessment)
+                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
+                const lastRegularChapter = regularChapters[regularChapters.length - 1];
+                
+                if (lastRegularChapter) {
+                    navigate(`/employee/modules/${workstreamId}`, {
+                        state: { 
+                            refresh: true, 
+                            chapterId: lastRegularChapter.chapter_id,
+                            workstreamId: workstreamId,
+                            assessmentPassed: assessmentResults?.passed
+                        }
+                    });
+                } else {
+                    // Fallback to regular navigation if no regular chapters found
+                    navigate(`/employee/modules/${workstreamId}`, {
+                        state: { 
+                            refresh: true, 
+                            chapterId: chapterId,
+                            workstreamId: workstreamId,
+                            assessmentPassed: assessmentResults?.passed
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching chapters for failed final assessment navigation:', error);
+                // Fallback to regular navigation on error
+                navigate(`/employee/modules/${workstreamId}`, {
+                    state: { 
+                        refresh: true, 
+                        chapterId: chapterId,
+                        workstreamId: workstreamId,
+                        assessmentPassed: assessmentResults?.passed
+                    }
+                });
+            }
+        } else {
+            // Navigate back to chapter after closing modal (regular assessments)
+            console.log('Regular assessment navigation - chapterId:', chapterId, 'workstreamId:', workstreamId, 'passed:', assessmentResults?.passed);
+            navigate(`/employee/modules/${workstreamId}`, {
+                state: { 
+                    refresh: true, 
+                    chapterId: chapterId,
+                    workstreamId: workstreamId,
+                    assessmentPassed: assessmentResults?.passed
+                }
+            });
+        }
+    };
 
     return (
         <div className="e-assessment-container">
-            {/* Sidebar */}
-            <div className="module-view-sidebar">
-                <div className="module-view-header">
-                    <button onClick={() => navigate('/employee/modules', { state: { workstreamId } })} className="back-to-ws-btn">
-                        <FaArrowLeft /><span>Back to Workstreams</span>
+            {/* Main Assessment Content - Full Width */}
+            <main className="e-assessment-main-full">
+                {/* Header with Back to Chapter button */}
+                <div className="assessment-header">
+                    <button onClick={handleBackToChapter} className="back-to-chapter-btn">
+                        <FaArrowLeft /> Back to Chapter
                     </button>
-                    <h2>{workstream?.title}</h2>
+                    <h1 className="assessment-title">{assessment?.title}</h1>
                 </div>
-                <div className="chapter-list-container">
-                    <ul className="chapter-list">
-                        {regularChapters.map((ch, index) => {
-                            const isLocked = index > 0 && !completedChapters.has(regularChapters[index - 1].chapter_id);
-                            return (
-                                <li key={ch.chapter_id} className={`chapter-list-item ${chapterId === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
-                                    onClick={() => !isLocked && handleSelectChapter(ch)}>
-                                    <div className="chapter-icon">{isLocked ? <FaLock /> : <FaBook />}</div>
-                                    <span className="chapter-title">{ch.title}</span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
-                {finalAssessmentChapter && (
-                    <div className="final-assessment-nav-section">
-                        <ul className="chapter-list">
-                            {(() => {
-                                const isLocked = !areAllChaptersComplete;
-                                return (
-                                    <li key={finalAssessmentChapter.chapter_id}
-                                        className={`chapter-list-item ${chapterId === finalAssessmentChapter.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
-                                        onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}>
-                                        <div className="chapter-icon">{isLocked ? <FaLock /> : <FaClipboardList />}</div>
-                                        <span className="chapter-title">{finalAssessmentChapter.title}</span>
-                                    </li>
-                                );
-                            })()}
-                        </ul>
-                    </div>
-                )}
-            </div>
 
-            {/* Main Assessment Content */}
-            <main className="e-assessment-main-new">
                 <div className="question-card-new">
                     <form onSubmit={(e) => e.preventDefault()}>
                         {currentQuestions.map((q, index) => (
@@ -262,31 +337,7 @@ const TakeAssessments = () => {
                                 <h2 className="question-title-new">Question {currentPage * questionsPerPage + index + 1}:</h2>
                                 <p className="question-text-new">{q.question_text || q.question}</p>
                                 <div className="options-container-new">
-                                    {q.question_type === 'multiple_choice' || q.question_type === 'true_false' ? (
-                                        (q.answers || []).map((option, index) => (
-                                            <label key={option.answer_id || index} className="option-label">
-                                                <input 
-                                                    type="radio" 
-                                                    name={`question-${q.question_id}`} 
-                                                    value={option.answer_text} 
-                                                    checked={answers[q.question_id] === option.answer_text}
-                                                    onChange={() => handleAnswerChange(q.question_id, option.answer_text)} 
-                                                />
-                                                {option.answer_text}
-                                            </label>
-                                        ))
-                                    ) : q.question_type === 'identification' || q.question_type === 'short_answer' ? (
-                                        <input 
-                                            type="text" 
-                                            className="identification-input" 
-                                            name={`question-${q.question_id}`}
-                                            value={answers[q.question_id] || ''}
-                                            onChange={(e) => handleAnswerChange(q.question_id, e.target.value)}
-                                            placeholder="Type your answer here" 
-                                        />
-                                    ) : (
-                                        <p>Unsupported question type: {q.question_type}</p>
-                                    )}
+                                    {renderQuestionInputs(q)}
                                 </div>
                             </div>
                         ))}
@@ -307,6 +358,78 @@ const TakeAssessments = () => {
                     </form>
                 </div>
             </main>
+
+            {/* Results Modal */}
+            {showResultsModal && assessmentResults && (
+                <div className="modal-overlay">
+                    <div className="results-modal">
+                        <div className="results-header">
+                            <h2 className="results-title">
+                                {isFinalAssessment && assessmentResults.passed 
+                                    ? `Congrats on finishing the ${workstreamInfo?.title || 'workstream'}!` 
+                                    : 'Assessment Complete!'}
+                            </h2>
+                            <div className={`results-status ${assessmentResults.passed ? 'passed' : 'failed'}`}>
+                                {assessmentResults.passed ? '✓ PASSED' : '✗ FAILED'}
+                            </div>
+                        </div>
+                        
+                        <div className="results-content">
+                            <div className="results-message">
+                                {isFinalAssessment && assessmentResults.passed 
+                                    ? `You have successfully completed all modules and assessments in this workstream!`
+                                    : assessmentResults.message}
+                            </div>
+                            
+                            <div className="results-layout">
+                                <div className="circular-progress-container">
+                                    <svg className="circular-progress" width="120" height="120" viewBox="0 0 120 120">
+                                        <circle
+                                            cx="60"
+                                            cy="60"
+                                            r="50"
+                                            fill="none"
+                                            stroke="#e5e7eb"
+                                            strokeWidth="8"
+                                        />
+                                        <circle
+                                            cx="60"
+                                            cy="60"
+                                            r="50"
+                                            fill="none"
+                                            stroke={assessmentResults.passed ? "#10b981" : "#ef4444"}
+                                            strokeWidth="8"
+                                            strokeLinecap="round"
+                                            strokeDasharray={`${2 * Math.PI * 50}`}
+                                            strokeDashoffset={`${2 * Math.PI * 50 * (1 - assessmentResults.percentage / 100)}`}
+                                            transform="rotate(-90 60 60)"
+                                            className="progress-circle"
+                                        />
+                                    </svg>
+                                    <div className="percentage-text">
+                                        {assessmentResults.percentage}%
+                                    </div>
+                                </div>
+                                
+                                <div className="results-stats">
+                                    <div className="stat-item">
+                                        <span className="stat-label">Correct Answers:</span>
+                                        <span className="stat-value">{assessmentResults.correctAnswers} / {assessmentResults.totalQuestions}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="results-footer">
+                            <button onClick={handleCloseResultsModal} className="continue-btn">
+                                {isFinalAssessment && assessmentResults.passed 
+                                    ? 'Back to Workstreams' 
+                                    : 'Continue to Chapter'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

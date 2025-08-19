@@ -56,7 +56,7 @@ router.get('/employee/workstreams', (req, res) => {
                               AND up.is_completed = TRUE
                               AND mc.is_published = TRUE
                         ), 0) +
-                        -- Count passed assessments
+                        -- Count passed assessments (75% passing threshold)
                         COALESCE((
                             SELECT COUNT(DISTINCT a.assessment_id)
                             FROM assessments a
@@ -70,7 +70,7 @@ router.get('/employee/workstreams', (req, res) => {
                                   WHERE q.assessment_id = a.assessment_id 
                                     AND ans.user_id = ?
                                   GROUP BY q.assessment_id
-                                  HAVING SUM(ans.score) >= a.passing_score
+                                  HAVING (SUM(ans.score) * 100.0 / COUNT(q.question_id)) >= 75
                               )
                         ), 0) as completed_items,
                         -- Total chapters + assessments
@@ -370,9 +370,8 @@ router.post('/employee/progress', (req, res) => {
 });
 
 
-router.get('/employee/workstreams/:workstreamId/progress', (req, res) => {
-    const { workstreamId } = req.params;
-    const { userId } = req.query;
+router.get('/user-progress/:userId/:workstreamId', (req, res) => {
+    const { userId, workstreamId } = req.params;
 
     if (!workstreamId || isNaN(parseInt(workstreamId)) || !userId || isNaN(parseInt(userId))) {
         return res.status(400).json({
@@ -517,6 +516,123 @@ router.get('/chapters/:id/pdf', (req, res) => {
         const { pdf_file, pdf_mime_type } = results[0];
         res.setHeader('Content-Type', pdf_mime_type || 'application/pdf');
         res.send(pdf_file);
+    });
+});
+
+/**
+ * @route GET /employee/assessment/:assessmentId/passed
+ * @description Check if user has passed a specific assessment
+ * @access Private (Employee)
+ * @param {string} assessmentId - The ID of the assessment
+ * @param {string} userId - The ID of the user (query parameter)
+ * @returns {Object} Pass status and score information
+ */
+router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
+    const { assessmentId } = req.params;
+    const { userId } = req.query;
+
+    if (!assessmentId || !userId) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Assessment ID and User ID are required.' 
+        });
+    }
+
+    const sql = `
+        SELECT 
+            COUNT(q.question_id) as total_questions,
+            COALESCE(SUM(ans.score), 0) as total_score,
+            CASE 
+                WHEN COUNT(q.question_id) > 0 THEN 
+                    (COALESCE(SUM(ans.score), 0) * 100.0 / COUNT(q.question_id)) >= 75
+                ELSE FALSE 
+            END as passed
+        FROM questions q
+        LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
+        WHERE q.assessment_id = ?
+    `;
+
+    req.db.query(sql, [userId, assessmentId], (err, results) => {
+        if (err) {
+            console.error('Error checking assessment pass status:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to check assessment status.' 
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Assessment not found.' 
+            });
+        }
+
+        const result = results[0];
+        res.json({
+            success: true,
+            passed: result.passed === 1,
+            total_questions: result.total_questions,
+            total_score: result.total_score,
+            percentage: result.total_questions > 0 ? Math.round((result.total_score / result.total_questions) * 100) : 0
+        });
+    });
+});
+
+/**
+ * @route GET /employee/workstreams/:workstreamId/last-viewed-chapter
+ * @description Get the last viewed or completed chapter for a user in a workstream
+ * @access Private (Employee)
+ * @returns {Object} The last viewed chapter ID
+ */
+router.get('/employee/workstreams/:workstreamId/last-viewed-chapter', (req, res) => {
+    const { workstreamId } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    // First, find the most recently completed chapter for the user in the workstream
+    const lastViewedSql = `
+        SELECT up.chapter_id
+        FROM user_progress up
+        JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+        WHERE up.user_id = ? AND mc.workstream_id = ? AND up.is_completed = TRUE
+        ORDER BY up.completion_time DESC
+        LIMIT 1;
+    `;
+
+    req.db.query(lastViewedSql, [userId, workstreamId], (err, results) => {
+        if (err) {
+            console.error('Error fetching last viewed chapter:', err);
+            return res.status(500).json({ error: 'Failed to fetch last viewed chapter.' });
+        }
+
+        if (results.length > 0) {
+            // If a last-viewed chapter is found, return it
+            return res.json({ chapterId: results[0].chapter_id });
+        } else {
+            // If no progress is found, find the first chapter of the workstream
+            const firstChapterSql = `
+                SELECT chapter_id 
+                FROM module_chapters 
+                WHERE workstream_id = ? AND is_published = TRUE
+                ORDER BY order_index ASC
+                LIMIT 1;
+            `;
+            req.db.query(firstChapterSql, [workstreamId], (err, firstChapterResults) => {
+                if (err) {
+                    console.error('Error fetching first chapter:', err);
+                    return res.status(500).json({ error: 'Failed to fetch first chapter.' });
+                }
+                if (firstChapterResults.length > 0) {
+                    res.json({ chapterId: firstChapterResults[0].chapter_id });
+                } else {
+                    res.status(404).json({ chapterId: null, message: 'No chapters found for this workstream.' });
+                }
+            });
+        }
     });
 });
 

@@ -41,15 +41,26 @@ const E_Modules = () => {
 
     useEffect(() => {
         const { workstreamId, chapterId, refresh } = location.state || {};
-        if (refresh && workstreamId && workstreams.length > 0) {
-            const workstreamToSelect = workstreams.find(ws => ws.workstream_id === workstreamId);
-            if (workstreamToSelect) {
-                handleSelectWorkstream(workstreamToSelect, chapterId);
-                // Clear the refresh state to prevent re-triggering
-                navigate(location.pathname, { state: { ...location.state, refresh: false }, replace: true });
-            }
+        if (refresh && workstreamId && userId) {
+            // Refresh workstreams data first to get updated progress
+            const refreshAndNavigate = async () => {
+                try {
+                    const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
+                    setWorkstreams(response.data);
+                    
+                    const workstreamToSelect = response.data.find(ws => ws.workstream_id === parseInt(workstreamId));
+                    if (workstreamToSelect) {
+                        handleSelectWorkstream(workstreamToSelect, chapterId);
+                    }
+                    // Clear the refresh state to prevent re-triggering
+                    navigate(location.pathname, { state: { ...location.state, refresh: false }, replace: true });
+                } catch (err) {
+                    console.error('Failed to refresh workstreams:', err);
+                }
+            };
+            refreshAndNavigate();
         }
-    }, [location.state, workstreams, navigate]);
+    }, [location.state, navigate, userId]);
 
     useEffect(() => {
         // This effect runs when chapters are populated and location state has a chapterId
@@ -121,10 +132,27 @@ const E_Modules = () => {
         }
     };
 
-    const handleSelectWorkstream = (workstream, targetChapterId = null) => {
-        // Navigate to the specific module route instead of handling internally
-        const state = targetChapterId ? { chapterId: targetChapterId } : {};
-        navigate(`/employee/modules/${workstream.workstream_id}`, { state });
+    const handleSelectWorkstream = async (workstream) => {
+        if (!userId) return;
+
+        setIsLoading(true);
+        try {
+            // Fetch the last-viewed chapter ID from the new endpoint
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstream.workstream_id}/last-viewed-chapter?userId=${userId}`);
+            const { chapterId } = response.data;
+
+            // Navigate to the module view, passing the chapterId to start on
+            navigate(`/employee/modules/${workstream.workstream_id}`, { 
+                state: { chapterId: chapterId } 
+            });
+
+        } catch (err) {
+            console.error('Error fetching last viewed chapter, navigating to default view.', err);
+            // Fallback to navigating without a specific chapter if the endpoint fails
+            navigate(`/employee/modules/${workstream.workstream_id}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const _selectChapterForView = async (chapter) => {
@@ -164,7 +192,7 @@ const E_Modules = () => {
 
                 // Since there's no assessment, we can mark the chapter as complete right away.
                 if (userId && chapter.chapter_id) {
-                    await axios.post(`${API_URL}/user-progress`, {
+                    await axios.post(`${API_URL}/employee/progress`, {
                         userId: userId,
                         chapterId: chapter.chapter_id,
                     });
@@ -339,7 +367,7 @@ const E_Modules = () => {
                                 <div className="card-ws-content">
                                     <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
                                     <div className="card-ws-stats">
-                                        <span>{ws.chapters_count || 0} Chapters</span>
+                                        <span>{ws.regular_chapters_count || 0} Chapters</span>
                                         <span>•</span>
                                         <span>{ws.assessments_count || 0} Assessments</span>
                                     </div>

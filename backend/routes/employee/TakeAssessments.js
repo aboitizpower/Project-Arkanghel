@@ -109,6 +109,9 @@ router.post('/assessments/:id/submit', async (req, res) => {
 
         let totalScore = 0;
         let correctAnswers = 0;
+        let answerScores = []; // Track individual answer scores
+
+        console.log('Correct answers map:', correctAnswersMap);
 
         // Get the questions with their options to properly compare answers
         const questionsWithOptionsSql = `SELECT question_id, correct_answer, options, question_type FROM questions WHERE assessment_id = ?`;
@@ -180,105 +183,57 @@ router.post('/assessments/:id/submit', async (req, res) => {
             totalScore += score;
             if (is_correct) correctAnswers++;
 
+            // Add to answerScores array
+            answerScores.push({ question_id, score });
+
             console.log(`Question ${question_id} result: ${is_correct ? 'CORRECT' : 'INCORRECT'}`);
         }
 
-        // Try to insert into assessment_results table, if it fails, try other approaches
+        // Store individual answers in the answers table and mark chapter as complete
         try {
-            const insertResultSql = `
-                INSERT INTO assessment_results (user_id, assessment_id, score, total_questions, submitted_at) 
-                VALUES (?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE 
-                    score = VALUES(score), 
-                    total_questions = VALUES(total_questions), 
-                    submitted_at = NOW()
-            `;
-            await req.db.promise().query(insertResultSql, [user_id, assessment_id, totalScore, questions.length]);
-            console.log('Successfully inserted into assessment_results');
-        } catch (tableError) {
-            console.log('assessment_results table not found, trying user_progress with chapter_id');
+            // Get the chapter_id for this assessment
+            const [assessmentInfo] = await req.db.promise().query('SELECT chapter_id FROM assessments WHERE assessment_id = ?', [assessment_id]);
+            const chapter_id = assessmentInfo[0]?.chapter_id;
             
-            try {
-                // Get the chapter_id for this assessment
-                const [assessmentInfo] = await req.db.promise().query('SELECT chapter_id FROM assessments WHERE assessment_id = ?', [assessment_id]);
-                const chapter_id = assessmentInfo[0]?.chapter_id;
-                
-                if (chapter_id) {
-                    // First, let's check what columns exist in user_progress table
-                    try {
-                        const [columns] = await req.db.promise().query('DESCRIBE user_progress');
-                        const columnNames = columns.map(col => col.Field);
-                        console.log('user_progress table columns:', columnNames);
-                        
-                        // Build the SQL based on available columns
-                        let insertSql = '';
-                        let values = [];
-                        let updateSql = '';
-                        
-                        // Based on your actual schema: progress_id, user_id, chapter_id, is_completed, completion_time
-                        insertSql = `
-                            INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time) 
-                            VALUES (?, ?, 1, NOW())
-                            ON DUPLICATE KEY UPDATE 
-                                is_completed = 1, 
-                                completion_time = NOW()
-                        `;
-                        values = [user_id, chapter_id];
-                        
-                        await req.db.promise().query(insertSql, values);
-                        console.log('Successfully inserted into user_progress with chapter_id');
-                        
-                    } catch (describeError) {
-                        console.log('Could not describe user_progress table, using known schema');
-                        // Use the exact schema from your database
-                        const basicSql = `
-                            INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time) 
-                            VALUES (?, ?, 1, NOW())
-                            ON DUPLICATE KEY UPDATE is_completed = 1, completion_time = NOW()
-                        `;
-                        await req.db.promise().query(basicSql, [user_id, chapter_id]);
-                        console.log('Successfully inserted progress record with known schema');
-                    }
-                } else {
-                    console.log('No chapter_id found for assessment');
+            if (chapter_id) {
+                // Store individual answers in the answers table
+                for (const answer of userAnswers) {
+                    const { question_id, answer: user_answer } = answer;
+                    const score = answerScores.find(a => a.question_id === question_id)?.score || 0;
                     
-                    // Try to create a custom assessment results table entry
-                    try {
-                        const createTableSql = `
-                            CREATE TABLE IF NOT EXISTS assessment_submissions (
-                                id INT AUTO_INCREMENT PRIMARY KEY,
-                                user_id INT NOT NULL,
-                                assessment_id INT NOT NULL,
-                                score INT NOT NULL,
-                                total_questions INT NOT NULL,
-                                percentage DECIMAL(5,2) NOT NULL,
-                                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                UNIQUE KEY unique_submission (user_id, assessment_id)
-                            )
-                        `;
-                        await req.db.promise().query(createTableSql);
-                        
-                        const percentage = Math.round((correctAnswers / questions.length) * 100);
-                        const insertSubmissionSql = `
-                            INSERT INTO assessment_submissions (user_id, assessment_id, score, total_questions, percentage) 
-                            VALUES (?, ?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE 
-                                score = VALUES(score), 
-                                total_questions = VALUES(total_questions), 
-                                percentage = VALUES(percentage),
-                                submitted_at = CURRENT_TIMESTAMP
-                        `;
-                        await req.db.promise().query(insertSubmissionSql, [user_id, assessment_id, totalScore, questions.length, percentage]);
-                        console.log('Successfully created and inserted into assessment_submissions table');
-                    } catch (createError) {
-                        console.log('Could not create assessment_submissions table:', createError.message);
-                        console.log('Assessment completed but not saved to database due to schema limitations');
-                    }
+                    const insertAnswerSql = `
+                        INSERT INTO answers (question_id, user_id, user_answer, score, answered_at) 
+                        VALUES (?, ?, ?, ?, NOW())
+                        ON DUPLICATE KEY UPDATE 
+                            user_answer = VALUES(user_answer), 
+                            score = VALUES(score), 
+                            answered_at = NOW()
+                    `;
+                    await req.db.promise().query(insertAnswerSql, [question_id, user_id, user_answer, score]);
                 }
-            } catch (progressError) {
-                console.log('Failed to insert into user_progress:', progressError.message);
-                console.log('Assessment completed but not saved to database');
+                console.log('Successfully stored answers in answers table');
+                
+                // Mark chapter as complete in user_progress if assessment passed
+                const passingScore = 75; // Default passing score
+                const passed = (totalScore / questions.length) * 100 >= passingScore;
+                
+                if (passed) {
+                    const insertProgressSql = `
+                        INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time) 
+                        VALUES (?, ?, 1, NOW())
+                        ON DUPLICATE KEY UPDATE 
+                            is_completed = 1, 
+                            completion_time = NOW()
+                    `;
+                    await req.db.promise().query(insertProgressSql, [user_id, chapter_id]);
+                    console.log('Successfully marked chapter as complete in user_progress');
+                }
+            } else {
+                console.log('No chapter_id found for assessment');
             }
+        } catch (progressError) {
+            console.log('Failed to store assessment results:', progressError.message);
+            console.log('Assessment completed but not saved to database');
         }
 
         const percentage = Math.round((correctAnswers / questions.length) * 100);
