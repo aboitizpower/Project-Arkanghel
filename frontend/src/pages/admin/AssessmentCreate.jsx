@@ -1,7 +1,6 @@
 // File: components/AssessmentCreate.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useWorkstream } from '../../context/WorkstreamContext';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
@@ -28,7 +27,6 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { triggerRefresh } = useWorkstream();
   const [usedChapterIds, setUsedChapterIds] = useState([]);
   const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -210,8 +208,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
       await axios.post(`/api/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       if (onCreated) onCreated();
-      triggerRefresh();
-      navigate(`/admin/workstream/${targetWorkstreamId}/edit`);
+      else navigate(`/admin/workstream/${targetWorkstreamId}/edit`);
     } catch (err) {
       let backendMsg = err?.response?.data?.error || err?.message || 'Failed to create assessment';
       setError('Failed to create assessment: ' + backendMsg);
@@ -255,7 +252,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       <main className="assessment-create-main-content">
         <LoadingOverlay loading={isLoading} />
         <div className="assessment-create-header">
-                    <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>
+          <button className="back-button" onClick={onCancel || (() => navigate('/admin/modules'))}>
             &larr; Back
           </button>
         </div>
@@ -327,7 +324,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                 <button type="submit" className="btn-primary" disabled={isSubmitting}>
                   {isSubmitting ? 'Creating...' : 'Create Assessment'}
                 </button>
-                                <button type="button" className="btn-secondary" onClick={onCancel || (() => navigate('/admin/modules'))}>
+                <button type="button" className="btn-secondary" onClick={onCancel || (() => navigate('/admin/modules'))}>
                   Cancel
                 </button>
               </div>

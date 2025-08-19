@@ -85,21 +85,18 @@ const A_Modules = () => {
         }
     };
 
-        const handleDeleteWorkstream = async (id) => {
+    const handleDeleteWorkstream = async (id) => {
         if (!window.confirm('Are you sure you want to delete this workstream and all its content? This action cannot be undone.')) {
             return;
         }
 
         setIsDeleting(id);
-        setError(null); // Clear previous errors
         try {
             await axios.delete(`${API_URL}/workstreams/${id}`);
-            fetchWorkstreams(); // Refetch data from server to ensure consistency
+            fetchWorkstreams();
         } catch (err) {
-            // Display more specific error message from backend
-            const errorMessage = err.response?.data?.error || 'An unexpected error occurred while deleting the workstream.';
-            setError(errorMessage);
-            console.error('Error deleting workstream:', err.response || err);
+            setError('Failed to delete workstream');
+            console.error('Error deleting workstream:', err);
         } finally {
             setIsDeleting(null);
         }

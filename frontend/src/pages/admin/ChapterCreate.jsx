@@ -1,7 +1,6 @@
 // File: components/ChapterCreate.jsx
 
 import React, { useState } from 'react';
-import { useWorkstream } from '../../context/WorkstreamContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
@@ -18,7 +17,6 @@ const ChapterCreate = () => {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { triggerRefresh } = useWorkstream();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +33,6 @@ const ChapterCreate = () => {
       await axios.post(`${API_URL}/chapters`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      triggerRefresh();
       navigate(`/admin/workstream/${workstreamId}/edit`);
     } catch (err) {
       setError('Failed to create chapter');
@@ -50,7 +47,7 @@ const ChapterCreate = () => {
       <AdminSidebar />
       <main className="chapter-create-main-content">
         <div className="chapter-create-header">
-                    <button className="back-button" onClick={() => navigate(`/admin/workstream/${workstreamId}/edit`)}>
+          <button className="back-button" onClick={() => navigate(`/admin/workstream/${workstreamId}/edit`)}>
             &larr; Back to Workstream
           </button>
         </div>
@@ -137,7 +134,7 @@ const ChapterCreate = () => {
               <button type="submit" className="btn-primary" disabled={isSubmitting}>
                 {isSubmitting ? 'Creating...' : 'Create Chapter'}
               </button>
-                            <button type="button" className="btn-secondary" onClick={() => navigate(`/admin/workstream/${workstreamId}/edit`)}>
+              <button type="button" className="btn-secondary" onClick={() => navigate(`/admin/workstream/${workstreamId}/edit`)}>
                 Cancel
               </button>
             </div>
