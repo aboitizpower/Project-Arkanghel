@@ -436,17 +436,16 @@
 }
 
 .card-ws-content .progress-bar-container {
-    height: 8px;
+    height: 12px;
     background-color: #e9ecef;
     border-radius: 6px;
     overflow: hidden;
-    width: 100%; /* Changed to 100% to respect parent padding */
-    margin: 0.25rem 0 0.5rem 0; /* Remove negative margins */
-    box-sizing: border-box;
+    width: 100%; 
+    margin: 0.25rem 0 0.5rem 0; 
     padding: 0; 
 }
 
-.progress-bar {
+.card-ws-content .progress-bar {
     height: 100%;
     border-radius: inherit;
     transition: width 0.3s;

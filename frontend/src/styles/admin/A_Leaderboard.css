@@ -31,7 +31,7 @@
   color: #1e293b;
 }
 
-.progress-bar-container {
+.admin-table-container .progress-bar-container {
   background: #e5e7eb;
   border-radius: 8px;
   height: 16px;
