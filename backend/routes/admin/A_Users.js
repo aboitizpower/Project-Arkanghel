@@ -55,14 +55,17 @@ router.get('/users', (req, res) => {
     
     const sql = `
         SELECT 
-            user_id as id, 
-            first_name, 
-            last_name, 
-            email, 
-            isAdmin, 
-            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
-        FROM users 
-        ORDER BY created_at DESC
+            u.user_id as id, 
+            u.first_name, 
+            u.last_name, 
+            u.email, 
+            u.isAdmin, 
+            DATE_FORMAT(u.created_at, '%Y-%m-%d %H:%i:%s') as created_at,
+            GROUP_CONCAT(uwp.workstream_id) as workstream_ids
+        FROM users u
+        LEFT JOIN user_workstream_permissions uwp ON u.user_id = uwp.user_id AND uwp.has_access = TRUE
+        GROUP BY u.user_id, u.first_name, u.last_name, u.email, u.isAdmin, u.created_at
+        ORDER BY u.created_at DESC
     `;
     
     req.db.query(sql, (err, results) => {
@@ -74,10 +77,18 @@ router.get('/users', (req, res) => {
             });
         }
         
+        // Process workstream_ids to convert comma-separated string to array
+        const processedResults = results.map(user => ({
+            ...user,
+            workstream_ids: user.workstream_ids ? 
+                user.workstream_ids.split(',').map(id => parseInt(id)) : 
+                []
+        }));
+        
         console.log(`Fetched ${results.length} users`);
         res.json({ 
             success: true, 
-            users: results 
+            users: processedResults 
         });
     });
 });
