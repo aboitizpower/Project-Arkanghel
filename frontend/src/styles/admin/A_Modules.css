@@ -1,5 +1,15 @@
 /* Cleaned A_Modules.css for modules overview page */
 
+.admin-table .th-title,
+.admin-table .workstream-title {
+  text-align: left;
+}
+
+.admin-table .th-chapters,
+.admin-table .chapters-count {
+  text-align: center !important;
+}
+
 .workstream-title {
   font-weight: 600;
   color: #1e293b;

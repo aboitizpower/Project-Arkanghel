@@ -135,55 +135,46 @@ router.get('/assessment-results', (req, res) => {
         const { workstream_id, chapter_id } = req.query;
 
         let sql = `
-        WITH QuestionCounts AS (
-            SELECT
-                assessment_id,
-                COUNT(question_id) AS total_questions
-            FROM questions
-            GROUP BY assessment_id
-        ),
-        UserScores AS (
+        WITH LatestScores AS (
             SELECT
                 ans.user_id,
                 q.assessment_id,
                 ans.answered_at,
-                SUM(ans.score) AS user_score
+                SUM(ans.score) AS user_score,
+                ROW_NUMBER() OVER(PARTITION BY ans.user_id, q.assessment_id ORDER BY ans.answered_at DESC) as rn
             FROM answers AS ans
             JOIN questions AS q ON ans.question_id = q.question_id
             GROUP BY ans.user_id, q.assessment_id, ans.answered_at
         ),
         AttemptCounts AS (
-            SELECT
-                user_id,
-                assessment_id,
-                COUNT(*) AS total_attempts
-            FROM UserScores
+            SELECT user_id, assessment_id, COUNT(*) AS total_attempts
+            FROM LatestScores
             GROUP BY user_id, assessment_id
         )
         SELECT
-            CONCAT(us.user_id, '-', us.assessment_id, '-', us.answered_at) AS result_id,
-            us.user_id,
+            CONCAT(ls.user_id, '-', ls.assessment_id) AS result_id,
+            ls.user_id,
             u.first_name,
             u.last_name,
             a.assessment_id,
             a.title AS assessment_title,
-            qc.total_questions,
+            a.total_points AS total_questions,
             a.passing_score,
-            us.user_score,
+            ls.user_score,
             ac.total_attempts,
-            us.answered_at AS completed_at,
-            (us.user_score >= a.passing_score) AS passed,
+            ls.answered_at AS completed_at,
+            (ls.user_score >= a.passing_score) AS passed,
             w.workstream_id,
             mc.chapter_id,
             w.title as workstream_title,
             mc.title as chapter_title
-        FROM UserScores AS us
-        JOIN users AS u ON us.user_id = u.user_id
-        JOIN assessments AS a ON us.assessment_id = a.assessment_id
+        FROM LatestScores AS ls
+        JOIN users AS u ON ls.user_id = u.user_id
+        JOIN assessments AS a ON ls.assessment_id = a.assessment_id
         LEFT JOIN module_chapters AS mc ON a.chapter_id = mc.chapter_id
         LEFT JOIN workstreams AS w ON mc.workstream_id = w.workstream_id
-        JOIN AttemptCounts AS ac ON us.user_id = ac.user_id AND us.assessment_id = ac.assessment_id
-        JOIN QuestionCounts AS qc ON a.assessment_id = qc.assessment_id
+        JOIN AttemptCounts AS ac ON ls.user_id = ac.user_id AND ls.assessment_id = ac.assessment_id
+        WHERE ls.rn = 1
         `;
 
         let whereClauses = [];
@@ -200,10 +191,10 @@ router.get('/assessment-results', (req, res) => {
         }
 
         if (whereClauses.length > 0) {
-            sql += ` WHERE ${whereClauses.join(' AND ')}`;
+            sql += ` AND ${whereClauses.join(' AND ')}`;
         }
 
-        sql += ' ORDER BY us.answered_at DESC;';
+        sql += ' ORDER BY ls.answered_at DESC;';
 
         const queryCallback = (err, results) => {
             if (err) {

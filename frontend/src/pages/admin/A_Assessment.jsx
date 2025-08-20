@@ -6,7 +6,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8081';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 6;
 
 const A_Assessment = () => {
   // Filters
