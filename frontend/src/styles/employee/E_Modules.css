@@ -343,8 +343,8 @@
 /* New Workstream Card Styles */
 .grid-container-ws {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Force 4 cards per row */
-    gap: 0.5rem; /* Smaller gap */
+    grid-template-columns: repeat(4, 1fr); /* Display 4 cards per row */
+    gap: 1rem; /* Adjusted gap */
     justify-items: center;
     align-content: flex-start; /* Align grid content to the top */
     flex-grow: 1; /* Allow grid to grow and fill available space */
@@ -368,6 +368,20 @@
 .card-ws:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-ws.inactive {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.card-ws.inactive:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card-ws.inactive .card-ws-image-container {
+    cursor: not-allowed;
 }
 
 .card-ws-image-container {

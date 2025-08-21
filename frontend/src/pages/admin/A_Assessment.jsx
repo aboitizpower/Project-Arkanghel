@@ -32,7 +32,7 @@ const A_Assessment = () => {
 
   // Table controls
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('date_taken');
+  const [sortBy, setSortBy] = useState('completed_at');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
 
@@ -136,9 +136,19 @@ const A_Assessment = () => {
       let vA = a[sortBy];
       let vB = b[sortBy];
 
-      if (sortBy === 'completed_at') { // Assuming 'completed_at' is the key for date
-        vA = vA ? new Date(vA) : 0;
-        vB = vB ? new Date(vB) : 0;
+      // Handle different data types for sorting
+      if (typeof vA === 'string' && typeof vB === 'string') {
+        // Case-insensitive string comparison
+        vA = vA.toLowerCase();
+        vB = vB.toLowerCase();
+      } else if (sortBy === 'completed_at') {
+        // Date comparison
+        vA = vA ? new Date(vA).getTime() : 0;
+        vB = vB ? new Date(vB).getTime() : 0;
+      } else if (sortBy === 'total_score') {
+        // Score is calculated as a percentage for sorting
+        vA = a.total_questions > 0 ? (a.user_score / a.total_questions) : 0;
+        vB = b.total_questions > 0 ? (b.user_score / b.total_questions) : 0;
       }
 
       if (vA < vB) return sortDir === 'asc' ? -1 : 1;
@@ -160,11 +170,22 @@ const A_Assessment = () => {
   const columns = [
     { key: 'employee', label: 'Employee Name', sort: false },
     { key: 'assessment_title', label: 'Assessment Title', sort: true },
-    { key: 'date_taken', label: 'Date Taken', sort: true },
+    { key: 'completed_at', label: 'Date Taken', sort: true },
     { key: 'total_score', label: 'Score', sort: true },
-    { key: 'num_attempts', label: 'Number of Attempts', sort: true },
-    { key: 'pass_fail', label: 'Pass/Fail', sort: true },
+    { key: 'total_attempts', label: 'Number of Attempts', sort: true },
+    { key: 'passed', label: 'Pass/Fail', sort: true },
   ];
+
+  const handleSort = (key) => {
+    if (!key) return;
+
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+  };
 
   // Render
   return (
@@ -202,48 +223,54 @@ const A_Assessment = () => {
           {/* Filters Row */}
           <div className="assessment-filters-row">
             <label className="assessment-filter-label">
-            Workstream:{' '}
+              Workstream:{' '}
               <select value={selectedWorkstream} onChange={e => { setSelectedWorkstream(e.target.value); setPage(1); }} className="assessment-filter-select">
-              <option value="">All</option>
-              {workstreams.map(ws => (
-                <option key={ws.workstream_id} value={ws.workstream_id} title={ws.title}>{ws.title}</option>
-              ))}
-            </select>
-          </label>
+                <option value="">All</option>
+                {workstreams.map(ws => (
+                  <option key={ws.workstream_id} value={ws.workstream_id} title={ws.title}>{ws.title}</option>
+                ))}
+              </select>
+            </label>
             <label className="assessment-filter-label">
-            Chapter:{' '}
+              Chapter:{' '}
               <select value={selectedChapter} onChange={e => { setSelectedChapter(e.target.value); setPage(1); }} disabled={!selectedWorkstream} className="assessment-filter-select">
-              <option value="">All</option>
-              {chapters.map(ch => (
-                <option key={ch.chapter_id} value={ch.chapter_id} title={ch.title}>{ch.title}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {/* Table */}
-        <div className="admin-table-container">
-          {loading ? (
-            <p style={{ padding: 32, textAlign: 'center' }}>Loading...</p>
-          ) : error ? (
-            <p style={{ color: 'red', padding: 32, textAlign: 'center' }}>{error}</p>
-          ) : (
-            <>
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Employee Name</th>
-                    <th>Assessment Title</th>
-                    <th>Date Taken</th>
-                    <th>Score</th>
-                    <th>Number of Attempts</th>
-                    <th>Pass/Fail</th>
-                  </tr>
-                </thead>
-                <tbody>
+                <option value="">All</option>
+                {chapters.map(ch => (
+                  <option key={ch.chapter_id} value={ch.chapter_id} title={ch.title}>{ch.title}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {/* Table */}
+          <div className="admin-table-container">
+            {loading ? (
+              <p style={{ padding: 32, textAlign: 'center' }}>Loading...</p>
+            ) : error ? (
+              <p style={{ color: 'red', padding: 32, textAlign: 'center' }}>{error}</p>
+            ) : (
+              <>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      {columns.map(col => (
+                        <th 
+                          key={col.key} 
+                          onClick={() => col.sort && handleSort(col.key)}
+                          className={col.sort ? 'sortable-header' : ''}
+                        >
+                          {col.label}
+                          {col.sort && sortBy === col.key && (
+                            <span className="sort-indicator">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
                   {paginatedResults.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
+                    <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
                   ) : paginatedResults.map((row, i) => (
-                    <tr key={row.result_id} className={i % 2 ? 'odd-row' : 'even-row'}>
+                    <tr key={row.result_id || i} className={i % 2 ? 'odd-row' : 'even-row'}>
                       <td>{row.first_name} {row.last_name}</td>
                       <td>{row.assessment_title}</td>
                       <td>{row.completed_at === 'N/A' ? 'N/A' : new Date(row.completed_at).toLocaleString()}</td>

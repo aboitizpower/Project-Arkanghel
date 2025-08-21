@@ -36,17 +36,17 @@
 .kpi-container {
   display: flex;
   gap: 1.5rem;
+  margin-bottom: 1rem;
 }
 
-.employee-dashboard-page .kpi-card {
+.kpi-card {
   display: flex;
   align-items: center;
   background-color: #ffffff;
-  padding: 1rem; /* Reduced padding */
+  padding: 1rem;
   border-radius: 10px;
-  margin-bottom: 1rem;
-  flex: 1; /* Allow cards to grow and share space */
-  height: 50px; /* Smaller height */
+  flex: 1;
+  height: 50px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s;
 }
@@ -56,27 +56,20 @@
 }
 
 .kpi-icon {
-  font-size: 1.5rem; /* Smaller icon */
-  margin-right: 1rem; /* Reduced margin */
-}
-
-.kpi-card.in-progress .kpi-icon {
+  font-size: 1.5rem;
+  margin-right: 1rem;
   color: #3b82f6; /* Blue 500 */
-}
-
-.kpi-card.completed .kpi-icon {
-  color: #10b981; /* Emerald 500 */
 }
 
 .kpi-info p {
   margin: 0;
-  font-size: 0.9rem; /* Smaller font */
+  font-size: 0.9rem;
   color: #4a5568;
   font-weight: 600;
 }
 
 .kpi-info span {
-  font-size: 1.25rem; /* Smaller font */
+  font-size: 1.25rem;
   font-weight: 800;
   color: #1a202c;
 }

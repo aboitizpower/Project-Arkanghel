@@ -23,6 +23,7 @@ const E_Modules = () => {
     const [error, setError] = useState('');
     const [userId, setUserId] = useState(null);
 
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const workstreamsPerPage = 8;
@@ -90,8 +91,11 @@ const E_Modules = () => {
     };
 
     useEffect(() => {
-        fetchWorkstreams();
-    }, [userId]);
+        if (userId) {
+            fetchWorkstreams();
+        }
+    }, [userId, fetchWorkstreams]);
+
 
     const fetchChapters = async (workstreamId) => {
         if (!userId) return;
@@ -133,7 +137,9 @@ const E_Modules = () => {
     };
 
     const handleSelectWorkstream = async (workstream) => {
-        if (!userId) return;
+        const hasContent = workstream.regular_chapters_count > 0 || workstream.assessments_count > 0;
+        if (!userId || !hasContent) return;
+
 
         setIsLoading(true);
         try {
@@ -343,7 +349,7 @@ const E_Modules = () => {
                     {currentWorkstreams.map((ws) => {
                         const progress = ws.chapters_count > 0 ? Math.round(ws.progress || 0) : 0;
                         const isCompleted = progress === 100;
-                        const hasContent = ws.chapters_count > 0;
+                        const hasContent = ws.regular_chapters_count > 0 || ws.assessments_count > 0;
 
                         let actionButton;
                         if (!hasContent) {
@@ -357,15 +363,15 @@ const E_Modules = () => {
                         }
 
                         return (
-                            <div key={ws.workstream_id} className="card-ws">
-                                <div className="card-ws-image-container" onClick={() => hasContent && handleSelectWorkstream(ws)}>
+                            <div key={ws.workstream_id} className={`card-ws ${!hasContent ? 'inactive' : ''}`} onClick={() => hasContent && handleSelectWorkstream(ws)}>
+                                <div className="card-ws-image-container">
                                     {ws.image_type ? 
                                         <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
                                         <div className="card-ws-image-placeholder"></div>
                                     }
                                 </div>
                                 <div className="card-ws-content">
-                                    <h3 className="card-ws-title" onClick={() => hasContent && handleSelectWorkstream(ws)}>{ws.title}</h3>
+                                    <h3 className="card-ws-title">{ws.title}</h3>
                                     <div className="card-ws-stats">
                                         <span>{ws.regular_chapters_count || 0} Chapters</span>
                                         <span>•</span>
@@ -561,11 +567,13 @@ const E_Modules = () => {
         <div className="e-modules-page">
             {!selectedWorkstream && <EmployeeSidebar />}
             <main className={`modules-main-content ${selectedWorkstream ? 'module-view-active' : ''}`}>
-                <LoadingOverlay loading={isLoading} />
-                {error && <p className="error-message">{error}</p>}
-                {!isLoading && !error && (
-                    selectedWorkstream ? renderModuleView() : renderWorkstreamView()
-                )}
+                <div className="e-modules-main-content">
+                    {isLoading && <LoadingOverlay />}
+                    {error && <p className="error-message">{error}</p>}
+
+
+                    {selectedWorkstream ? renderModuleView() : renderWorkstreamView()}
+                </div>
             </main>
         </div>
     );
