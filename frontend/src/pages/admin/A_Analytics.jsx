@@ -67,12 +67,12 @@ const A_Analytics = () => {
                 }
                 break;
             case 'quarterly':
-                 const currentQuarter = Math.floor(now.getMonth() / 3);
-                 for (let i = 2; i >= 0; i--) {
-                    const month = currentQuarter * 3 + i;
-                    const d = new Date(now.getFullYear(), month, 1);
+                // Show last 3 months
+                for (let i = 2; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(now.getMonth() - i);
                     const monthString = toLocalMonthString(d);
-                    result.unshift({
+                    result.push({
                         date: d.toLocaleDateString('en-US', { month: 'short' }),
                         value: dataMap.get(monthString) || 0
                     });
@@ -113,7 +113,7 @@ const A_Analytics = () => {
                 ] = await Promise.all([
                     axios.get(`${API_URL}/admin/analytics/kpis`, { params: { workstreamId: selectedWorkstream === 'all' ? null : selectedWorkstream } }),
                     axios.get(`${API_URL}/admin/analytics/engagement`, { params: { range: selectedTimeRange } }),
-                    axios.get(`${API_URL}/leaderboard`),
+                    axios.get(`${API_URL}/admin/leaderboard`),
                     axios.get(`${API_URL}/admin/analytics/assessment-tracker`),
                     axios.get(`${API_URL}/admin/analytics/critical-areas`),
                     axios.get(`${API_URL}/workstreams`)
@@ -124,7 +124,7 @@ const A_Analytics = () => {
                 setTopUsers(leaderboardRes.data.slice(0, 5));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
-                setWorkstreams(workstreamsRes.data.workstreams);
+                setWorkstreams(workstreamsRes.data || []);
 
             } catch (error) {
                 console.error("Failed to fetch analytics data:", error);
@@ -224,23 +224,23 @@ const A_Analytics = () => {
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Top User Tracker - Row 2 */}
-                    <div className="analytics-paper top-user-card">
-                        <h3 className="analytics-title">Top User Completed Tracker</h3>
-                         {topUsers.map(user => (
+                    {/* Top Users Leaderboard - Row 2 */}
+                    <div className="analytics-paper leaderboard-card">
+                        <h3 className="analytics-title">Top Users</h3>
+                        {topUsers.map(user => (
                             <div key={user.user_id} className="leaderboard-item">
                                 <span>{user.first_name} {user.last_name}</span>
                                 <div className="leaderboard-progress">
-                                    <div className="leaderboard-progress-bar" style={{ width: `${user.overall_progress}%` }}></div>
+                                    <div className="leaderboard-progress-bar" style={{ width: `${user.average_progress || user.progress_percent || 0}%` }}></div>
                                 </div>
-                                <span>{Math.round(user.overall_progress)}%</span>
+                                <span>{Math.round(user.average_progress || user.progress_percent || 0)}%</span>
                             </div>
                         ))}
                     </div>
 
                     {/* Assessment Tracker - Row 3 */}
                     <div className="analytics-paper assessment-tracker-card">
-                         <h3 className="analytics-title">Training Module Assessment Tracker</h3>
+                        <h3 className="analytics-title">Assessment Tracker</h3>
                         <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={assessmentTracker} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" />

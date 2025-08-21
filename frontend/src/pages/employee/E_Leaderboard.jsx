@@ -16,7 +16,7 @@ const E_Leaderboard = () => {
     useEffect(() => {
         const fetchLeaderboard = async () => {
             try {
-                const response = await axios.get('http://localhost:8081/leaderboard');
+                const response = await axios.get('http://localhost:8081/employee/leaderboard');
                 setLeaderboardData(response.data);
             } catch (err) {
                 setError('Failed to fetch leaderboard data. Please try again later.');
@@ -70,14 +70,14 @@ const E_Leaderboard = () => {
                                             <div className="progress-bar-container">
                                                 <div 
                                                     className="progress-bar"
-                                                    style={{ width: `${user.overall_progress}%` }}
+                                                    style={{ width: `${user.average_progress || 0}%` }}
                                                 ></div>
                                             </div>
-                                            <span className="progress-text">{`${user.overall_progress.toFixed(2)}%`}</span>
+                                            <span className="progress-text">{`${(user.average_progress || 0).toFixed(2)}%`}</span>
                                         </td>
                                         <td className="status-cell">
-                                            <span className={`status-badge ${user.overall_progress === 100 ? 'status-completed' : 'status-pending'}`}>
-                                                {user.overall_progress === 100 ? 'Completed' : 'Pending'}
+                                            <span className={`status-badge ${user.status === 'Completed' ? 'status-completed' : 'status-pending'}`}>
+                                                {user.status || 'Pending'}
                                             </span>
                                         </td>
                                     </tr>

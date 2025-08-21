@@ -92,10 +92,14 @@ router.get('/employee/workstreams', (req, res) => {
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
         WHERE w.is_published = TRUE
+          AND (
+            NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ?)
+            OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ? AND uwp.workstream_id = w.workstream_id AND uwp.has_access = TRUE)
+          )
         ORDER BY w.created_at DESC
     `;
 
-    req.db.query(sql, [userId, userId], (err, results) => {
+    req.db.query(sql, [userId, userId, userId, userId], (err, results) => {
         if (err) {
             console.error('Error fetching workstreams:', err);
             return res.status(500).json({ 
@@ -134,9 +138,13 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
             w.created_at
         FROM workstreams w
         WHERE w.workstream_id = ? AND w.is_published = TRUE
+          AND (
+            NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ?)
+            OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ? AND uwp.workstream_id = w.workstream_id AND uwp.has_access = TRUE)
+          )
     `;
 
-    req.db.query(workstreamSql, [workstreamId], (err, workstreamResults) => {
+    req.db.query(workstreamSql, [workstreamId, userId, userId], (err, workstreamResults) => {
         if (err) {
             console.error('Error fetching workstream:', err);
             return res.status(500).json({

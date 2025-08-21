@@ -137,12 +137,14 @@ const A_Users = () => {
 
   // Helper to get summary for a user
   const getUserWsSummary = (user) => {
-    const userWorkstreams = workstreams.filter(w => user.workstream_ids?.includes(w.workstream_id));
-    if (!user.workstream_ids || user.workstream_ids.length === 0) {
-        return `${workstreams.length} Workstreams`;
+    // If user has specific workstream permissions set
+    if (user.workstream_ids && user.workstream_ids.length > 0) {
+      const userWorkstreams = workstreams.filter(w => user.workstream_ids.includes(w.workstream_id));
+      if (userWorkstreams.length > 2) return `${userWorkstreams.length} Workstreams`;
+      return userWorkstreams.map(w => w.title).join(', ');
     }
-    if (userWorkstreams.length > 2) return `${userWorkstreams.length} Workstreams`;
-    return userWorkstreams.map(w => w.title).join(', ');
+    // If no specific permissions are set, user has access to all workstreams
+    return `${workstreams.length} Workstreams (All)`;
   };
 
   const filteredUsers = users.filter(user => {

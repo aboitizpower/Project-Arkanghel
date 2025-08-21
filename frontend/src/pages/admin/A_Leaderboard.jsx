@@ -5,6 +5,8 @@ import '../../styles/admin/AdminCommon.css';
 import '../../styles/admin/A_Leaderboard.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
+const API_URL = 'http://localhost:8081';
+
 const A_Leaderboard = () => {
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -23,17 +25,17 @@ const A_Leaderboard = () => {
             try {
                 let response;
                 if (selectedWorkstream) {
-                    response = await axios.get(`http://localhost:8081/leaderboard/workstream/${selectedWorkstream}`);
+                    response = await axios.get(`http://localhost:8081/admin/leaderboard/workstream/${selectedWorkstream}`);
                 } else {
-                    response = await axios.get('http://localhost:8081/leaderboard');
+                    response = await axios.get('http://localhost:8081/admin/leaderboard');
                 }
                 setLeaderboardData(response.data);
                 setError(null);
                 console.log('Fetched leaderboardData:', response.data); // DEBUG
             } catch (err) {
-                // Instead of showing error, show empty leaderboard with 0% progress
-                setLeaderboardData([]);
-                setError(null);
+                console.error('Leaderboard fetch error:', err);
+                console.error('Error response:', err.response?.data);
+                console.error('Error status:', err.response?.status);
             } finally {
                 setIsLoading(false);
             }
@@ -110,12 +112,13 @@ const A_Leaderboard = () => {
                                 <th className="user-col">Employee</th>
                                 <th className="progress-col" style={{ minWidth: '180px', maxWidth: '260px' }}>Progress</th>
                                 <th className="status-col">Workstreams</th>
+                                <th className="status-col">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>No data available</td>
+                                    <td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>No data available</td>
                                 </tr>
                             ) : (
                                 currentUsers.map((user, idx) => (
@@ -134,6 +137,11 @@ const A_Leaderboard = () => {
                                         <td className="status-cell">
                                             <span className="workstreams-completed">
                                                 {user.workstreams_with_progress ?? 0}/{user.total_workstreams ?? 0}
+                                            </span>
+                                        </td>
+                                        <td className="status-cell">
+                                            <span className={`status-badge ${user.status?.toLowerCase()}`}>
+                                                {user.status ?? 'Pending'}
                                             </span>
                                         </td>
                                     </tr>

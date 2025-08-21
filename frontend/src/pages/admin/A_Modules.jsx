@@ -175,9 +175,9 @@ const A_Modules = () => {
                         <table className="admin-table">
                             <thead>
                                 <tr>
-                                    <th>Title</th>
+                                    <th className="th-title">Title</th>
                                     <th>Description</th>
-                                    <th>Chapters</th>
+                                    <th className="th-chapters">Chapters</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>

@@ -32,6 +32,7 @@
     width: 100%;
 }
 
+
 .assessment-header {
     display: flex;
     align-items: center;
@@ -232,6 +233,7 @@
 
 .question-card-new {
     background-color: #ffffff;
+    margin: auto;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 40px;
