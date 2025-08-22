@@ -58,55 +58,168 @@ router.get('/dashboard/:userId', (req, res) => {
             
             const user = userResults[0];
             
-            // 2. Get workstreams with progress data
+            // 2. Get workstreams with progress data (using E_Modules logic)
             const workstreamsSql = `
                 SELECT 
-                    w.workstream_id as id,
+                    w.workstream_id,
                     w.title,
                     w.description,
                     w.image_type,
-                    w.created_at,
-                    COUNT(DISTINCT mc.chapter_id) as total_chapters,
-                    COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) as completed_chapters,
-                    CASE 
-                        WHEN COUNT(DISTINCT mc.chapter_id) = 0 THEN 0
-                        ELSE ROUND((COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN mc.chapter_id END) * 100.0) / 
-                               COUNT(DISTINCT mc.chapter_id), 2)
-                    END as progress,
-                    MAX(up.updated_at) as last_activity
+                    (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) as chapters_count,
+                    (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
+                    (
+                        SELECT COUNT(DISTINCT a.assessment_id) 
+                        FROM assessments a
+                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                        WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE
+                    ) as assessments_count,
+                    COALESCE((
+                        SELECT 
+                            CASE 
+                                WHEN total_items = 0 THEN 0
+                                ELSE (completed_items * 100.0) / total_items
+                            END
+                        FROM (
+                            SELECT 
+                                -- Count completed chapters
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT up.chapter_id)
+                                    FROM user_progress up
+                                    JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                                    WHERE up.user_id = ? 
+                                      AND mc.workstream_id = w.workstream_id 
+                                      AND up.is_completed = TRUE
+                                      AND mc.is_published = TRUE
+                                ), 0) +
+                                -- Count passed assessments (75% passing threshold)
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT a.assessment_id)
+                                    FROM assessments a
+                                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                      AND EXISTS (
+                                          SELECT 1
+                                          FROM answers ans
+                                          JOIN questions q ON ans.question_id = q.question_id
+                                          WHERE q.assessment_id = a.assessment_id 
+                                            AND ans.user_id = ?
+                                          GROUP BY q.assessment_id
+                                          HAVING (SUM(ans.score) * 100.0 / COUNT(q.question_id)) >= 75
+                                      )
+                                ), 0) as completed_items,
+                                -- Total chapters + assessments
+                                COALESCE((
+                                    SELECT COUNT(*) 
+                                    FROM module_chapters mc 
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                ), 0) +
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT a.assessment_id) 
+                                    FROM assessments a 
+                                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                ), 0) as total_items
+                        ) as progress_calc
+                    ), 0) as progress,
+                    (
+                        SELECT 
+                            CASE 
+                                WHEN total_items = 0 THEN FALSE
+                                ELSE completed_items = total_items
+                            END
+                        FROM (
+                            SELECT 
+                                -- Count completed chapters
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT up.chapter_id)
+                                    FROM user_progress up
+                                    JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                                    WHERE up.user_id = ? 
+                                      AND mc.workstream_id = w.workstream_id 
+                                      AND up.is_completed = TRUE
+                                      AND mc.is_published = TRUE
+                                ), 0) +
+                                -- Count passed assessments (75% passing threshold)
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT a.assessment_id)
+                                    FROM assessments a
+                                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                      AND EXISTS (
+                                          SELECT 1
+                                          FROM answers ans
+                                          JOIN questions q ON ans.question_id = q.question_id
+                                          WHERE q.assessment_id = a.assessment_id 
+                                            AND ans.user_id = ?
+                                          GROUP BY q.assessment_id
+                                          HAVING (SUM(ans.score) * 100.0 / COUNT(q.question_id)) >= 75
+                                      )
+                                ), 0) as completed_items,
+                                -- Total chapters + assessments
+                                COALESCE((
+                                    SELECT COUNT(*) 
+                                    FROM module_chapters mc 
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                ), 0) +
+                                COALESCE((
+                                    SELECT COUNT(DISTINCT a.assessment_id) 
+                                    FROM assessments a 
+                                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                                    WHERE mc.workstream_id = w.workstream_id 
+                                      AND mc.is_published = TRUE
+                                ), 0) as total_items
+                        ) as completion_calc
+                    ) as is_completed
                 FROM workstreams w
-                LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id 
-                    AND mc.is_published = TRUE
-                    AND mc.title NOT LIKE '%Final Assessment%'
-                LEFT JOIN user_progress up ON (mc.chapter_id = up.chapter_id AND up.user_id = ?)
                 WHERE w.is_published = TRUE
-                GROUP BY w.workstream_id, w.title, w.description, w.image_type, w.created_at
-                ORDER BY last_activity DESC, w.title ASC
+                  AND (
+                    NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ?)
+                    OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ? AND uwp.workstream_id = w.workstream_id AND uwp.has_access = TRUE)
+                  )
+                ORDER BY w.created_at DESC
             `;
             
-            req.db.query(workstreamsSql, [userId], (wsErr, workstreamsResults) => {
+            req.db.query(workstreamsSql, [userId, userId, userId, userId, userId, userId], (wsErr, workstreamsResults) => {
                 if (wsErr) {
-                    console.error('[ERROR] Error fetching workstreams:', wsErr);
+                    console.error('[ERROR] Detailed error fetching workstreams:', wsErr);
                     return req.db.rollback(() => {
                         res.status(500).json({
                             success: false,
-                            error: 'Failed to fetch workstreams. Please try again.'
+                            error: 'Failed to fetch workstreams. Please try again.',
+                            details: wsErr.message
                         });
                     });
                 }
                 
                 console.log(`[INFO] Found ${workstreamsResults.length} workstreams for user ${userId}`);
                 
-                // 3. Calculate KPIs
-                let totalModules = 0;
-                let completedModules = 0;
+                // 3. Calculate KPIs based on workstream data
+                let totalWorkstreams = workstreamsResults.length;
+                let completedWorkstreams = workstreamsResults.filter(ws => ws.is_completed === 1).length;
+                let inProgressWorkstreams = workstreamsResults.filter(ws => ws.progress > 0 && ws.progress < 100).length;
+                
+                // Calculate total chapters and assessments across all workstreams
+                let totalChapters = 0;
+                let totalAssessments = 0;
+                
+                workstreamsResults.forEach(ws => {
+                    totalChapters += ws.chapters_count || 0;
+                    totalAssessments += ws.assessments_count || 0;
+                });
+                
+                const totalModules = totalChapters + totalAssessments;
+                
+                // Calculate average progress
                 let totalProgress = 0;
                 let activeWorkstreams = 0;
                 
                 workstreamsResults.forEach(ws => {
-                    totalModules += ws.total_chapters || 0;
-                    completedModules += ws.completed_chapters || 0;
-                    if (ws.total_chapters > 0) {
+                    if (ws.chapters_count > 0 || ws.assessments_count > 0) {
                         totalProgress += ws.progress || 0;
                         activeWorkstreams++;
                     }
@@ -115,8 +228,6 @@ router.get('/dashboard/:userId', (req, res) => {
                 const averageProgress = activeWorkstreams > 0 
                     ? Math.round(totalProgress / activeWorkstreams) 
                     : 0;
-                
-                const pendingModules = Math.max(0, totalModules - completedModules);
                 
                 // 4. Get recent activity
                 const activitySql = `
@@ -209,16 +320,17 @@ router.get('/dashboard/:userId', (req, res) => {
                                     member_since: user.created_at
                                 },
                                 kpis: {
-                                    total_workstreams: workstreamsResults.length,
+                                    total_workstreams: totalWorkstreams,
                                     total_modules: totalModules,
-                                    completed_modules: completedModules,
-                                    pending_modules: pendingModules,
+                                    completed_modules: 0, // This would need additional calculation if needed
+                                    pending_modules: 0, // This would need additional calculation if needed
                                     average_progress: averageProgress,
-                                    active_workstreams: activeWorkstreams
+                                    active_workstreams: inProgressWorkstreams,
+                                    completed_workstreams: completedWorkstreams
                                 },
                                 workstreams: workstreamsResults.map(ws => ({
                                     ...ws,
-                                    id: ws.id,
+                                    id: ws.workstream_id,
                                     image_url: ws.image_type ? `/workstreams/${ws.id}/image` : null,
                                     last_activity: ws.last_activity || null,
                                     is_started: ws.completed_chapters > 0

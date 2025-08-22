@@ -442,6 +442,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.card-ws-progress .progress-percentage {
+    text-align: right;
     width: 100%;
     margin-top: 0.5rem;
     font-size: 0.75rem;
@@ -461,12 +465,11 @@
 
 .card-ws-content .progress-bar {
     height: 100%;
-    border-radius: inherit;
-    transition: width 0.3s;
-    width: 100%;
+    background: linear-gradient(90deg, #2196f3 0%, #21cbf3 100%);
+    border-radius: 6px;
+    transition: width 0.4s ease;
     min-width: 0;
     box-sizing: border-box;
-    background-color: #2563eb; /* Blue progress color */
 }
 
 .card-ws-action {

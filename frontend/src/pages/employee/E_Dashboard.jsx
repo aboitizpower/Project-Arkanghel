@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Dashboard.css'; // Dashboard-specific styles
@@ -9,30 +10,34 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 const API_URL = 'http://localhost:8081';
 
 const E_Dashboard = () => {
-        const [workstreams, setWorkstreams] = useState([]);
+  const [workstreams, setWorkstreams] = useState([]);
   const [kpiMetrics, setKpiMetrics] = useState({ inProgress: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userName, setUserName] = useState('');
   const userId = localStorage.getItem('userId');
+  const navigate = useNavigate();
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const workstreamsPerPage = 8;
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user && user.first_name) {
-        setUserName(user.first_name);
-    }
     if (userId) {
       const fetchDashboardData = async () => {
         try {
-                    const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
-          setWorkstreams(response.data);
+          const response = await axios.get(`${API_URL}/employee/dashboard/${userId}`);
+          setWorkstreams(response.data.workstreams);
+          setKpiMetrics({
+            inProgress: response.data.kpis.active_workstreams,
+            completed: response.data.kpis.completed_workstreams
+          });
+          setUserName(response.data.user.name);
         } catch (err) {
-          setError('Failed to fetch dashboard data.');
-          console.error(err);
+          console.error('Full API Error:', err);
+          const errorMessage = err.response?.data?.details || err.response?.data?.error || err.message || 'Failed to fetch dashboard data.';
+          setError(errorMessage);
+          console.error('Error fetching dashboard data:', err);
         } finally {
           setLoading(false);
         }
@@ -42,13 +47,11 @@ const E_Dashboard = () => {
       setError('You must be logged in to view this page.');
       setLoading(false);
     }
-    }, [userId]);
+  }, [userId]);
 
-  useEffect(() => {
-    const inProgress = workstreams.filter(ws => ws.progress > 0 && ws.progress < 100).length;
-    const completed = workstreams.filter(ws => ws.progress === 100).length;
-    setKpiMetrics({ inProgress, completed });
-  }, [workstreams]);
+  const startIndex = (currentPage - 1) * workstreamsPerPage;
+  const endIndex = startIndex + workstreamsPerPage;
+  const currentWorkstreams = workstreams.slice(startIndex, endIndex);
 
   return (
     <div className="employee-dashboard-page">
@@ -65,7 +68,7 @@ const E_Dashboard = () => {
         
         {!loading && !error && (
           <>
-                        <div className="kpi-container">
+            <div className="kpi-container">
               <div className="kpi-card in-progress">
                 <FaHourglassHalf className="kpi-icon" />
                 <div className="kpi-info">
@@ -82,58 +85,49 @@ const E_Dashboard = () => {
               </div>
             </div>
 
-            {(() => {
-                const startIndex = (currentPage - 1) * workstreamsPerPage;
-                const endIndex = startIndex + workstreamsPerPage;
-                const currentWorkstreams = workstreams.slice(startIndex, endIndex);
+            <div className="grid-container-ws">
+              {currentWorkstreams.map(ws => {
+                  const progress = Math.round(ws.progress || 0);
+                  const hasContent = ws.chapters_count > 0 || ws.assessments_count > 0;
 
-                return (
-                    <div className="grid-container-ws">
-                        {currentWorkstreams.map(ws => {
-                            const progress = ws.chapters_count > 0 ? Math.round(ws.progress || 0) : 0;
-                            const isCompleted = progress === 100;
-                            const hasContent = ws.chapters_count > 0 || ws.assessments_count > 0;
-
-                            return (
-                                <div 
-                                    key={ws.workstream_id} 
-                                    className={`card-ws ${!hasContent ? 'inactive' : ''}`}
-                                                                    >
-                                    <div className="card-ws-image-container">
-                                        {ws.image_type ? 
-                                            <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
-                                            <div className="card-ws-image-placeholder"></div>
-                                        }
-                                    </div>
-                                    <div className="card-ws-content">
-                                        <h3 className="card-ws-title">{ws.title}</h3>
-                                        <div className="card-ws-stats">
-                                            <span>{ws.chapters_count || 0} Chapters</span>
-                                            <span>•</span>
-                                            <span>{ws.assessments_count || 0} Assessments</span>
-                                        </div>
-                                        {hasContent ? (
-                                            <>
-                                                <div className="card-ws-progress">
-                                                    <span className="progress-label">Progress</span>
-                                                    <span className="progress-percentage">{progress}%</span>
-                                                </div>
-                                                <div className="progress-bar-container">
-                                                    <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="no-content-container">
-                                                <p>No content available</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })()}
+                  return (
+                      <div 
+                          key={ws.workstream_id} 
+                          className={`card-ws ${!hasContent ? 'inactive' : ''}`}
+                          onClick={() => hasContent && navigate(`/employee/workstreams/${ws.workstream_id}`)}
+                      >
+                          <div className="card-ws-image-container">
+                              {ws.image_type ? 
+                                  <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
+                                  <div className="card-ws-image-placeholder"></div>
+                              }
+                          </div>
+                          <div className="card-ws-content">
+                              <h3 className="card-ws-title">{ws.title}</h3>
+                              <div className="card-ws-footer">
+                                  <p>{ws.chapters_count} Chapters • {ws.assessments_count} Assessments</p>
+                                  {hasContent ? (
+                                      <>
+                                          <div className="card-ws-progress">
+                                              <span className="progress-label">Progress</span>
+                                              <span className="progress-percentage">{progress}%</span>
+                                              {ws.is_completed && <FaCheckCircle className="completed-icon" />}
+                                          </div>
+                                          <div className="progress-bar-container">
+                                              <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                                          </div>
+                                      </>
+                                  ) : (
+                                      <div className="no-content-container">
+                                          <p>No content available</p>
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  );
+              })}
+            </div>
 
             {/* Pagination Controls */}
             {Math.ceil(workstreams.length / workstreamsPerPage) > 1 && (

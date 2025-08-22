@@ -65,7 +65,7 @@ app.use('/', eModulesRoutes)        // E_Modules.jsx
 app.use('/', viewModulesRoutes)     // ViewModules.jsx
 app.use('/', takeAssessmentsRoutes) // TakeAssessments.jsx
 app.use('/', eAssessmentsRoutes)    // E_Assessments.jsx
-app.use('/', eDashboardRoutes)      // E_Dashboard.jsx
+app.use('/employee', eDashboardRoutes)      // E_Dashboard.jsx
 app.use('/', eLeaderboardRoutes)    // E_Leaderboard.jsx
 
 // Start server
