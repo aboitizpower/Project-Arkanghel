@@ -20,6 +20,7 @@ const ViewModules = () => {
     const [currentContentView, setCurrentContentView] = useState('video'); // 'video' or 'pdf'
     const [completedChapters, setCompletedChapters] = useState(new Set());
     const [hasHandledRefreshNavigation, setHasHandledRefreshNavigation] = useState(false);
+    const [showAssessmentModal, setShowAssessmentModal] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -164,7 +165,7 @@ const ViewModules = () => {
             
             // Check if current chapter has assessment and if it's passed
             if (assessmentForCurrentChapter && !isAssessmentPassed) {
-                alert('You must pass the assessment for this chapter before proceeding to the next one.');
+                setShowAssessmentModal(true);
                 return;
             }
             
@@ -526,6 +527,28 @@ const ViewModules = () => {
                         <button onClick={handleBackToWorkstreams} className="btn-back">
                             <FaArrowLeft /> Back to Modules
                         </button>
+                    </div>
+                )}
+                
+                {/* Assessment Required Modal */}
+                {showAssessmentModal && (
+                    <div className="modal-overlay" onClick={() => setShowAssessmentModal(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Assessment Required</h3>
+                            </div>
+                            <div className="modal-body">
+                                <p>You must pass the assessment for this chapter before proceeding to the next one.</p>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    className="btn-modal-close" 
+                                    onClick={() => setShowAssessmentModal(false)}
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>
