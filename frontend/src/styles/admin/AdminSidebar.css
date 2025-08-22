@@ -75,7 +75,6 @@
   border-radius: 7px;
   margin-bottom: 0.3em;
   transition: background 0.18s, color 0.18s, border-left 0.18s;
-  background: transparent;
   border-left: 4px solid transparent;
   box-shadow: none;
   letter-spacing: 0.01em;
@@ -206,7 +205,6 @@
 .admin-main,
 .admin-table-container,
 .leaderboard-main-content,
-.page-header,
 .table-container {
   position: relative !important;
   z-index: 1 !important;
