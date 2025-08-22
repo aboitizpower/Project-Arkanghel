@@ -10,7 +10,7 @@ import E_Modules from './pages/employee/E_Modules';
 import ViewModules from './pages/employee/ViewModules';
 import TakeAssessments from './pages/employee/TakeAssessment';
 import E_Leaderboard from './pages/employee/E_Leaderboard';
-import E_Assessments from './pages/employee/E_AssessmentResults';
+import E_Assessments from './pages/employee/E_Assessment';
 
 import A_Analytics from './pages/admin/A_Analytics';
 import A_Modules from './pages/admin/A_Modules';
