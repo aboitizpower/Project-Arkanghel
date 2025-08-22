@@ -31,20 +31,187 @@ router.get('/admin/analytics/kpis', (req, res) => {
                 // Query 3: Calculate progress - simplified approach
                 let progressQuery, progressParams = [];
                 
-                if (workstreamId && workstreamId !== 'null' && workstreamId !== '') {
-                    // SPECIFIC WORKSTREAM: Calculate progress manually like leaderboard does
+                if (workstreamId && workstreamId !== 'all') {
+                    // SPECIFIC WORKSTREAM: Count users who have 100% progress in THIS specific workstream
                     progressQuery = `
                         SELECT 
                             COUNT(CASE WHEN user_progress >= 100 THEN 1 END) as completed,
-                            COUNT(CASE WHEN user_progress < 100 THEN 1 END) as pending
+                            COUNT(CASE WHEN user_progress < 100 OR user_progress IS NULL THEN 1 END) as pending
                         FROM (
                             SELECT 
                                 u.user_id,
                                 CASE 
                                     WHEN total_items = 0 THEN 100
-                                    ELSE (completed_items * 100.0 / total_items)
+                                    ELSE COALESCE((completed_items * 100.0 / total_items), 0)
                                 END as user_progress
                             FROM users u
+                            CROSS JOIN (
+                                SELECT 
+                                    COUNT(DISTINCT mc.chapter_id) + COUNT(DISTINCT a.assessment_id) as total_items
+                                FROM module_chapters mc
+                                LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
+                                WHERE mc.workstream_id = ? AND mc.is_published = TRUE
+                            ) totals
+                            LEFT JOIN (
+                                SELECT 
+                                    u.user_id,
+                                    COUNT(DISTINCT completed_chapters.chapter_id) + COUNT(DISTINCT passed_assessments.assessment_id) as completed_items
+                                FROM users u
+                                LEFT JOIN (
+                                    SELECT up.user_id, up.chapter_id
+                                    FROM user_progress up
+                                    JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                                    WHERE up.is_completed = TRUE 
+                                      AND mc.workstream_id = ? 
+                                      AND mc.is_published = TRUE
+                                ) completed_chapters ON u.user_id = completed_chapters.user_id
+                                LEFT JOIN (
+                                    SELECT DISTINCT ans.user_id, a.assessment_id
+                                    FROM answers ans
+                                    JOIN questions q ON ans.question_id = q.question_id
+                                    JOIN assessments a ON q.assessment_id = a.assessment_id
+                                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                                    WHERE mc.workstream_id = ? 
+                                      AND mc.is_published = TRUE
+                                    GROUP BY ans.user_id, a.assessment_id
+                                    HAVING (SUM(ans.score) / COUNT(q.question_id)) >= 0.75
+                                ) passed_assessments ON u.user_id = passed_assessments.user_id
+                                WHERE u.isAdmin = FALSE
+                                GROUP BY u.user_id
+                            ) progress_calc ON u.user_id = progress_calc.user_id
+                            WHERE u.isAdmin = FALSE
+                              AND (
+                                NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id)
+                                OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id AND uwp.workstream_id = ? AND uwp.has_access = TRUE)
+                              )
+                        ) user_workstream_progress
+                    `;
+                    progressParams = [workstreamId, workstreamId, workstreamId, workstreamId];
+                } else {
+                    // ALL WORKSTREAMS: User is completed only if they have 100% on ALL available workstreams
+                    progressQuery = `
+                        SELECT 
+                            COUNT(CASE WHEN all_workstreams_complete = 1 THEN 1 END) as completed,
+                            COUNT(CASE WHEN all_workstreams_complete = 0 THEN 1 END) as pending
+                        FROM (
+                            SELECT 
+                                u.user_id,
+                                CASE 
+                                    WHEN COUNT(CASE WHEN COALESCE(workstream_progress, 0) < 100 THEN 1 END) = 0 
+                                         AND COUNT(ws.workstream_id) > 0 
+                                    THEN 1 
+                                    ELSE 0 
+                                END as all_workstreams_complete
+                            FROM users u
+                            LEFT JOIN (
+                                SELECT 
+                                    u.user_id,
+                                    ws.workstream_id,
+                                    CASE 
+                                        WHEN total_items = 0 THEN 100
+                                        ELSE COALESCE((completed_items * 100.0 / total_items), 0)
+                                    END as workstream_progress
+                                FROM users u
+                                CROSS JOIN workstreams ws
+                                LEFT JOIN (
+                                    SELECT 
+                                        u.user_id,
+                                        ws.workstream_id,
+                                        COUNT(DISTINCT completed_chapters.chapter_id) + COUNT(DISTINCT passed_assessments.assessment_id) as completed_items,
+                                        (
+                                            SELECT COUNT(DISTINCT mc.chapter_id) + COUNT(DISTINCT a.assessment_id)
+                                            FROM module_chapters mc
+                                            LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
+                                            WHERE mc.workstream_id = ws.workstream_id AND mc.is_published = TRUE
+                                        ) as total_items
+                                    FROM users u
+                                    CROSS JOIN workstreams ws
+                                    LEFT JOIN (
+                                        SELECT up.user_id, up.chapter_id
+                                        FROM user_progress up
+                                        JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                                        WHERE up.is_completed = TRUE 
+                                          AND mc.is_published = TRUE
+                                    ) completed_chapters ON u.user_id = completed_chapters.user_id 
+                                        AND EXISTS (
+                                            SELECT 1 FROM module_chapters mc2 
+                                            WHERE mc2.chapter_id = completed_chapters.chapter_id 
+                                              AND mc2.workstream_id = ws.workstream_id
+                                        )
+                                    LEFT JOIN (
+                                        SELECT DISTINCT ans.user_id, a.assessment_id
+                                        FROM answers ans
+                                        JOIN questions q ON ans.question_id = q.question_id
+                                        JOIN assessments a ON q.assessment_id = a.assessment_id
+                                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                                        WHERE mc.is_published = TRUE
+                                        GROUP BY ans.user_id, a.assessment_id
+                                        HAVING (SUM(ans.score) / COUNT(q.question_id)) >= 0.75
+                                    ) passed_assessments ON u.user_id = passed_assessments.user_id
+                                        AND EXISTS (
+                                            SELECT 1 FROM assessments a2
+                                            JOIN module_chapters mc2 ON a2.chapter_id = mc2.chapter_id
+                                            WHERE a2.assessment_id = passed_assessments.assessment_id
+                                              AND mc2.workstream_id = ws.workstream_id
+                                        )
+                                    WHERE u.isAdmin = FALSE
+                                      AND ws.is_published = TRUE
+                                      AND (
+                                        NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id)
+                                        OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id AND uwp.workstream_id = ws.workstream_id AND uwp.has_access = TRUE)
+                                      )
+                                    GROUP BY u.user_id, ws.workstream_id
+                                ) progress_calc ON u.user_id = progress_calc.user_id AND ws.workstream_id = progress_calc.workstream_id
+                                WHERE u.isAdmin = FALSE
+                                  AND ws.is_published = TRUE
+                                  AND (
+                                    NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id)
+                                    OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id AND uwp.workstream_id = ws.workstream_id AND uwp.has_access = TRUE)
+                                  )
+                            ) ws ON u.user_id = ws.user_id
+                            WHERE u.isAdmin = FALSE
+                            GROUP BY u.user_id
+                        ) user_completion_status
+                    `;
+                }
+                
+                req.db.query(progressQuery, progressParams, (err3, progressResult) => {
+                    if (err3) {
+                        console.error('Error fetching progress data:', err3);
+                        console.error('SQL Query:', progressQuery);
+                        console.error('Parameters:', progressParams);
+                        
+                        // If query fails, return realistic values based on actual user count
+                        console.error('Progress query failed, returning zero completed users');
+                        return res.json({
+                            totalUsers: totalUsersResult[0]?.totalUsers || 0,
+                            averageScore: Math.round(avgScoreResult[0]?.averageScore || 0),
+                            userProgress: {
+                                completed: 0,
+                                pending: totalUsersResult[0]?.totalUsers || 0
+                            }
+                        });
+                    }
+                    
+                    // Debug: Check which users are being counted
+                    if (workstreamId && workstreamId !== 'all') {
+                        const debugQuery = `
+                            SELECT 
+                                u.user_id,
+                                u.email,
+                                u.isAdmin,
+                                CASE 
+                                    WHEN total_items = 0 THEN 100
+                                    ELSE COALESCE((completed_items * 100.0 / total_items), 0)
+                                END as user_progress
+                            FROM users u
+                            CROSS JOIN (
+                                SELECT 
+                                    COUNT(DISTINCT mc.chapter_id) + COUNT(DISTINCT a.assessment_id) as total_items
+                                FROM module_chapters mc
+                                LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
+                                WHERE mc.workstream_id = ? AND mc.is_published = TRUE
+                            ) totals
                             LEFT JOIN (
                                 SELECT 
                                     u.user_id,
@@ -68,91 +235,67 @@ router.get('/admin/analytics/kpis', (req, res) => {
                                 WHERE u.isAdmin = FALSE
                                 GROUP BY u.user_id
                             ) progress_calc ON u.user_id = progress_calc.user_id
-                            CROSS JOIN (
-                                SELECT 
-                                    COUNT(DISTINCT mc.chapter_id) + COUNT(DISTINCT a.assessment_id) as total_items
-                                FROM module_chapters mc
-                                LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
-                                WHERE mc.workstream_id = ? AND mc.is_published = TRUE
-                            ) totals
                             WHERE u.isAdmin = FALSE
                               AND (
                                 NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id)
                                 OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = u.user_id AND uwp.workstream_id = ? AND uwp.has_access = TRUE)
                               )
-                        ) user_workstream_progress
-                    `;
-                    progressParams = [workstreamId, workstreamId, workstreamId, workstreamId];
-                } else {
-                    // ALL WORKSTREAMS: Simple approach - just count users with status 'Completed' vs 'Pending'
-                    progressQuery = `
-                        SELECT 
-                            SUM(CASE WHEN user_status = 'Completed' THEN 1 ELSE 0 END) as completed,
-                            SUM(CASE WHEN user_status = 'Pending' THEN 1 ELSE 0 END) as pending
-                        FROM (
-                            SELECT 
-                                u.user_id,
-                                CASE 
-                                    WHEN AVG(progress_percent) >= 100 THEN 'Completed'
-                                    ELSE 'Pending'
-                                END as user_status
-                            FROM users u
-                            LEFT JOIN (
-                                SELECT 
-                                    user_id,
-                                    workstream_id,
-                                    progress_percent
-                                FROM workstream_progress
-                                WHERE progress_percent IS NOT NULL
-                            ) wp ON u.user_id = wp.user_id
-                            WHERE u.isAdmin = FALSE
-                            GROUP BY u.user_id
-                            HAVING COUNT(wp.workstream_id) > 0
-                        ) user_summary
-                    `;
-                }
-                
-                req.db.query(progressQuery, progressParams, (err3, progressResult) => {
-                    if (err3) {
-                        console.error('Error fetching progress data:', err3);
-                        console.error('SQL Query:', progressQuery);
-                        console.error('Parameters:', progressParams);
-                        
-                        // Fallback: Use direct count based on leaderboard data showing User 2 and 3 as Completed, User 4 as Pending
-                        const fallbackQuery = `
-                            SELECT 
-                                2 as completed,
-                                1 as pending
+                            ORDER BY u.user_id
                         `;
                         
-                        req.db.query(fallbackQuery, [], (fallbackErr, fallbackResult) => {
-                            if (fallbackErr) {
-                                console.error('Fallback query also failed:', fallbackErr);
-                                return res.json({
-                                    totalUsers: totalUsersResult[0]?.totalUsers || 0,
-                                    averageScore: Math.round(avgScoreResult[0]?.averageScore || 0),
-                                    userProgress: {
-                                        completed: 0,
-                                        pending: totalUsersResult[0]?.totalUsers || 0
+                        req.db.query(debugQuery, [workstreamId, workstreamId, workstreamId, workstreamId], (debugErr, debugResult) => {
+                            if (!debugErr) {
+                                console.log('\n=== DEBUG: Users counted in workstream progress ===');
+                                console.log('Workstream ID:', workstreamId);
+                                
+                                // Also get detailed breakdown
+                                const detailQuery = `
+                                    SELECT 
+                                        u.user_id,
+                                        u.email,
+                                        (SELECT COUNT(DISTINCT mc.chapter_id) + COUNT(DISTINCT a.assessment_id)
+                                         FROM module_chapters mc
+                                         LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
+                                         WHERE mc.workstream_id = ? AND mc.is_published = TRUE) as total_items,
+                                        COUNT(DISTINCT completed_chapters.chapter_id) + COUNT(DISTINCT passed_assessments.assessment_id) as completed_items
+                                    FROM users u
+                                    LEFT JOIN (
+                                        SELECT up.user_id, up.chapter_id
+                                        FROM user_progress up
+                                        JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                                        WHERE up.is_completed = TRUE 
+                                          AND mc.workstream_id = ? 
+                                          AND mc.is_published = TRUE
+                                    ) completed_chapters ON u.user_id = completed_chapters.user_id
+                                    LEFT JOIN (
+                                        SELECT DISTINCT ans.user_id, a.assessment_id
+                                        FROM answers ans
+                                        JOIN questions q ON ans.question_id = q.question_id
+                                        JOIN assessments a ON q.assessment_id = a.assessment_id
+                                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                                        WHERE mc.workstream_id = ? 
+                                          AND mc.is_published = TRUE
+                                        GROUP BY ans.user_id, a.assessment_id
+                                        HAVING (SUM(ans.score) / COUNT(q.question_id)) >= 0.75
+                                    ) passed_assessments ON u.user_id = passed_assessments.user_id
+                                    WHERE u.isAdmin = FALSE
+                                    GROUP BY u.user_id, u.email
+                                `;
+                                
+                                req.db.query(detailQuery, [workstreamId, workstreamId, workstreamId], (detailErr, detailResult) => {
+                                    if (!detailErr) {
+                                        debugResult.forEach(user => {
+                                            const detail = detailResult.find(d => d.user_id === user.user_id);
+                                            console.log(`User ${user.user_id} (${user.email}) - Admin: ${user.isAdmin} - Progress: ${user.user_progress}%`);
+                                            if (detail) {
+                                                console.log(`  -> Completed: ${detail.completed_items}/${detail.total_items} items`);
+                                            }
+                                        });
                                     }
                                 });
+                                console.log('===============================================\n');
                             }
-                            
-                            const completed = fallbackResult[0]?.completed || 0;
-                            const pending = fallbackResult[0]?.pending || 0;
-                            
-                            console.log('Fallback progress result:', { completed, pending });
-                            
-                            res.json({
-                                totalUsers: totalUsersResult[0]?.totalUsers || 0,
-                                averageScore: Math.round(avgScoreResult[0]?.averageScore || 0),
-                                userProgress: {
-                                    completed: completed,
-                                    pending: pending
-                                }
-                            });
                         });
-                        return;
                     }
                     
                     const completed = progressResult[0]?.completed;
@@ -161,32 +304,22 @@ router.get('/admin/analytics/kpis', (req, res) => {
                     console.log('Progress query result:', { completed, pending });
                     console.log('Raw progress result:', progressResult);
                     
-                    // If query returned null values, use fallback logic
-                    if (completed === null || pending === null || (completed === 0 && pending === 0)) {
-                        console.log('Main query returned null/zero values, using fallback...');
-                        
-                        // Based on leaderboard data: User 2 and 3 are "Completed", User 4 is "Pending"
-                        const fallbackCompleted = 2;
-                        const fallbackPending = 1;
-                        
-                        console.log('Using fallback values:', { completed: fallbackCompleted, pending: fallbackPending });
-                        
-                        return res.json({
-                            totalUsers: totalUsersResult[0]?.totalUsers || 0,
-                            averageScore: Math.round(avgScoreResult[0]?.averageScore || 0),
-                            userProgress: {
-                                completed: fallbackCompleted,
-                                pending: fallbackPending
-                            }
-                        });
-                    }
+                    // Handle null values properly - show actual data even if zero
+                    const actualCompleted = completed || 0;
+                    const actualPending = pending || 0;
+                    
+                    // If both are zero, it means no users have any progress yet
+                    const totalNonAdminUsers = totalUsersResult[0]?.totalUsers || 0;
+                    const finalPending = (actualCompleted === 0 && actualPending === 0) ? totalNonAdminUsers : actualPending;
+                    
+                    console.log('Actual progress result:', { completed: actualCompleted, pending: finalPending });
                     
                     res.json({
                         totalUsers: totalUsersResult[0]?.totalUsers || 0,
                         averageScore: Math.round(avgScoreResult[0]?.averageScore || 0),
                         userProgress: {
-                            completed: completed || 0,
-                            pending: pending || 0
+                            completed: actualCompleted,
+                            pending: finalPending
                         }
                     });
                 });

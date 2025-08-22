@@ -94,7 +94,6 @@ const E_Dashboard = () => {
                       <div 
                           key={ws.workstream_id} 
                           className={`card-ws ${!hasContent ? 'inactive' : ''}`}
-                          onClick={() => hasContent && navigate(`/employee/workstreams/${ws.workstream_id}`)}
                       >
                           <div className="card-ws-image-container">
                               {ws.image_type ? 
@@ -104,25 +103,26 @@ const E_Dashboard = () => {
                           </div>
                           <div className="card-ws-content">
                               <h3 className="card-ws-title">{ws.title}</h3>
-                              <div className="card-ws-footer">
-                                  <p>{ws.chapters_count} Chapters • {ws.assessments_count} Assessments</p>
-                                  {hasContent ? (
-                                      <>
-                                          <div className="card-ws-progress">
-                                              <span className="progress-label">Progress</span>
-                                              <span className="progress-percentage">{progress}%</span>
-                                              {ws.is_completed && <FaCheckCircle className="completed-icon" />}
-                                          </div>
-                                          <div className="progress-bar-container">
-                                              <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                                          </div>
-                                      </>
-                                  ) : (
-                                      <div className="no-content-container">
-                                          <p>No content available</p>
-                                      </div>
-                                  )}
+                              <div className="card-ws-stats">
+                                  <span>{ws.chapters_count || 0} Chapters</span>
+                                  <span>•</span>
+                                  <span>{ws.assessments_count || 0} Assessments</span>
                               </div>
+                              {hasContent ? (
+                                  <>
+                                      <div className="card-ws-progress">
+                                          <span className="progress-label">Progress</span>
+                                          <span className="progress-percentage">{progress}%</span>
+                                      </div>
+                                      <div className="progress-bar-container">
+                                          <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                                      </div>
+                                  </>
+                              ) : (
+                                  <div className="no-content-container">
+                                      <p>No content available</p>
+                                  </div>
+                              )}
                           </div>
                       </div>
                   );

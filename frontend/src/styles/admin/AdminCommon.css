@@ -67,7 +67,6 @@
 .admin-table th,
 .admin-table td {
   padding: 1rem 1.2rem;
-  border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: middle;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;

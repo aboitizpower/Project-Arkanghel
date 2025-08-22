@@ -121,11 +121,29 @@
 }
 
 .workstream-filter, .time-range-filter {
-    border: 1px solid #dee2e6;
+    border: 1.5px solid #e2e8f0;
     padding: 0.15rem 0.4rem;
     border-radius: 5px;
     font-size: 0.75rem;
-    background-color: #f8f9fa;
+    background: #f8fafc;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    transition: border 0.18s, background 0.18s, box-shadow 0.18s;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.07);
+    appearance: none;
+    cursor: pointer;
+    color: #22223b;
+}
+
+.workstream-filter:focus, .time-range-filter:focus {
+    border-color: #2563eb;
+    background: #fff;
+    box-shadow: 0 0 0 2px #2563eb33, 0 2px 8px rgba(37,99,235,0.13);
+    outline: none;
+}
+
+.workstream-filter:hover, .time-range-filter:hover {
+    border-color: #3b82f6;
+    background: #f1f5fd;
 }
 
 .user-progress-split {
@@ -215,6 +233,7 @@
 
 .custom-card.kpi-card {
     align-items: flex-start;
+    height:5.5rem;
 }
 
 .kpi-card-content {

@@ -78,7 +78,6 @@
   padding: 32px 28px;
   overflow-x: auto;
   height: auto;
-  width: 100%;
 }
 
 /* Table: always show header and divider, even if no data */
@@ -218,6 +217,7 @@
   display: inline-flex;
   align-items: center;
   margin-left: 0;
+  position: relative;
   width: auto;
   flex: none;
   box-sizing: content-box;
@@ -244,12 +244,57 @@
   padding: 0;
 }
 .workstream-filter-dropdown {
-  min-width: 80px;
-  max-width: 120px;
-  height: 24px;
-  font-size: 0.93rem;
-  padding: 1px 6px;
-  border-radius: 5px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #22223b;
+  font-size: 1rem;
+  padding: 0 2.5em 0 1.2em;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  margin-left: 0.5rem;
+  transition: border 0.18s, background 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.07);
+  appearance: none;
+  position: relative;
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.workstream-filter-dropdown:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 2px #2563eb33, 0 2px 8px rgba(37,99,235,0.13);
+  outline: none;
+}
+
+.workstream-filter-dropdown:hover {
+  border-color: #3b82f6;
+  background: #f1f5fd;
+}
+
+/* Custom arrow for select */
+.workstream-filter-dropdown::-ms-expand {
+  display: none;
+}
+
+.workstream-filter-container::after {
+  content: '\25BC';
+  position: absolute;
+  right: 1.2em;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #2563eb;
+  font-size: 0.85em;
+}
+
+/* Style dropdown options */
+.workstream-filter-dropdown option {
+  background: #fff;
+  color: #22223b;
+  font-size: 1em;
+  padding: 0.7em 1.2em;
 }
 .assessment-header-ui {
   display: flex;
