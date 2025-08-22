@@ -124,7 +124,7 @@ const A_Analytics = () => {
                 console.log('Raw engagement data from API:', engagementRes.data);
                 console.log('Processed engagement data:', processedEngagement);
                 setEngagementData(processedEngagement);
-                setTopUsers(leaderboardRes.data.slice(0, 5));
+                setTopUsers(leaderboardRes.data.slice(0, 3));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
                 setWorkstreams(workstreamsRes.data || []);
@@ -224,7 +224,7 @@ const A_Analytics = () => {
                                 <option value="yearly">Yearly</option>
                             </select>
                         </div>
-                        <ResponsiveContainer width="100%" height={240}>
+                        <ResponsiveContainer width="100%" height={200}>
                             <AreaChart data={engagementData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <defs><linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4e73df" stopOpacity={0.8}/><stop offset="95%" stopColor="#4e73df" stopOpacity={0}/></linearGradient></defs>
                                 <CartesianGrid strokeDasharray="3 3" />

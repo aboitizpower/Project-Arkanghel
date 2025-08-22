@@ -6,7 +6,7 @@
 
 .analytics-main {
     flex-grow: 1;
-    padding: 2rem;
+    padding: 1.5rem;
     background-color: #f4f7fc;
     min-height: 100vh;
     overflow-y: auto;
@@ -16,25 +16,29 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: auto auto auto;
-    grid-gap: 1.5rem;
-    padding-bottom: 2rem;
+    grid-gap: 1rem;
+    padding-bottom: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
     grid-template-areas:
         "kpi1 kpi2 kpi3"
         "engagement engagement engagement"
         "assessment-tracker critical-areas top-users";
 }
 
-.welcome-header {
+.analytics-main.welcome-header {
     font-size: 2rem;
     font-weight: 700;
-    margin-bottom: .5rem;
-    margin-top:0;
-    background-color: #ffffff;
-    border-radius: 10px;
-    color: #1a202c;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    padding: 1rem; /* Reduced padding */
-    transition: transform 0.2s;
+    margin:1.5rem auto 1rem auto;
+    color: #343a40;
+    line-height: 1.2;
+    max-width: 1400px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 12px;
+    padding: 0.75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
 }
 
 .kpi-card:nth-child(1) { grid-area: kpi1; }
@@ -172,12 +176,13 @@
 }
 
 .analytics-paper {
-    background-color: white;
+    background: white;
+    border-radius: 12px;
     padding: 0.75rem;
-    border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
+    max-height: 320px;
 }
 
 .analytics-title {
@@ -209,6 +214,7 @@
     border: 1px solid #e9ecef;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    height: 3rem;
 }
 
 .leaderboard-item:hover {
@@ -495,14 +501,14 @@
 /* Enhanced KPI Cards */
 .enhanced-kpi-card {
     background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border-radius: 16px;
-    padding: 1rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    padding: 0.75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     border: 1px solid #e9ecef;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    height:7rem;
+    height: 6rem;
 }
 
 .enhanced-kpi-card:hover {
@@ -519,8 +525,8 @@
 }
 
 .kpi-icon-container {
-    width: 3rem;
-    height: 3rem;
+    width: 2rem;
+    height: 2rem;
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -557,8 +563,8 @@
     letter-spacing: 0.5px;
 }
 
-.kpi-value {
-    font-size: 2.2rem;
+.enhanced-kpi-card .kpi-value {
+    font-size: 1.5rem;
     font-weight: 700;
     color: #2c3e50;
     margin: 0;
