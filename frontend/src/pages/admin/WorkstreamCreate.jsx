@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/WorkstreamCreate.css';
+import NotificationDialog from '../../components/NotificationDialog';
 
 const API_URL = 'http://localhost:8081';
 
@@ -14,6 +15,7 @@ const WorkstreamCreate = () => {
     const [image, setImage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -30,12 +32,27 @@ const WorkstreamCreate = () => {
 
         setIsLoading(true);
         try {
-            await axios.post(`${API_URL}/workstreams`, formData, {
+            const response = await axios.post(`${API_URL}/workstreams`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            navigate('/admin/modules');
+            
+            setNotification({
+                message: 'Workstream created successfully!',
+                type: 'success',
+                isVisible: true
+            });
+            
+            // Navigate after a short delay to show notification
+            setTimeout(() => {
+                navigate('/admin/modules');
+            }, 1500);
         } catch (err) {
             setError('Failed to create workstream.');
+            setNotification({
+                message: 'Failed to create workstream. Please try again.',
+                type: 'error',
+                isVisible: true
+            });
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -104,6 +121,12 @@ const WorkstreamCreate = () => {
                         </div>
                     </form>
                 </div>
+                <NotificationDialog
+                    message={notification.message}
+                    type={notification.type}
+                    isVisible={notification.isVisible}
+                    onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+                />
             </main>
         </div>
     );

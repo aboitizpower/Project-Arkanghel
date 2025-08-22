@@ -1,11 +1,13 @@
 // File: components/A_Modules.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Modules.css';
-import '../../styles/admin/AdminCommon.css';
-import axios from 'axios';
-import { FaCog, FaTrash, FaEye, FaEyeSlash, FaSearch } from 'react-icons/fa';
+import { FaEdit, FaPlus, FaEye, FaEyeSlash, FaTrash, FaCog, FaSearch } from 'react-icons/fa';
+import NotificationDialog from '../../components/NotificationDialog';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
@@ -23,6 +25,8 @@ const A_Modules = () => {
     const [isDeleting, setIsDeleting] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize] = useState(PAGE_SIZE);
+    const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
+    const [confirmModal, setConfirmModal] = useState({ isVisible: false, workstreamId: null, workstreamTitle: '' });
     const navigate = useNavigate();
 
     const fetchWorkstreams = async () => {
@@ -76,30 +80,61 @@ const A_Modules = () => {
             });
             if (response.status === 200) {
                 fetchWorkstreams();
+                setNotification({
+                    message: `Workstream "${workstream.title}" has been ${!workstream.is_published ? 'published' : 'unpublished'} successfully!`,
+                    type: 'success',
+                    isVisible: true
+                });
             }
         } catch (err) {
             console.error('Failed to toggle publish:', err);
             setError('Failed to update publish status');
+            setNotification({
+                message: 'Failed to update publish status. Please try again.',
+                type: 'error',
+                isVisible: true
+            });
         } finally {
             setIsPublishing(null);
         }
     };
 
-    const handleDeleteWorkstream = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this workstream and all its content? This action cannot be undone.')) {
-            return;
-        }
+    const handleDeleteWorkstream = (workstream) => {
+        setConfirmModal({
+            isVisible: true,
+            workstreamId: workstream.workstream_id,
+            workstreamTitle: workstream.title
+        });
+    };
 
-        setIsDeleting(id);
+    const confirmDeleteWorkstream = async () => {
+        const { workstreamId } = confirmModal;
+        setConfirmModal({ isVisible: false, workstreamId: null, workstreamTitle: '' });
+        
+        setIsDeleting(workstreamId);
         try {
-            await axios.delete(`${API_URL}/workstreams/${id}`);
+            await axios.delete(`${API_URL}/workstreams/${workstreamId}`);
             fetchWorkstreams();
+            setNotification({
+                message: 'Workstream deleted successfully!',
+                type: 'success',
+                isVisible: true
+            });
         } catch (err) {
             setError('Failed to delete workstream');
+            setNotification({
+                message: 'Failed to delete workstream. Please try again.',
+                type: 'error',
+                isVisible: true
+            });
             console.error('Error deleting workstream:', err);
         } finally {
             setIsDeleting(null);
         }
+    };
+
+    const cancelDeleteWorkstream = () => {
+        setConfirmModal({ isVisible: false, workstreamId: null, workstreamTitle: '' });
     };
 
     const handleSearch = (e) => {
@@ -224,7 +259,7 @@ const A_Modules = () => {
                                             </button>
                                             <button 
                                                 className="btn-icon btn-delete" 
-                                                onClick={() => handleDeleteWorkstream(ws.workstream_id)} 
+                                                onClick={() => handleDeleteWorkstream(ws)} 
                                                 title="Delete Workstream"
                                                 disabled={isDeleting === ws.workstream_id}
                                             >
@@ -282,13 +317,29 @@ const A_Modules = () => {
                     <div className="no-content-message">
                         <p>No workstreams available. Add one to get started!</p>
                         <button 
-                            onClick={() => navigate('/admin/workstream/create')} 
+                            onClick={() => navigate('/admin/workstream/create')}
                             className="btn-primary"
                         >
                             Create Your First Workstream
                         </button>
                     </div>
                 )}
+                <NotificationDialog
+                    message={notification.message}
+                    type={notification.type}
+                    isVisible={notification.isVisible}
+                    onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+                />
+                <ConfirmationModal
+                    isVisible={confirmModal.isVisible}
+                    title="Delete Workstream"
+                    message={`Are you sure you want to delete "${confirmModal.workstreamTitle}" and all its content? This action cannot be undone.`}
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    onConfirm={confirmDeleteWorkstream}
+                    onCancel={cancelDeleteWorkstream}
+                    type="danger"
+                />
             </main>
         </div>
     );

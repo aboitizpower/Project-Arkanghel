@@ -10,6 +10,8 @@ import axios from 'axios';
 import { FaPencilAlt, FaTrash, FaPlus } from 'react-icons/fa';
 import '../../styles/admin/WorkstreamEdit.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import NotificationDialog from '../../components/NotificationDialog';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 const API_URL = 'http://localhost:8081';
 
@@ -29,6 +31,8 @@ const WorkstreamEdit = () => {
 
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
+  const [confirmModal, setConfirmModal] = useState({ isVisible: false, type: '', id: null, title: '' });
 
   // Fetch workstream data
   const fetchWorkstream = useCallback(async () => {
@@ -72,28 +76,70 @@ const WorkstreamEdit = () => {
     setSelectedAssessment(null);
   }, [location.pathname]);
 
-  const handleDeleteChapter = async (chapterId) => {
-    if (window.confirm('Are you sure you want to delete this chapter? All associated assessments and user progress will also be deleted.')) {
-      try {
-        await axios.delete(`${API_URL}/chapters/${chapterId}`);
-        fetchWorkstream(); // Re-fetch workstream data to update the UI
-      } catch (err) {
-        console.error('Failed to delete chapter:', err);
-        setError('Failed to delete chapter. Please try again.');
-      }
+  const handleDeleteChapter = (chapter) => {
+    setConfirmModal({
+      isVisible: true,
+      type: 'chapter',
+      id: chapter.chapter_id,
+      title: chapter.title
+    });
+  };
+
+  const confirmDeleteChapter = async () => {
+    const { id } = confirmModal;
+    setConfirmModal({ isVisible: false, type: '', id: null, title: '' });
+    
+    try {
+      await axios.delete(`${API_URL}/chapters/${id}`);
+      fetchWorkstream();
+      setNotification({
+        message: 'Chapter deleted successfully!',
+        type: 'success',
+        isVisible: true
+      });
+    } catch (err) {
+      console.error('Error deleting chapter:', err);
+      setNotification({
+        message: 'Failed to delete chapter. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
     }
   };
 
-  const handleDeleteAssessment = async (assessmentId) => {
-    if (window.confirm('Are you sure you want to delete this assessment? All associated questions and answers will also be deleted.')) {
-      try {
-        await axios.delete(`${API_URL}/assessments/${assessmentId}`);
-        fetchWorkstream(); // Re-fetch workstream data to update the UI
-      } catch (err) {
-        console.error('Failed to delete assessment:', err);
-        setError('Failed to delete assessment. Please try again.');
-      }
+  const handleDeleteAssessment = (assessment) => {
+    setConfirmModal({
+      isVisible: true,
+      type: 'assessment',
+      id: assessment.assessment_id,
+      title: assessment.title
+    });
+  };
+
+  const confirmDeleteAssessment = async () => {
+    const { id } = confirmModal;
+    setConfirmModal({ isVisible: false, type: '', id: null, title: '' });
+    
+    try {
+      await axios.delete(`${API_URL}/assessments/${id}`);
+      fetchWorkstream();
+      setNotification({
+        message: 'Assessment deleted successfully!',
+        type: 'success',
+        isVisible: true
+      });
+    } catch (err) {
+      console.error('Failed to delete assessment:', err);
+      setNotification({
+        message: 'Failed to delete assessment. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
     }
+  };
+
+  const cancelDelete = () => {
+    setConfirmModal({ isVisible: false, type: '', id: null, title: '' });
   };
 
   const handleSave = async (field) => {
@@ -192,6 +238,11 @@ const WorkstreamEdit = () => {
       // Update with server response to ensure consistency
       if (response.data.success && response.data.chapters) {
         setChapters(response.data.chapters);
+        setNotification({
+          message: 'Chapter order updated successfully!',
+          type: 'success',
+          isVisible: true
+        });
       }
     } catch (err) {
       console.error("Failed to save new chapter order:", err);
@@ -199,6 +250,11 @@ const WorkstreamEdit = () => {
       // Revert to original order on error
       setChapters(originalChapters);
       setError(`Failed to save new chapter order: ${err.response?.data?.error || err.message}`);
+      setNotification({
+        message: 'Failed to update chapter order. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
     }
   };
 
@@ -459,10 +515,15 @@ const WorkstreamEdit = () => {
                                   {...provided.dragHandleProps}
                                   className="chapter-item"
                                 >
-                                  <span>{ch.title}</span>
+                                  <div className="chapter-content">
+                                    <span>{ch.title}</span>
+                                    <span className={`status-badge ${ch.is_published ? 'published' : 'unpublished'}`}>
+                                      {ch.is_published ? 'PUBLISHED' : 'UNPUBLISHED'}
+                                    </span>
+                                  </div>
                                   <div className="chapter-actions">
                                     <button className="btn-edit" onClick={() => setSelectedChapter(ch)}><FaPencilAlt /></button>
-                                    <button className="btn-delete" onClick={() => handleDeleteChapter(ch.chapter_id)}><FaTrash /></button>
+                                    <button className="btn-delete" onClick={() => handleDeleteChapter(ch)}><FaTrash /></button>
                                   </div>
                                 </div>
                               )}
@@ -500,7 +561,7 @@ const WorkstreamEdit = () => {
                         <span>{assessment.title}</span>
                         <div className="assessment-actions">
                           <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
-                          <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                          <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment)}><FaTrash /></button>
                         </div>
                       </div>
                     ))
@@ -515,7 +576,7 @@ const WorkstreamEdit = () => {
                       <span>{assessment.title} (Final)</span>
                       <div className="assessment-actions">
                         <button className="btn-edit" onClick={() => setSelectedAssessment(assessment)}><FaPencilAlt /></button>
-                        <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment.assessment_id)}><FaTrash /></button>
+                        <button className="btn-delete" onClick={() => handleDeleteAssessment(assessment)}><FaTrash /></button>
                       </div>
                     </div>
                   ))}
@@ -529,6 +590,26 @@ const WorkstreamEdit = () => {
             </div>
           </div>
         </div>
+        <NotificationDialog
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        />
+        <ConfirmationModal
+          isVisible={confirmModal.isVisible}
+          title={confirmModal.type === 'chapter' ? 'Delete Chapter' : 'Delete Assessment'}
+          message={
+            confirmModal.type === 'chapter' 
+              ? `Are you sure you want to delete "${confirmModal.title}"? All associated assessments and user progress will also be deleted.`
+              : `Are you sure you want to delete "${confirmModal.title}"? All associated questions and answers will also be deleted.`
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={confirmModal.type === 'chapter' ? confirmDeleteChapter : confirmDeleteAssessment}
+          onCancel={cancelDelete}
+          type="danger"
+        />
       </main>
     </div>
   );

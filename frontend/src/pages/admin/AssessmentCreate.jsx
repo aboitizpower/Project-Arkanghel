@@ -6,6 +6,7 @@ import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/AssessmentCreate.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import NotificationDialog from '../../components/NotificationDialog';
 
 const API_URL = 'http://localhost:8081';
 
@@ -28,6 +29,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
   const [selectedChapterId, setSelectedChapterId] = useState('');
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
   const navigate = useNavigate();
   const [usedChapterIds, setUsedChapterIds] = useState([]);
   const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
@@ -209,11 +211,28 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       };
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
       await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
-      if (onCreated) onCreated();
-      else navigate(`/admin/workstream/${targetWorkstreamId}/edit`);
+      
+      setNotification({
+        message: 'Assessment created successfully!',
+        type: 'success',
+        isVisible: true
+      });
+      
+      if (onCreated) {
+        onCreated();
+      } else {
+        setTimeout(() => {
+          navigate(`/admin/workstream/${targetWorkstreamId}/edit`);
+        }, 1500);
+      }
     } catch (err) {
       let backendMsg = err?.response?.data?.error || err?.message || 'Failed to create assessment';
       setError('Failed to create assessment: ' + backendMsg);
+      setNotification({
+        message: 'Failed to create assessment. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
       console.error('Assessment creation error:', err);
     } finally {
       setIsSubmitting(false);
@@ -562,6 +581,12 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
           </div>
         </div>
       </main>
+      <NotificationDialog
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification({ ...notification, isVisible: false })}
+      />
     </div>
   );
 };

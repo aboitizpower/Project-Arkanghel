@@ -76,7 +76,7 @@ const E_Modules = () => {
         }
     }, [chapters, location.state]);
 
-    const fetchWorkstreams = async () => {
+    const fetchWorkstreams = useCallback(async () => {
         if (!userId) return;
         setIsLoading(true);
         try {
@@ -88,7 +88,7 @@ const E_Modules = () => {
             console.error(err);
         }
         setIsLoading(false);
-    };
+    }, [userId]);
 
     useEffect(() => {
         if (userId) {

@@ -1,9 +1,10 @@
 // File: components/ChapterEdit.jsx
 
 import React, { useState, useEffect } from 'react';
-import { FaPencilAlt, FaRegFilePdf, FaVideo, FaBookOpen, FaSave, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
 import '../../styles/admin/ChapterEdit.css';
+import NotificationDialog from '../../components/NotificationDialog';
+import { FaPencilAlt, FaSave, FaTimes } from 'react-icons/fa';
 
 const API_URL = 'http://localhost:8081';
 
@@ -15,6 +16,7 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [isPublished, setIsPublished] = useState(chapter.is_published);
+  const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
 
   const [isEditing, setIsEditing] = useState({ title: false, content: false, video: false, pdf: false });
 
@@ -100,6 +102,13 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
       const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus });
       setIsPublished(newPublishStatus);
       
+      // Show notification
+      setNotification({
+        message: `Chapter "${chapter.title}" has been ${newPublishStatus ? 'published' : 'unpublished'} successfully!`,
+        type: 'success',
+        isVisible: true
+      });
+      
       // Update the chapter data with the response
       if (response.data && onUpdated) {
         onUpdated(response.data);
@@ -107,6 +116,11 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
     } catch (err) {
       console.error('Error toggling publish status:', err);
       setError('Failed to update publish status.');
+      setNotification({
+        message: 'Failed to update publish status. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -224,6 +238,12 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
           </div>
         </div>
         {error && <div className="error-message">{error}</div>}
+        <NotificationDialog
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        />
       </div>
     </div>
   );

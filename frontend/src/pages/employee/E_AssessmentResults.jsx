@@ -35,22 +35,27 @@ const E_Assessments = () => {
             return;
         }
         setLoading(true);
-        axios.get(`${API_URL}/users/${userId}/assessment-results`)
+        axios.get(`${API_URL}/employee/assessment-results/${userId}`)
             .then(response => {
-                setResults(response.data);
+                console.log('Assessment results response:', response.data);
+                console.log('First result object:', response.data[0]);
+                console.log('Score vs Passing Score:', response.data[0]?.score, 'vs', response.data[0]?.passing_score);
+                setResults(Array.isArray(response.data) ? response.data : []);
                 setLoading(false);
             })
             .catch(err => {
                 console.error('Error fetching assessment results:', err);
                 setError('Failed to fetch assessment results.');
+                setResults([]);
                 setLoading(false);
             });
     }, [userId]);
 
-    // Filter by workstream
+    // Filter by workstream - ensure results is always an array
+    const safeResults = Array.isArray(results) ? results : [];
     const filteredResults = selectedWorkstream
-        ? results.filter(r => r.workstream_id === parseInt(selectedWorkstream))
-        : results;
+        ? safeResults.filter(r => r.workstream_id === parseInt(selectedWorkstream))
+        : safeResults;
 
     // Pagination
     const indexOfLastResult = currentPage * resultsPerPage;
@@ -110,10 +115,10 @@ const E_Assessments = () => {
                                 currentResults.map(result => (
                                     <tr key={result.assessment_id}>
                                         <td>{result.assessment_title}</td>
-                                        <td style={{ fontWeight: 600 }}>{result.user_score ?? '-'} / {result.total_points ?? '-'}</td>
-                                        <td>{result.attempts ?? '-'}</td>
-                                        <td>{result.passed === 1 ? 'PASS' : result.passed === 0 ? 'FAIL' : '-'}</td>
-                                        <td>{result.last_date_taken ? new Date(result.last_date_taken).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true }) : '-'}</td>
+                                        <td style={{ fontWeight: 600 }}>{result.score ?? '-'} / {result.total_questions ?? result.total_points ?? '-'}</td>
+                                        <td>{result.total_attempts ?? '-'}</td>
+                                        <td>{result.passed === 1 ? 'PASS' : 'FAIL'}</td>
+                                        <td>{result.completed_at ? new Date(result.completed_at).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true }) : '-'}</td>
                                     </tr>
                                 ))
                             )}

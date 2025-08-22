@@ -10,28 +10,47 @@ const router = express.Router();
  * @param {Function} callback - Callback function (err, results)
  */
 function getAssessmentResultsForUser(db, userId, callback) {
-    console.log(`Fetching assessment results for user ID: ${userId}`);
+    console.log(`Admin fetching assessment results for user ID: ${userId}`);
     
     const sql = `
-        SELECT 
-            ar.result_id,
-            ar.user_id,
-            ar.assessment_id,
-            ar.score,
-            ar.total_questions,
-            ar.completed_at,
-            a.title as assessment_title,
+        WITH LatestScores AS (
+            SELECT
+                ans.user_id,
+                q.assessment_id,
+                ans.answered_at,
+                SUM(ans.score) AS user_score,
+                ROW_NUMBER() OVER(PARTITION BY ans.user_id, q.assessment_id ORDER BY ans.answered_at DESC) as rn
+            FROM answers AS ans
+            JOIN questions AS q ON ans.question_id = q.question_id
+            WHERE ans.user_id = ?
+            GROUP BY ans.user_id, q.assessment_id, ans.answered_at
+        ),
+        AttemptCounts AS (
+            SELECT user_id, assessment_id, COUNT(*) AS total_attempts
+            FROM LatestScores
+            GROUP BY user_id, assessment_id
+        )
+        SELECT
+            CONCAT(ls.user_id, '-', ls.assessment_id) AS result_id,
+            ls.user_id,
+            a.assessment_id,
+            ls.user_score as score,
+            a.total_points as total_questions,
+            ls.answered_at AS completed_at,
+            a.title AS assessment_title,
             a.total_points,
             a.passing_score,
-            mc.title as chapter_title,
-            w.title as workstream_title,
-            (ar.score >= a.passing_score) as passed
-        FROM assessment_results ar
-        JOIN assessments a ON ar.assessment_id = a.assessment_id
-        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-        JOIN workstreams w ON mc.workstream_id = w.workstream_id
-        WHERE ar.user_id = ?
-        ORDER BY ar.completed_at DESC
+            mc.title AS chapter_title,
+            w.title AS workstream_title,
+            (ls.user_score >= a.passing_score) AS passed,
+            ac.total_attempts
+        FROM LatestScores AS ls
+        JOIN assessments AS a ON ls.assessment_id = a.assessment_id
+        LEFT JOIN module_chapters AS mc ON a.chapter_id = mc.chapter_id
+        LEFT JOIN workstreams AS w ON mc.workstream_id = w.workstream_id
+        JOIN AttemptCounts AS ac ON ls.user_id = ac.user_id AND ls.assessment_id = ac.assessment_id
+        WHERE ls.rn = 1
+        ORDER BY ls.answered_at DESC
     `;
     
     db.query(sql, [userId], (err, results) => {

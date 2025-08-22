@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/ChapterCreate.css';
+import NotificationDialog from '../../components/NotificationDialog';
 
 const API_URL = 'http://localhost:8081';
 
@@ -16,6 +17,7 @@ const ChapterCreate = () => {
   const [pdf, setPdf] = useState(null);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -30,12 +32,27 @@ const ChapterCreate = () => {
       if (video) formData.append('video', video);
       if (pdf) formData.append('pdf', pdf);
 
-      await axios.post(`${API_URL}/chapters`, formData, {
+      const response = await axios.post(`${API_URL}/chapters`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      navigate(`/admin/workstream/${workstreamId}/edit`);
+      
+      setNotification({
+        message: 'Chapter created successfully!',
+        type: 'success',
+        isVisible: true
+      });
+      
+      // Navigate after a short delay to show notification
+      setTimeout(() => {
+        navigate(`/admin/workstream/${workstreamId}/edit`);
+      }, 1500);
     } catch (err) {
       setError('Failed to create chapter');
+      setNotification({
+        message: 'Failed to create chapter. Please try again.',
+        type: 'error',
+        isVisible: true
+      });
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -140,6 +157,12 @@ const ChapterCreate = () => {
             </div>
           </form>
         </div>
+        <NotificationDialog
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={() => setNotification(prev => ({ ...prev, isVisible: false }))}
+        />
       </main>
     </div>
   );
