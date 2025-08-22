@@ -147,18 +147,18 @@ const A_Users = () => {
     return `${workstreams.length} Workstreams (All)`;
   };
 
-  const filteredUsers = users.filter(user => {
-    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-    const email = (user.email || '').toLowerCase();
-    const searchTerm = search.toLowerCase();
-    return fullName.includes(searchTerm) || email.includes(searchTerm);
-  });
-
-  if (sortOrder === "admin") {
-    filteredUsers.sort((a, b) => b.isAdmin - a.isAdmin);
-  } else if (sortOrder === "employee") {
-    filteredUsers.sort((a, b) => a.isAdmin - b.isAdmin);
-  }
+  const filteredUsers = users
+    .filter(user => {
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const searchTerm = search.toLowerCase();
+      return fullName.includes(searchTerm) || email.includes(searchTerm);
+    })
+    .filter(user => {
+      if (sortOrder === 'admin') return user.isAdmin === 1;
+      if (sortOrder === 'employee') return user.isAdmin === 0;
+      return true; // 'none'
+    });
 
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
