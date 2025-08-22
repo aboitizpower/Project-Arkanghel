@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Analytics.css';
-import { Users, FileCheck, BookOpenCheck, Filter } from "lucide-react";
+import { Users, TrendingUp, AlertTriangle, Activity, FileCheck, BookOpenCheck, Filter } from 'lucide-react';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
 const API_URL = 'http://localhost:8081';
@@ -120,7 +120,10 @@ const A_Analytics = () => {
                 ]);
 
                 setKpis(kpisRes.data);
-                setEngagementData(processEngagementData(engagementRes.data, selectedTimeRange));
+                const processedEngagement = processEngagementData(engagementRes.data, selectedTimeRange);
+                console.log('Raw engagement data from API:', engagementRes.data);
+                console.log('Processed engagement data:', processedEngagement);
+                setEngagementData(processedEngagement);
                 setTopUsers(leaderboardRes.data.slice(0, 5));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
@@ -145,66 +148,75 @@ const A_Analytics = () => {
                 <h1 className="welcome-header">Welcome, {userName}!</h1>
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
-                    <div className="custom-card kpi-card">
-                        <div className="custom-card-header">
-                            <div className="custom-card-header-left">
-                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
-                                    <Users />
-                                </div>
-                                <h3 className="custom-card-title">Total Users</h3>
+                    <div className="enhanced-kpi-card total-users-card">
+                        <div className="kpi-card-content">
+                            <div className="kpi-icon-container users-icon">
+                                <Users size={16} />
+                            </div>
+                            <div className="kpi-details">
+                                <h3 className="kpi-title">Total Users</h3>
+                                <p className="kpi-value">{kpis.totalUsers}</p>
                             </div>
                         </div>
-                        <div className="kpi-card-body">
-                             <p className="custom-card-value">{kpis.totalUsers}</p>
-                        </div>
+                        <div className="kpi-background-pattern"></div>
                     </div>
-                    <div className="custom-card kpi-card">
-                        <div className="custom-card-header">
-                            <div className="custom-card-header-left">
-                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
-                                    <FileCheck />
-                                </div>
-                                <h3 className="custom-card-title">Average Assessment Scores</h3>
+
+                    <div className="enhanced-kpi-card assessment-scores-card">
+                        <div className="kpi-card-content">
+                            <div className="kpi-icon-container scores-icon">
+                                <FileCheck size={16} />
+                            </div>
+                            <div className="kpi-details">
+                                <h3 className="kpi-title">Average Assessment Scores</h3>
+                                <p className="kpi-value">{Math.round(kpis.averageScore)}%</p>
                             </div>
                         </div>
-                        <div className="kpi-card-body">
-                            <p className="custom-card-value">{Math.round(kpis.averageScore)}%</p>
-                        </div>
+                        <div className="kpi-background-pattern"></div>
                     </div>
-                    <div className="custom-card kpi-card">
-                        <div className="custom-card-header">
-                            <div className="custom-card-header-left">
-                                <div className="custom-icon-box" style={{ backgroundColor: '#0000FF' }}>
-                                    <BookOpenCheck />
+
+                    <div className="enhanced-kpi-card user-progress-card">
+                        <div className="kpi-card-header-enhanced">
+                            <div className="kpi-title-section">
+                                <div className="kpi-icon-container progress-icon">
+                                    <BookOpenCheck size={16} />
                                 </div>
-                                <h3 className="custom-card-title">User Progress</h3>
+                                <h3 className="kpi-title">User Progress</h3>
                             </div>
-                            <div className="filter-container">
-                                <Filter size={14} />
-                                <select value={selectedWorkstream} onChange={(e) => setSelectedWorkstream(e.target.value)} className="workstream-filter">
+                            <div className="filter-container-enhanced">
+                                <Filter size={14} className="filter-icon" />
+                                <select value={selectedWorkstream} onChange={(e) => setSelectedWorkstream(e.target.value)} className="workstream-filter-enhanced">
                                     <option value="all">All Workstreams</option>
                                     {workstreams.map((ws) => <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>)}
                                 </select>
                             </div>
                         </div>
-                        <div className='kpi-card-body'>
-                            <div className="user-progress-split">
-                                <div className="user-progress-section">
-                                    <p className="user-progress-label">Completed</p>
-                                    <p className="custom-card-value" style={{ color: '#28a745' }}>{kpis.userProgress.completed}</p>
+                        <div className="progress-metrics">
+                            <div className="progress-metric completed-metric">
+                                <div className="metric-icon completed-icon">✓</div>
+                                <div className="metric-details">
+                                    <span className="metric-label">Completed</span>
+                                    <span className="metric-value">{kpis.userProgress.completed}</span>
                                 </div>
-                                <div className="user-progress-section">
-                                    <p className="user-progress-label">Pending</p>
-                                    <p className="custom-card-value" style={{ color: '#fd7e14' }}>{kpis.userProgress.pending}</p>
+                            </div>
+                            <div className="progress-divider"></div>
+                            <div className="progress-metric pending-metric">
+                                <div className="metric-icon pending-icon">⏳</div>
+                                <div className="metric-details">
+                                    <span className="metric-label">Pending</span>
+                                    <span className="metric-value">{kpis.userProgress.pending}</span>
                                 </div>
                             </div>
                         </div>
+                        <div className="kpi-background-pattern"></div>
                     </div>
 
                     {/* User Engagement Overview - Row 2 */}
                     <div className="analytics-paper engagement-card">
                         <div className="custom-card-header">
-                            <h3 className="analytics-title">User Engagement Overview</h3>
+                            <h3 className="analytics-title">
+                                <Activity className="title-icon" size={18} />
+                                User Engagement Overview
+                            </h3>
                             <select value={selectedTimeRange} onChange={(e) => setSelectedTimeRange(e.target.value)} className="time-range-filter">
                                 <option value="weekly">Weekly</option>
                                 <option value="monthly">Monthly</option>
@@ -212,7 +224,7 @@ const A_Analytics = () => {
                                 <option value="yearly">Yearly</option>
                             </select>
                         </div>
-                        <ResponsiveContainer width="100%" height={320}>
+                        <ResponsiveContainer width="100%" height={240}>
                             <AreaChart data={engagementData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                                 <defs><linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4e73df" stopOpacity={0.8}/><stop offset="95%" stopColor="#4e73df" stopOpacity={0}/></linearGradient></defs>
                                 <CartesianGrid strokeDasharray="3 3" />
@@ -224,46 +236,121 @@ const A_Analytics = () => {
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Top Users Leaderboard - Row 2 */}
+                    {/* Top Users Leaderboard - Row 3 */}
                     <div className="analytics-paper leaderboard-card">
-                        <h3 className="analytics-title">Top Users</h3>
-                        {topUsers.map(user => (
-                            <div key={user.user_id} className="leaderboard-item">
-                                <span>{user.first_name} {user.last_name}</span>
-                                <div className="leaderboard-progress">
-                                    <div className="leaderboard-progress-bar" style={{ width: `${user.average_progress || user.progress_percent || 0}%` }}></div>
+                        <h3 className="analytics-title">
+                            <Users className="title-icon" size={18} />
+                            Top Users
+                        </h3>
+                        <div className="leaderboard-container">
+                            {topUsers.map((user, index) => (
+                                <div key={user.user_id} className="leaderboard-item">
+                                    <div className="leaderboard-rank">
+                                        <span className={`rank-badge rank-${index + 1}`}>#{index + 1}</span>
+                                    </div>
+                                    <div className="leaderboard-user-info">
+                                        <div className="user-details">
+                                            <span className="user-name">{user.first_name} {user.last_name}</span>
+                                            <div className="leaderboard-progress">
+                                                <div className="leaderboard-progress-bar" style={{ width: `${user.average_progress || user.progress_percent || 0}%` }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="leaderboard-score">
+                                        <span className="score-value">{Math.round(user.average_progress || user.progress_percent || 0)}%</span>
+                                        <span className="score-label">Progress</span>
+                                    </div>
                                 </div>
-                                <span>{Math.round(user.average_progress || user.progress_percent || 0)}%</span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
 
                     {/* Assessment Tracker - Row 3 */}
                     <div className="analytics-paper assessment-tracker-card">
-                        <h3 className="analytics-title">Assessment Tracker</h3>
-                        <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={assessmentTracker} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="title" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="passed" stackId="a" fill="#28a745" />
-                                <Bar dataKey="failed" stackId="a" fill="#dc3545" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <h3 className="analytics-title">
+                            <FileCheck className="title-icon" size={18} />
+                            Assessment Tracker
+                        </h3>
+                        <div className="assessment-tracker-content">
+                            <ResponsiveContainer width="100%" height={240}>
+                                <BarChart data={assessmentTracker} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+                                    <defs>
+                                        <linearGradient id="passedGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#28a745" stopOpacity={0.9}/>
+                                            <stop offset="95%" stopColor="#20c997" stopOpacity={0.8}/>
+                                        </linearGradient>
+                                        <linearGradient id="failedGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#dc3545" stopOpacity={0.9}/>
+                                            <stop offset="95%" stopColor="#e74c3c" stopOpacity={0.8}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f3f4" />
+                                    <XAxis 
+                                        dataKey="title" 
+                                        tick={{ fontSize: 12, fill: '#6c757d' }}
+                                        axisLine={{ stroke: '#dee2e6' }}
+                                    />
+                                    <YAxis 
+                                        tick={{ fontSize: 12, fill: '#6c757d' }}
+                                        axisLine={{ stroke: '#dee2e6' }}
+                                    />
+                                    <Tooltip 
+                                        contentStyle={{
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid #dee2e6',
+                                            borderRadius: '8px',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                        }}
+                                    />
+                                    <Legend 
+                                        wrapperStyle={{ paddingTop: '10px' }}
+                                        iconType="circle"
+                                    />
+                                    <Bar 
+                                        dataKey="passed" 
+                                        stackId="a" 
+                                        fill="url(#passedGradient)"
+                                        radius={[0, 0, 4, 4]}
+                                        name="Passed"
+                                    />
+                                    <Bar 
+                                        dataKey="failed" 
+                                        stackId="a" 
+                                        fill="url(#failedGradient)"
+                                        radius={[4, 4, 0, 0]}
+                                        name="Failed"
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
 
                     {/* Critical Learning Areas - Row 3 */}
                     <div className="analytics-paper critical-areas-card">
-                        <h3 className="analytics-title">Critical Learning Areas</h3>
-                        {criticalAreas.length > 0 ? (
-                            criticalAreas.map((area, index) => (
-                                <div key={index} className="critical-list-item">{area}</div>
-                            ))
-                        ) : (
-                            <p>No critical areas identified.</p>
-                        )}
+                        <h3 className="analytics-title">
+                            <BookOpenCheck className="title-icon critical-icon" size={18} />
+                            Critical Learning Areas
+                        </h3>
+                        <div className="critical-areas-content">
+                            {criticalAreas.length > 0 ? (
+                                criticalAreas.map((area, index) => (
+                                    <div key={index} className="critical-area-item">
+                                        <div className="critical-area-indicator">
+                                            <span className="critical-rank">#{index + 1}</span>
+                                        </div>
+                                        <div className="critical-area-content">
+                                            <span className="critical-area-name">{area}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-critical-areas">
+                                    <div className="success-icon">✓</div>
+                                    <p className="no-critical-message">No critical areas identified</p>
+                                    <p className="no-critical-subtitle">All learning areas are performing well</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </main>

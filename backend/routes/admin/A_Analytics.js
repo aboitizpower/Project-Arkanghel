@@ -513,7 +513,9 @@ router.get('/admin/analytics/assessment-tracker', (req, res) => {
                 JOIN questions q ON ans.question_id = q.question_id
                 JOIN assessments a ON q.assessment_id = a.assessment_id
                 JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                JOIN users u ON ans.user_id = u.user_id
                 WHERE mc.title LIKE '%Final Assessment%'
+                  AND u.isAdmin = FALSE
                 GROUP BY q.assessment_id, ans.user_id, ans.answered_at
             ) user_attempts
             GROUP BY assessment_id, user_id
@@ -541,26 +543,29 @@ router.get('/admin/analytics/critical-areas', (req, res) => {
     const sql = `
         SELECT 
             w.title as area,
-            AVG(ans_summary.avg_score * 100) as avg_percentage
+            SUM(CASE WHEN user_best_scores.best_percentage < 75 THEN 1 ELSE 0 END) as failed_count,
+            COUNT(DISTINCT user_best_scores.user_id) as total_users,
+            ROUND(SUM(CASE WHEN user_best_scores.best_percentage < 75 THEN 1 ELSE 0 END) * 100.0 / COUNT(DISTINCT user_best_scores.user_id), 1) as failure_rate
         FROM workstreams w
         JOIN module_chapters mc ON w.workstream_id = mc.workstream_id
         JOIN assessments a ON mc.chapter_id = a.chapter_id
-        LEFT JOIN (
+        JOIN (
             SELECT 
                 q.assessment_id,
-                AVG(ans.score) as avg_score,
-                COUNT(DISTINCT ans.user_id) as user_count
+                ans.user_id,
+                (SUM(ans.score) * 100.0 / COUNT(q.question_id)) as best_percentage
             FROM answers ans
             JOIN questions q ON ans.question_id = q.question_id
-            GROUP BY q.assessment_id
-        ) ans_summary ON a.assessment_id = ans_summary.assessment_id
+            JOIN users u ON ans.user_id = u.user_id
+            WHERE u.isAdmin = FALSE
+            GROUP BY q.assessment_id, ans.user_id
+        ) user_best_scores ON a.assessment_id = user_best_scores.assessment_id
         WHERE w.is_published = TRUE 
           AND mc.is_published = TRUE
-          AND ans_summary.user_count >= 2
-          AND ans_summary.avg_score IS NOT NULL
         GROUP BY w.workstream_id, w.title
-        HAVING avg_percentage < 70
-        ORDER BY avg_percentage ASC
+        HAVING COUNT(DISTINCT user_best_scores.user_id) >= 2 
+           AND SUM(CASE WHEN user_best_scores.best_percentage < 75 THEN 1 ELSE 0 END) > 0
+        ORDER BY failed_count DESC, failure_rate DESC
         LIMIT 5
     `;
     
