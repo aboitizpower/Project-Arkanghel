@@ -334,25 +334,19 @@
   border-color: #2563eb;
 }
 
-.sort-dropdown-content {
-  display: none;
+.sort-dropdown-menu {
   position: absolute;
-  top: 110%;
-  left: 0;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
   background: #fff;
-  min-width: 160px;
+  min-width: 170px;
   border-radius: 10px;
   box-shadow: 0 4px 16px rgba(37,99,235,0.13);
   z-index: 10;
-  padding: 0.3em 0;
-  margin-top: 0.2em;
+  padding: 0.4em;
   border: 1.5px solid #e5e7eb;
   transition: box-shadow 0.18s, border 0.18s;
-}
-
-.admin-users-sort-dropdown:focus-within .sort-dropdown-content,
-.admin-users-sort-dropdown:hover .sort-dropdown-content {
-  display: block;
 }
 
 .sort-dropdown-item {

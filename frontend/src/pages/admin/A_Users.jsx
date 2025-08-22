@@ -46,6 +46,11 @@ const A_Users = () => {
     setSortOpen(false);
   }, [location.pathname]);
 
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortOrder]);
+
   useEffect(() => {
     fetch("http://localhost:8081/users")
       .then(res => res.json())
