@@ -444,6 +444,11 @@
     align-items: center;
 }
 
+.card-ws-progress .progress-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
 .card-ws-progress .progress-percentage {
     text-align: right;
     width: 100%;

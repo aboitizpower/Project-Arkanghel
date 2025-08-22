@@ -234,9 +234,9 @@ router.get('/dashboard/:userId', (req, res) => {
                     SELECT 
                         up.progress_id,
                         up.chapter_id,
-                        up.status,
-                        up.completed_at,
-                        up.updated_at,
+                        up.is_completed as status,
+                        up.completion_time as completed_at,
+                        up.completion_time as updated_at,
                         mc.title as chapter_title,
                         w.workstream_id,
                         w.title as workstream_title,
@@ -245,8 +245,8 @@ router.get('/dashboard/:userId', (req, res) => {
                     JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
                     JOIN workstreams w ON mc.workstream_id = w.workstream_id
                     LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id
-                    WHERE up.user_id = ?
-                    ORDER BY up.updated_at DESC
+                    WHERE up.user_id = ? AND up.is_completed = TRUE
+                    ORDER BY up.completion_time DESC
                     LIMIT 5
                 `;
                 
@@ -257,106 +257,59 @@ router.get('/dashboard/:userId', (req, res) => {
                         console.warn('[WARN] Continuing without recent activity data');
                     }
                     
-                    // 5. Get upcoming deadlines (e.g., assessments due soon)
-                    const deadlinesSql = `
-                        SELECT 
-                            a.assessment_id,
-                            a.title,
-                            a.due_date,
-                            mc.title as chapter_title,
-                            w.workstream_id,
-                            w.title as workstream_title,
-                            DATEDIFF(a.due_date, CURDATE()) as days_remaining
-                        FROM assessments a
-                        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-                        JOIN workstreams w ON mc.workstream_id = w.workstream_id
-                        LEFT JOIN user_progress up ON (a.chapter_id = up.chapter_id AND up.user_id = ?)
-                        WHERE a.due_date IS NOT NULL 
-                            AND a.due_date >= CURDATE()
-                            AND (up.status IS NULL OR up.status != 'completed')
-                            AND w.is_published = TRUE
-                            AND mc.is_published = TRUE
-                        ORDER BY a.due_date ASC
-                        LIMIT 3
-                    `;
+                    // 5. Skip deadlines since assessments table doesn't have due_date column
+                    const deadlineResults = [];
+                    console.log('[INFO] Skipping deadlines - due_date column not available');
                     
-                    req.db.query(deadlinesSql, [userId], (deadlineErr, deadlineResults) => {
-                        if (deadlineErr) {
-                            console.error('[ERROR] Error fetching deadlines:', deadlineErr);
-                            // Don't fail the whole request if deadlines fetch fails
-                            console.warn('[WARN] Continuing without deadline data');
-                        }
+                        // 6. Skip achievements since table doesn't exist
+                        const achieveResults = [];
+                        console.log('[INFO] Skipping achievements - table not available');
+                            
+                        // Prepare the response object
+                        const responseData = {
+                            success: true,
+                            user: {
+                                id: parseInt(userId),
+                                name: `${user.first_name} ${user.last_name}`,
+                                email: user.email,
+                                member_since: user.created_at
+                            },
+                            kpis: {
+                                total_workstreams: totalWorkstreams,
+                                total_modules: totalModules,
+                                completed_modules: 0, // This would need additional calculation if needed
+                                pending_modules: 0, // This would need additional calculation if needed
+                                average_progress: averageProgress,
+                                active_workstreams: inProgressWorkstreams,
+                                completed_workstreams: completedWorkstreams
+                            },
+                            workstreams: workstreamsResults.map(ws => ({
+                                ...ws,
+                                id: ws.workstream_id,
+                                image_url: ws.image_type ? `/workstreams/${ws.id}/image` : null,
+                                last_activity: ws.last_activity || null,
+                                is_started: ws.completed_chapters > 0
+                            })),
+                            recent_activity: activityResults || [],
+                            upcoming_deadlines: deadlineResults || [],
+                            recent_achievements: achieveResults || []
+                        };
                         
-                        // 6. Get user's achievements or badges (if applicable)
-                        const achievementsSql = `
-                            SELECT 
-                                a.achievement_id,
-                                a.name,
-                                a.description,
-                                a.icon_url,
-                                a.completion_requirement,
-                                ua.earned_at
-                            FROM achievements a
-                            JOIN user_achievements ua ON a.achievement_id = ua.achievement_id
-                            WHERE ua.user_id = ?
-                            ORDER BY ua.earned_at DESC
-                            LIMIT 3
-                        `;
-                        
-                        req.db.query(achievementsSql, [userId], (achieveErr, achieveResults) => {
-                            if (achieveErr) {
-                                console.error('[ERROR] Error fetching achievements:', achieveErr);
-                                // Don't fail the whole request if achievements fetch fails
-                                console.warn('[WARN] Continuing without achievement data');
+                        // Commit the transaction
+                        req.db.commit(commitErr => {
+                            if (commitErr) {
+                                console.error('[ERROR] Error committing transaction:', commitErr);
+                                return req.db.rollback(() => {
+                                    res.status(500).json({
+                                        success: false,
+                                        error: 'Failed to complete dashboard request. Please try again.'
+                                    });
+                                });
                             }
                             
-                            // Prepare the response object
-                            const responseData = {
-                                success: true,
-                                user: {
-                                    id: parseInt(userId),
-                                    name: `${user.first_name} ${user.last_name}`,
-                                    email: user.email,
-                                    member_since: user.created_at
-                                },
-                                kpis: {
-                                    total_workstreams: totalWorkstreams,
-                                    total_modules: totalModules,
-                                    completed_modules: 0, // This would need additional calculation if needed
-                                    pending_modules: 0, // This would need additional calculation if needed
-                                    average_progress: averageProgress,
-                                    active_workstreams: inProgressWorkstreams,
-                                    completed_workstreams: completedWorkstreams
-                                },
-                                workstreams: workstreamsResults.map(ws => ({
-                                    ...ws,
-                                    id: ws.workstream_id,
-                                    image_url: ws.image_type ? `/workstreams/${ws.id}/image` : null,
-                                    last_activity: ws.last_activity || null,
-                                    is_started: ws.completed_chapters > 0
-                                })),
-                                recent_activity: activityResults || [],
-                                upcoming_deadlines: deadlineResults || [],
-                                recent_achievements: achieveResults || []
-                            };
-                            
-                            // Commit the transaction
-                            req.db.commit(commitErr => {
-                                if (commitErr) {
-                                    console.error('[ERROR] Error committing transaction:', commitErr);
-                                    return req.db.rollback(() => {
-                                        res.status(500).json({
-                                            success: false,
-                                            error: 'Failed to complete dashboard request. Please try again.'
-                                        });
-                                    });
-                                }
-                                
-                                console.log(`[INFO] Successfully fetched dashboard data for user ${userId}`);
-                                res.json(responseData);
-                            });
+                            console.log(`[INFO] Successfully fetched dashboard data for user ${userId}`);
+                            res.json(responseData);
                         });
-                    });
                 });
             });
         });
