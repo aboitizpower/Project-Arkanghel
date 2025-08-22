@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
+import { FaStream, FaBookOpen, FaClipboardList, FaTasks } from 'react-icons/fa';
 import '../../styles/admin/A_Assessment.css';
 import '../../styles/admin/AdminCommon.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -7,6 +8,24 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8081';
 
 const PAGE_SIZE = 6;
+
+const getInitials = (first, last) => {
+  if (!first && !last) return '?';
+  return `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase();
+};
+
+const getAvatarColor = (first, last) => {
+  const colors = [
+    "#2563eb", "#f59e42", "#10b981", "#e11d48", "#6366f1",
+    "#fbbf24", "#14b8a6", "#f43f5e", "#a21caf", "#0ea5e9"
+  ];
+  const str = (first || "") + (last || "");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 const A_Assessment = () => {
   // Filters
@@ -168,10 +187,11 @@ const A_Assessment = () => {
 
   // Table column definitions
   const columns = [
-    { key: 'employee', label: 'Employee Name', sort: false },
+    { key: 'avatar', label: 'Avatar', sort: false },
+    { key: 'employee', label: 'Name', sort: true },
     { key: 'assessment_title', label: 'Assessment Title', sort: true },
-    { key: 'completed_at', label: 'Date Taken', sort: true },
-    { key: 'total_score', label: 'Score', sort: true },
+    { key: 'completed_at', label: 'Date Taken', sort: false },
+    { key: 'total_score', label: 'Score', sort: false },
     { key: 'total_attempts', label: 'Number of Attempts', sort: true },
     { key: 'passed', label: 'Pass/Fail', sort: true },
   ];
@@ -215,10 +235,10 @@ const A_Assessment = () => {
         <div className="assessment-content-container">
           {/* KPI Panel */}
           <div className="assessment-kpi-row">
-            <KPIBox label="Total Workstreams" value={kpis.totalWorkstreams} />
-            <KPIBox label="Total Chapters" value={kpis.totalChapters} />
-            <KPIBox label="Total Assessments" value={kpis.totalAssessments} />
-            <KPIBox label="Total Assessments Taken" value={kpis.totalAssessmentsTaken} />
+            <KPIBox label="Total Workstreams" value={kpis.totalWorkstreams} icon={<FaStream />} />
+            <KPIBox label="Total Chapters" value={kpis.totalChapters} icon={<FaBookOpen />} />
+            <KPIBox label="Total Assessments" value={kpis.totalAssessments} icon={<FaClipboardList />} />
+            <KPIBox label="Total Assessments Taken" value={kpis.totalAssessmentsTaken} icon={<FaTasks />} />
           </div>
           {/* Filters Row */}
           <div className="assessment-filters-row">
@@ -249,14 +269,14 @@ const A_Assessment = () => {
               <p style={{ color: 'red', padding: 32, textAlign: 'center' }}>{error}</p>
             ) : (
               <>
-                <table className="admin-table">
+                <table className="admin-table assessment-table">
                   <thead>
                     <tr>
                       {columns.map(col => (
-                        <th 
+                                                <th 
                           key={col.key} 
                           onClick={() => col.sort && handleSort(col.key)}
-                          className={col.sort ? 'sortable-header' : ''}
+                          className={`${col.sort ? 'sortable-header' : ''} ${col.key === 'avatar' ? 'avatar-col' : ''} ${col.key === 'employee' ? 'name-col' : ''}`}
                         >
                           {col.label}
                           {col.sort && sortBy === col.key && (
@@ -271,9 +291,46 @@ const A_Assessment = () => {
                     <tr><td colSpan={columns.length} style={{ textAlign: 'center', padding: 24 }}>No results found.</td></tr>
                   ) : paginatedResults.map((row, i) => (
                     <tr key={row.result_id || i} className={i % 2 ? 'odd-row' : 'even-row'}>
-                      <td>{row.first_name} {row.last_name}</td>
-                      <td>{row.assessment_title}</td>
-                      <td>{row.completed_at === 'N/A' ? 'N/A' : new Date(row.completed_at).toLocaleString()}</td>
+                                            <td className="avatar-col">
+                        <div className="assessment-table-avatar" style={{ backgroundColor: getAvatarColor(row.first_name, row.last_name) }}>
+                          {getInitials(row.first_name, row.last_name)}
+                        </div>
+                      </td>
+                      <td className="name-col">{row.first_name} {row.last_name}</td>
+                      <td className="assessment-title-cell">
+                        <div className="assessment-title-container">
+                          <div className="workstream-title">Anomaly Detection</div>
+                          <div className="chapter-title">{row.assessment_title}</div>
+                        </div>
+                      </td>
+                      <td className="date-taken-cell">
+                        {row.completed_at === 'N/A' ? (
+                          'N/A'
+                        ) : (
+                          <div className="date-time-container">
+                            <div className="date-line">
+                              <span className="date-icon">📅</span>
+                              <span className="date-text">
+                                {new Date(row.completed_at).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                            <div className="time-line">
+                              <span className="time-icon">🕐</span>
+                              <span className="time-text">
+                                {new Date(row.completed_at).toLocaleTimeString('en-US', {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
                       <td>{`${row.user_score} / ${row.total_questions}`}</td>
                       <td>{row.total_attempts === 'N/A' ? 'N/A' : row.total_attempts}</td>
                       <td>
@@ -317,17 +374,22 @@ const A_Assessment = () => {
         </div>
         </div>
       </main>
-    </div>
+  </div>
   );
 };
 
-function KPIBox({ label, value }) {
+function KPIBox({ label, value, icon }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 1px 4px #0001', padding: 16, minWidth: 160, textAlign: 'center' }}>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
-      <div style={{ fontSize: 14, color: '#555', marginTop: 4 }}>{label}</div>
+    <div className="kpi-card">
+      <div className="kpi-icon-wrapper">
+        {icon}
+      </div>
+      <div className="kpi-text-wrapper">
+        <div className="kpi-label">{label}</div>
+        <div className="kpi-value">{value}</div>
+      </div>
     </div>
   );
 }
 
-export default A_Assessment; 
+export default A_Assessment;
