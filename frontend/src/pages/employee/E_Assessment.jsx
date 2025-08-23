@@ -57,8 +57,14 @@ const E_Assessments = () => {
 
     // Filter by workstream - ensure results is always an array
     const safeResults = Array.isArray(results) ? results : [];
-    const filteredResults = selectedWorkstream
-        ? safeResults.filter(r => r.workstream_id === parseInt(selectedWorkstream))
+    
+    const filteredResults = selectedWorkstream && selectedWorkstream !== ""
+        ? safeResults.filter(r => {
+            // Handle null/undefined workstream_id by converting to string
+            const resultWorkstreamId = r.workstream_id ? String(r.workstream_id) : '';
+            const selectedWorkstreamId = String(selectedWorkstream);
+            return resultWorkstreamId === selectedWorkstreamId;
+        })
         : safeResults;
 
     // Pagination
@@ -114,7 +120,7 @@ const E_Assessments = () => {
                     >
                         <option value="">All Workstreams</option>
                         {workstreams.map(ws => (
-                            <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>
+                            <option key={ws.workstream_id} value={String(ws.workstream_id)}>{ws.title}</option>
                         ))}
                     </select>
                     </div>
@@ -141,11 +147,45 @@ const E_Assessments = () => {
                             ) : (
                                 currentResults.map(result => (
                                     <tr key={result.assessment_id}>
-                                        <td>{result.assessment_title}</td>
+                                        <td className="assessment-title-cell">
+                                            <div className="assessment-title-container">
+                                                <div className="workstream-title">Anomaly Detection</div>
+                                                <div className="chapter-title">{result.assessment_title}</div>
+                                            </div>
+                                        </td>
                                         <td style={{ fontWeight: 600 }}>{result.score ?? '-'} / {result.total_questions ?? result.total_points ?? '-'}</td>
                                         <td>{result.total_attempts ?? '-'}</td>
-                                        <td>{result.passed === 1 ? 'PASS' : 'FAIL'}</td>
-                                        <td>{result.completed_at ? new Date(result.completed_at).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true }) : '-'}</td>
+                                        <td>
+                                            <span className={`status-badge ${result.passed === 1 ? 'passed' : 'failed'}`}>
+                                                {result.passed === 1 ? 'Passed' : 'Failed'}
+                                            </span>
+                                        </td>
+                                        <td className="date-taken-cell">
+                                            {result.completed_at ? (
+                                                <div className="date-time-container">
+                                                    <div className="date-line">
+                                                        <span className="date-icon">📅</span>
+                                                        <span className="date-text">
+                                                            {new Date(result.completed_at).toLocaleDateString('en-US', {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="time-line">
+                                                        <span className="time-icon">🕐</span>
+                                                        <span className="time-text">
+                                                            {new Date(result.completed_at).toLocaleTimeString('en-US', {
+                                                                hour: 'numeric',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : '-'}
+                                        </td>
                                         <td>
                                             <button 
                                                 className="view-attempts-btn"
@@ -209,8 +249,10 @@ const E_Assessments = () => {
                                                 <tr key={index}>
                                                     <td>{index + 1}</td>
                                                     <td>{attempt.score ?? '-'} / {attempt.total_questions ?? attempt.total_points ?? '-'}</td>
-                                                    <td className={attempt.passed ? 'pass-result' : 'fail-result'}>
-                                                        {attempt.passed ? 'PASS' : 'FAIL'}
+                                                    <td>
+                                                        <span className={`status-badge ${attempt.passed ? 'passed' : 'failed'}`}>
+                                                            {attempt.passed ? 'Passed' : 'Failed'}
+                                                        </span>
                                                     </td>
                                                     <td>{attempt.completed_at ? new Date(attempt.completed_at).toLocaleString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }) : '-'}</td>
                                                 </tr>
