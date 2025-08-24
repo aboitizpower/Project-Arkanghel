@@ -21,6 +21,7 @@ const ViewModules = () => {
     const [completedChapters, setCompletedChapters] = useState(new Set());
     const [hasHandledRefreshNavigation, setHasHandledRefreshNavigation] = useState(false);
     const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+    const [showAssessmentCompletedModal, setShowAssessmentCompletedModal] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -187,8 +188,22 @@ const ViewModules = () => {
         }
     };
 
-    const handleTakeAssessment = () => {
+    const handleTakeAssessment = async () => {
         if (assessmentForCurrentChapter) {
+            // Check if user has completed this assessment with perfect score
+            try {
+                const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentForCurrentChapter.assessment_id}/perfect-score?userId=${userId}`);
+                
+                if (perfectScoreResponse.data.completed_with_perfect_score) {
+                    // Show completion dialog and prevent access
+                    setShowAssessmentCompletedModal(true);
+                    return;
+                }
+            } catch (perfectScoreErr) {
+                console.log('Assessment not completed with perfect score or error checking:', perfectScoreErr);
+            }
+
+            // Navigate to assessment if not completed with perfect score
             navigate(`/employee/assessment/${assessmentForCurrentChapter.assessment_id}`, {
                 state: { 
                     chapterId: selectedChapter.chapter_id,
@@ -205,7 +220,20 @@ const ViewModules = () => {
             const assessmentData = assessmentResponse.data.assessment;
 
             if (assessmentData && assessmentData.assessment_id) {
-                // Navigate directly to the assessment
+                // Check if user has completed this final assessment with perfect score
+                try {
+                    const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/perfect-score?userId=${userId}`);
+                    
+                    if (perfectScoreResponse.data.completed_with_perfect_score) {
+                        // Show completion dialog and prevent access
+                        setShowAssessmentCompletedModal(true);
+                        return;
+                    }
+                } catch (perfectScoreErr) {
+                    console.log('Assessment not completed with perfect score or error checking:', perfectScoreErr);
+                }
+
+                // Navigate directly to the assessment if not completed with perfect score
                 navigate(`/employee/assessment/${assessmentData.assessment_id}`, {
                     state: { 
                         chapterId: chapter.chapter_id,
@@ -544,6 +572,28 @@ const ViewModules = () => {
                                 <button 
                                     className="btn-modal-close" 
                                     onClick={() => setShowAssessmentModal(false)}
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Assessment Completed Modal */}
+                {showAssessmentCompletedModal && (
+                    <div className="modal-overlay" onClick={() => setShowAssessmentCompletedModal(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Assessment Completed</h3>
+                            </div>
+                            <div className="modal-body">
+                                <p>You have already completed this assessment with a perfect score. Access is no longer available.</p>
+                            </div>
+                            <div className="modal-footer">
+                                <button 
+                                    className="btn-modal-close" 
+                                    onClick={() => setShowAssessmentCompletedModal(false)}
                                 >
                                     OK
                                 </button>

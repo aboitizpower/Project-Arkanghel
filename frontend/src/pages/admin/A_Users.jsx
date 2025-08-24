@@ -27,7 +27,7 @@ const getAvatarColor = (first, last) => {
 const A_Users = () => {
   const [users, setUsers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 10;
+  const usersPerPage = 5;
 
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState(null);

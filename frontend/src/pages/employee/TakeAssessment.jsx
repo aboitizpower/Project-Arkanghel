@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Assessment.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaLock } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -34,6 +33,33 @@ const TakeAssessments = () => {
         const fetchAssessmentData = async () => {
             setIsLoading(true);
             try {
+                // Check if user has completed this assessment with perfect score
+                const userId = localStorage.getItem('userId');
+                if (userId) {
+                    try {
+                        console.log(`Checking perfect score for assessment ${assessmentId}, user ${userId}`);
+                        const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentId}/perfect-score?userId=${userId}`);
+                        
+                        console.log('Perfect score response:', perfectScoreResponse.data);
+                        
+                        if (perfectScoreResponse.data.completed_with_perfect_score) {
+                            // Redirect back with completion message
+                            alert('You have already completed this assessment with a perfect score. Access is no longer available.');
+                            if (workstreamId && chapterId) {
+                                navigate(`/employee/modules/${workstreamId}`, {
+                                    state: { chapterId: chapterId, refresh: true }
+                                });
+                            } else {
+                                navigate('/employee/modules');
+                            }
+                            return;
+                        }
+                    } catch (perfectScoreErr) {
+                        console.log('Assessment not completed with perfect score or error checking:', perfectScoreErr);
+                        console.log('Perfect score error response:', perfectScoreErr.response?.data);
+                    }
+                }
+
                 const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`);
                 setAssessment(assessmentRes.data);
 
@@ -172,6 +198,20 @@ const TakeAssessments = () => {
         } catch (error) {
             console.error('Failed to submit assessment:', error);
             console.error('Error response:', error.response?.data);
+            
+            // Handle perfect score lock specifically
+            if (error.response?.status === 403 && error.response?.data?.locked) {
+                alert('This assessment is locked because you already achieved a perfect score (100%). Retaking assessments with perfect scores is not allowed.');
+                // Navigate back to modules
+                navigate(`/employee/modules/${workstreamId}`, {
+                    state: { 
+                        chapterId: chapterId,
+                        workstreamId: workstreamId,
+                        refresh: true
+                    }
+                });
+                return;
+            }
             
             let errorMessage = 'Failed to submit assessment. Please try again.';
             if (error.response?.data?.details) {
@@ -323,6 +363,8 @@ const TakeAssessments = () => {
             {/* Main Assessment Content - Full Width */}
             <main className="e-assessment-main-full">
                 {/* Header with Back to Chapter button */}
+
+                <div className="e-assessment-card">
                 <div className="assessment-header">
                     <button onClick={handleBackToChapter} className="back-to-chapter-btn">
                         <FaArrowLeft /> Back to Chapter
@@ -356,6 +398,7 @@ const TakeAssessments = () => {
                             )}
                         </div>
                     </form>
+                </div>
                 </div>
             </main>
 

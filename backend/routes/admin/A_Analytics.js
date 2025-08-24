@@ -465,6 +465,7 @@ router.get('/admin/analytics/engagement', (req, res) => {
         
         console.log(`\nEngagement query for range '${range}':`);
         console.log(`Date interval: ${dateInterval}, Format: ${dateFormat}`);
+        console.log('Full SQL query:', sql);
         
         req.db.query(sql, (err, results) => {
             if (err) {
@@ -472,21 +473,81 @@ router.get('/admin/analytics/engagement', (req, res) => {
                 return res.status(500).json({ error: 'Failed to fetch engagement data: ' + err.message });
             }
             
-            console.log(`Engagement results for ${range}:`, results);
+            console.log(`\n=== Engagement Results for ${range} ===`);
+            console.log('Total results found:', results.length);
+            results.forEach(result => {
+                console.log(`Date: ${result.date}, Activities: ${result.value}`);
+            });
             
-            // Log today's specific count if it exists
-            const todayResult = results.find(r => r.date === today || r.date.includes(today.substring(0, 7)));
-            if (todayResult) {
-                console.log(`Today's engagement count (${todayResult.date}): ${todayResult.value}`);
-            }
+            // Check for missing dates and add them with 0 values
+            const filledResults = fillMissingDates(results, range);
+            console.log('\n=== After filling missing dates ===');
+            console.log('Total results after fill:', filledResults.length);
             
-            res.json(results || []);
+            res.json(filledResults || []);
         });
     } catch (error) {
         console.error('Engagement endpoint error:', error);
         res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
 });
+
+// Helper function to fill missing dates with 0 values
+function fillMissingDates(results, range) {
+    const filledResults = [];
+    const dataMap = new Map(results.map(item => [item.date, item.value]));
+    const now = new Date();
+    
+    switch (range) {
+        case 'weekly':
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(now.getDate() - i);
+                const dateString = d.toISOString().split('T')[0];
+                filledResults.push({
+                    date: dateString,
+                    value: dataMap.get(dateString) || 0
+                });
+            }
+            break;
+        case 'monthly':
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth(), i);
+                const dateString = d.toISOString().split('T')[0];
+                filledResults.push({
+                    date: dateString,
+                    value: dataMap.get(dateString) || 0
+                });
+            }
+            break;
+        case 'quarterly':
+            for (let i = 2; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(now.getMonth() - i);
+                const monthString = d.toISOString().substring(0, 7);
+                filledResults.push({
+                    date: monthString,
+                    value: dataMap.get(monthString) || 0
+                });
+            }
+            break;
+        case 'yearly':
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(now.getFullYear(), i, 1);
+                const monthString = d.toISOString().substring(0, 7);
+                filledResults.push({
+                    date: monthString,
+                    value: dataMap.get(monthString) || 0
+                });
+            }
+            break;
+        default:
+            return results;
+    }
+    
+    return filledResults;
+}
 
 // Get assessment tracker data
 router.get('/admin/analytics/assessment-tracker', (req, res) => {
