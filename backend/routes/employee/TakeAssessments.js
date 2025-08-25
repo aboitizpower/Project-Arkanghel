@@ -196,6 +196,29 @@ router.post('/assessments/:id/submit', async (req, res) => {
             const chapter_id = assessmentInfo[0]?.chapter_id;
             
             if (chapter_id) {
+                // Check if user already has a perfect score for this assessment
+                const perfectScoreCheckSql = `
+                    SELECT 
+                        COUNT(q.question_id) as total_questions,
+                        COALESCE(SUM(ans.score), 0) as total_score
+                    FROM questions q
+                    LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
+                    WHERE q.assessment_id = ?
+                `;
+                const [perfectScoreCheck] = await req.db.promise().query(perfectScoreCheckSql, [user_id, assessment_id]);
+                const previousResult = perfectScoreCheck[0];
+                const hadPerfectScore = previousResult && previousResult.total_questions > 0 && 
+                                     previousResult.total_score === previousResult.total_questions;
+
+                // If user already had a perfect score, don't allow retaking
+                if (hadPerfectScore) {
+                    return res.status(403).json({
+                        error: 'Assessment already completed with perfect score. Retaking is not allowed.',
+                        locked: true,
+                        previous_score: 100
+                    });
+                }
+
                 // Store individual answers in the answers table
                 for (const answer of userAnswers) {
                     const { question_id, answer: user_answer } = answer;
@@ -217,6 +240,7 @@ router.post('/assessments/:id/submit', async (req, res) => {
                 const passingScore = 75; // Default passing score
                 const passed = (totalScore / questions.length) * 100 >= passingScore;
                 
+                // Always update progress if passed, regardless of previous attempts
                 if (passed) {
                     const insertProgressSql = `
                         INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time) 
@@ -227,6 +251,17 @@ router.post('/assessments/:id/submit', async (req, res) => {
                     `;
                     await req.db.promise().query(insertProgressSql, [user_id, chapter_id]);
                     console.log('Successfully marked chapter as complete in user_progress');
+                } else {
+                    // If failed, ensure progress is not marked as complete
+                    const updateProgressSql = `
+                        INSERT INTO user_progress (user_id, chapter_id, is_completed, completion_time) 
+                        VALUES (?, ?, 0, NOW())
+                        ON DUPLICATE KEY UPDATE 
+                            is_completed = 0, 
+                            completion_time = NOW()
+                    `;
+                    await req.db.promise().query(updateProgressSql, [user_id, chapter_id]);
+                    console.log('Marked chapter as incomplete in user_progress due to failed assessment');
                 }
             } else {
                 console.log('No chapter_id found for assessment');

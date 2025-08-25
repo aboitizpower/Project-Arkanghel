@@ -588,6 +588,123 @@ router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
 });
 
 /**
+ * @route GET /employee/assessment/:assessmentId/perfect-score
+ * @description Check if user has completed any assessment with perfect score (100%)
+ * @access Private (Employee)
+ * @param {string} assessmentId - The ID of the assessment
+ * @param {string} userId - The ID of the user (query parameter)
+ * @returns {Object} Perfect score completion status
+ */
+router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
+    const { assessmentId } = req.params;
+    const { userId } = req.query;
+
+    if (!assessmentId || !userId) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Assessment ID and User ID are required.' 
+        });
+    }
+
+    // First get the total questions for this assessment
+    const totalQuestionsSql = `
+        SELECT COUNT(*) as total_questions
+        FROM questions 
+        WHERE assessment_id = ?
+    `;
+    
+    // Check if user has ever achieved a perfect score on any attempt
+    const perfectScoreCheckSql = `
+        SELECT 
+            mc.title as chapter_title,
+            a.title as assessment_title,
+            CASE 
+                WHEN mc.title LIKE '%Final Assessment%' OR mc.title LIKE '%final assessment%' THEN 1
+                ELSE 0 
+            END as is_final_assessment,
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 
+                    FROM (
+                        SELECT 
+                            DATE(ans2.answered_at) as attempt_date,
+                            COUNT(DISTINCT q2.question_id) as total_questions,
+                            COUNT(DISTINCT CASE WHEN ans2.score = 1 THEN q2.question_id END) as correct_answers
+                        FROM questions q2
+                        INNER JOIN answers ans2 ON q2.question_id = ans2.question_id 
+                        WHERE q2.assessment_id = ? AND ans2.user_id = ?
+                        GROUP BY DATE(ans2.answered_at)
+                        HAVING correct_answers = total_questions AND total_questions > 0
+                    ) perfect_attempts
+                ) THEN 1
+                ELSE 0
+            END as has_perfect_attempt
+        FROM assessments a
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        WHERE a.assessment_id = ?
+    `;
+
+    // Execute both queries
+    req.db.query(totalQuestionsSql, [assessmentId], (err, totalResults) => {
+        if (err) {
+            console.error('Error getting total questions:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to check assessment status.' 
+            });
+        }
+
+        const totalQuestions = totalResults[0]?.total_questions || 0;
+        
+        req.db.query(perfectScoreCheckSql, [assessmentId, userId, assessmentId], (err, perfectResults) => {
+            if (err) {
+                console.error('Error checking perfect score:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Failed to check perfect score.' 
+                });
+            }
+
+            // If no results, assessment not found
+            if (perfectResults.length === 0) {
+                return res.json({
+                    success: true,
+                    is_final_assessment: false,
+                    has_perfect_score: false,
+                    completed_with_perfect_score: false,
+                    total_questions: totalQuestions,
+                    total_score: 0,
+                    chapter_title: null,
+                    assessment_title: null
+                });
+            }
+
+            const result = perfectResults[0];
+            const hasPerfectScore = result.has_perfect_attempt === 1;
+            
+            console.log(`Perfect score check for user ${userId}, assessment ${assessmentId}:`, {
+                total_questions: totalQuestions,
+                has_perfect_attempt: result.has_perfect_attempt,
+                has_perfect_score: hasPerfectScore,
+                chapter_title: result.chapter_title,
+                assessment_title: result.assessment_title
+            });
+            
+            res.json({
+                success: true,
+                is_final_assessment: result.is_final_assessment === 1,
+                has_perfect_score: hasPerfectScore,
+                completed_with_perfect_score: hasPerfectScore,
+                total_questions: totalQuestions,
+                total_score: 0, // Not relevant for perfect score check
+                chapter_title: result.chapter_title,
+                assessment_title: result.assessment_title
+            });
+        });
+    });
+});
+
+/**
  * @route GET /employee/workstreams/:workstreamId/last-viewed-chapter
  * @description Get the last viewed or completed chapter for a user in a workstream
  * @access Private (Employee)

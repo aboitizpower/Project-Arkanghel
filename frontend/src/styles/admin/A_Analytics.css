@@ -26,7 +26,7 @@
         "assessment-tracker critical-areas top-users";
 }
 
-.analytics-main.welcome-header {
+.analytics-main .welcome-header {
     font-size: 2rem;
     font-weight: 700;
     margin:1.5rem auto 1rem auto;
@@ -612,7 +612,7 @@
     gap: 0.75rem;
 }
 
-.filter-container-enhanced {
+.enhanced-kpi-card .filter-container-enhanced {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -620,6 +620,7 @@
     padding: 0.5rem 0.75rem;
     border-radius: 8px;
     border: 1px solid #dee2e6;
+    width: 14rem;
 }
 
 .filter-icon {
@@ -633,6 +634,10 @@
     color: #495057;
     font-weight: 500;
     cursor: pointer;
+    width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .workstream-filter-enhanced:focus {
