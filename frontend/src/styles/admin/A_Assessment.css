@@ -2,8 +2,9 @@
 
 .assessment-management-container {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f6fa;
+  overflow: hidden;
 }
 
 .assessment-management-main-content {
@@ -14,6 +15,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 .assessment-management-header {

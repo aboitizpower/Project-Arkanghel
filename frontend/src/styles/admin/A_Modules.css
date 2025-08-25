@@ -1,5 +1,19 @@
 /* Cleaned A_Modules.css for modules overview page */
 
+/* Workstream Management Layout - No Scroll */
+.workstream-management-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.workstream-management-main {
+  flex: 1;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
 .admin-table .th-title,
 .admin-table .workstream-title {
   text-align: left;

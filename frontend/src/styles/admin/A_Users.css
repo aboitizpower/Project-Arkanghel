@@ -1,5 +1,19 @@
 /* User Management page-specific styles only. Layout, table, header, button, badge, and search are in AdminCommon.css */
 
+/* User Management Layout - No Scroll */
+.user-management-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.user-management-main {
+  flex: 1;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
 .admin-table th,
 .admin-table td {
   text-align: center;

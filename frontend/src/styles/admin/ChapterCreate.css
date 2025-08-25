@@ -11,21 +11,27 @@ body,
 
 .chapter-create-container {
     display: flex;
-    min-height: 100vh; /* Use 100vh to ensure it covers the viewport height */
+    height: 100vh;
     background: #f8fafc;
-    overflow: hidden; /* Prevent internal overflow of this container */
+    overflow: hidden;
 }
 
 .chapter-create-main-content {
     flex: 1;
-    padding: 1.5rem;
-    background-color: #f4f7f9;
-    overflow: hidden; /* Ensure content inside does not overflow main content area */
+    background-color: #f8fafc;
+    overflow: hidden;
+    height: 100vh;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0;
 }
 
 .chapter-create-header {
-    margin-bottom: 0rem;
+    width: 100%;
+    padding: 1.5rem 0 0 2rem;
+    box-sizing: border-box;
 }
 
 .back-button {
@@ -49,27 +55,31 @@ body,
 }
 
 .chapter-create-page {
-    max-width: 800px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 600px;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     padding: 2rem;
-    max-height: calc(100vh - 3rem - 3rem); /* Adjust based on header/footer/margin, e.g., viewport height minus total vertical padding/margin */
-    overflow-y: auto; /* Enable vertical scrolling only for this section if content overflows */
+    margin: 0 auto;
+    align-self: center;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
 }
 
 .chapter-create-page h2 {
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #1e293b;
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1f2937;
+    text-align: left;
 }
 
 .subtitle {
-    color: #64748b;
+    color: #6b7280;
     margin-bottom: 2rem;
     font-size: 1rem;
+    line-height: 1.5;
 }
 
 .chapter-create-form {
@@ -87,22 +97,26 @@ body,
 .form-group label {
     font-weight: 600;
     color: #374151;
-    font-size: 0.95rem;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .form-control {
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 1rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    background-color: white;
+    background-color: #f9fafb;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .form-control:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background-color: white;
 }
 
 .form-control[type="file"] {
@@ -125,8 +139,9 @@ body,
 }
 
 textarea.form-control {
-    min-height: 150px;
-    resize: vertical;
+    min-height: 80px;
+    max-height: 120px;
+    resize: none;
     font-family: inherit;
 }
 
@@ -143,44 +158,52 @@ textarea.form-control {
 .form-actions {
     display: flex;
     gap: 1rem;
-    border-top: 1px solid #e5e7eb;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    justify-content: flex-start;
 }
 
 .btn-primary {
-    background-color: #3b82f6;
+    background-color: #4285f4;
     color: white;
     border: none;
-    padding: 0.75rem 1.5rem;
+    padding: 0.875rem 2rem;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     font-size: 1rem;
+    box-shadow: 0 2px 4px rgba(66, 133, 244, 0.2);
 }
 
 .btn-primary:hover {
-    background-color: #2563eb;
+    background-color: #3367d6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(66, 133, 244, 0.3);
 }
 
 .btn-primary:disabled {
     background-color: #9ca3af;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .btn-secondary {
     background-color: #6b7280;
     color: white;
     border: none;
-    padding: 0.75rem 1.5rem;
+    padding: 0.875rem 2rem;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     font-size: 1rem;
 }
 
 .btn-secondary:hover {
     background-color: #4b5563;
+    transform: translateY(-1px);
 }
 
 .video-preview {

@@ -1,5 +1,19 @@
 /* Leaderboard page-specific styles only. Layout, table, header, button, badge, and search are in AdminCommon.css */
 
+/* Leaderboard Layout - No Scroll */
+.leaderboard-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.leaderboard-main {
+  flex: 1;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
 .rank-col, .rank-cell {
   text-align: center;
   width: 80px;
