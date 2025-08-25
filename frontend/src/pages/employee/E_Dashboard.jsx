@@ -27,10 +27,23 @@ const E_Dashboard = () => {
       const fetchDashboardData = async () => {
         try {
           const response = await axios.get(`${API_URL}/employee/dashboard/${userId}`);
-          setWorkstreams(response.data.workstreams);
+          const workstreamsData = response.data.workstreams;
+          setWorkstreams(workstreamsData);
+          
+          // Calculate KPIs based on workstream progress
+          const inProgressCount = workstreamsData.filter(ws => {
+            const progress = Math.round(ws.progress || 0);
+            return progress === 0 && (ws.chapters_count > 0 || ws.assessments_count > 0);
+          }).length;
+          
+          const completedCount = workstreamsData.filter(ws => {
+            const progress = Math.round(ws.progress || 0);
+            return progress === 100;
+          }).length;
+          
           setKpiMetrics({
-            inProgress: response.data.kpis.active_workstreams,
-            completed: response.data.kpis.completed_workstreams
+            inProgress: inProgressCount,
+            completed: completedCount
           });
           setUserName(response.data.user.name);
         } catch (err) {
