@@ -46,6 +46,20 @@ const A_Users = () => {
     setSortOpen(false);
   }, [location.pathname]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortOpen && !event.target.closest('.admin-users-sort-dropdown')) {
+        setSortOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [sortOpen]);
+
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
@@ -197,11 +211,7 @@ const A_Users = () => {
                 </button>
               )}
             </div>
-            <div
-              className="admin-users-sort-dropdown"
-              tabIndex={0}
-              onBlur={() => setTimeout(() => setSortOpen(false), 120)}
-            >
+            <div className="admin-users-sort-dropdown">
               <button
                 className="sort-dropdown-btn"
                 onClick={() => setSortOpen(o => !o)}
@@ -215,19 +225,19 @@ const A_Users = () => {
               {sortOpen && (
                 <div className="sort-dropdown-menu">
                   <div
-                    className="sort-dropdown-item"
+                    className={`sort-dropdown-item${sortOrder === "none" ? " active" : ""}`}
                     onClick={() => { setSortOrder("none"); setSortOpen(false); }}
                   >
                     None
                   </div>
                   <div
-                    className="sort-dropdown-item"
+                    className={`sort-dropdown-item${sortOrder === "admin" ? " active" : ""}`}
                     onClick={() => { setSortOrder("admin"); setSortOpen(false); }}
                   >
                     Admin
                   </div>
                   <div
-                    className="sort-dropdown-item"
+                    className={`sort-dropdown-item${sortOrder === "employee" ? " active" : ""}`}
                     onClick={() => { setSortOrder("employee"); setSortOpen(false); }}
                   >
                     Employee
