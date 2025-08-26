@@ -614,10 +614,22 @@ router.get('/admin/analytics/critical-areas', (req, res) => {
             SELECT 
                 q.assessment_id,
                 ans.user_id,
-                (SUM(ans.score) * 100.0 / COUNT(q.question_id)) as best_percentage
+                MAX((attempt_scores.correct_answers * 100.0 / attempt_scores.total_questions)) as best_percentage
             FROM answers ans
             JOIN questions q ON ans.question_id = q.question_id
             JOIN users u ON ans.user_id = u.user_id
+            JOIN (
+                SELECT 
+                    q2.assessment_id,
+                    ans2.user_id,
+                    DATE(ans2.answered_at) as attempt_date,
+                    COUNT(q2.question_id) as total_questions,
+                    SUM(ans2.score) as correct_answers
+                FROM answers ans2
+                JOIN questions q2 ON ans2.question_id = q2.question_id
+                GROUP BY q2.assessment_id, ans2.user_id, DATE(ans2.answered_at)
+            ) attempt_scores ON q.assessment_id = attempt_scores.assessment_id 
+                            AND ans.user_id = attempt_scores.user_id
             WHERE u.isAdmin = FALSE
             GROUP BY q.assessment_id, ans.user_id
         ) user_best_scores ON a.assessment_id = user_best_scores.assessment_id
