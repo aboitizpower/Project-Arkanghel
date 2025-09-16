@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
+import TaskSidebar from '../../components/TaskSidebar';
 import '../../styles/employee/E_Dashboard.css'; // Dashboard-specific styles
 import '../../styles/employee/E_Modules.css';    // For workstream card styles
 import { FaCheckCircle, FaHourglassHalf } from 'react-icons/fa';
@@ -175,6 +176,7 @@ const E_Dashboard = () => {
           </>
         )}
       </main>
+      <TaskSidebar />
     </div>
   );
 };

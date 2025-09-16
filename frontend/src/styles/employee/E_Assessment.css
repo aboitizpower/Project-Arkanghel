@@ -1,5 +1,52 @@
 /* Clean E_Assessment CSS - Overhauled to match E_Leaderboard exactly */
 
+/* Deadline display styling */
+.deadline-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #e0f2fe;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.deadline-info.expired {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.deadline-label {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.deadline-info.expired .deadline-label {
+  color: #dc2626;
+}
+
+.deadline-date {
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.deadline-info.expired .deadline-date {
+  color: #dc2626;
+}
+
+.expired-badge {
+  background: #dc2626;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Base layout matching E_Leaderboard */
 .page-layout {
   display: flex;

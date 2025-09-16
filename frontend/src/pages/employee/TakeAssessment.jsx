@@ -24,6 +24,8 @@ const TakeAssessments = () => {
     const [assessmentResults, setAssessmentResults] = useState(null);
     const [workstreamInfo, setWorkstreamInfo] = useState(null);
     const [isFinalAssessment, setIsFinalAssessment] = useState(false);
+    const [deadline, setDeadline] = useState(null);
+    const [isExpired, setIsExpired] = useState(false);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(0);
@@ -62,6 +64,14 @@ const TakeAssessments = () => {
 
                 const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`);
                 setAssessment(assessmentRes.data);
+                
+                // Check deadline if exists
+                if (assessmentRes.data.deadline) {
+                    const deadlineDate = new Date(assessmentRes.data.deadline);
+                    const now = new Date();
+                    setDeadline(deadlineDate);
+                    setIsExpired(now > deadlineDate);
+                }
 
                 const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
                 setQuestions(questionsRes.data);
@@ -80,7 +90,12 @@ const TakeAssessments = () => {
                     }
                 }
             } catch (err) {
-                setError('Failed to load assessment data.');
+                if (err.response?.status === 403 && err.response?.data?.expired) {
+                    setError('This assessment deadline has passed. You can no longer take this assessment.');
+                    setIsExpired(true);
+                } else {
+                    setError('Failed to load assessment data.');
+                }
                 console.error(err);
             } finally {
                 setIsLoading(false);
@@ -370,6 +385,17 @@ const TakeAssessments = () => {
                         <FaArrowLeft /> Back to Chapter
                     </button>
                     <h1 className="assessment-title">{assessment?.title}</h1>
+                    {deadline && (
+                        <div className={`deadline-info ${isExpired ? 'expired' : ''}`}>
+                            <span className="deadline-label">Deadline:</span>
+                            <span className="deadline-date">
+                                {deadline.toLocaleString()}
+                            </span>
+                            {isExpired && (
+                                <span className="expired-badge">EXPIRED</span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="question-card-new">

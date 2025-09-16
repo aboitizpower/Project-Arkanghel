@@ -1,0 +1,243 @@
+/* TaskSidebar.css - Canvas-inspired design */
+
+.task-sidebar {
+  width: 300px;
+  background-color: #ffffff;
+  border-left: 1px solid #e1e5e9;
+  padding: 20px;
+  height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Task Section Styling */
+.task-section {
+  margin-bottom: 30px;
+}
+
+.task-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 15px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.task-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.view-calendar-btn {
+  background: none;
+  border: none;
+  color: #3182ce;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.view-calendar-btn:hover {
+  background-color: #ebf8ff;
+}
+
+/* Task List */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Task Item Base */
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.task-item-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+/* To Do Items */
+.todo-item {
+  background-color: #f7fafc;
+  border-left: 3px solid #3182ce;
+}
+
+.todo-item:hover {
+  background-color: #edf2f7;
+}
+
+.task-checkbox {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #68d391;
+  font-size: 16px;
+  transition: color 0.2s;
+}
+
+.task-checkbox:hover {
+  color: #48bb78;
+}
+
+.checkbox-icon {
+  opacity: 0.3;
+}
+
+.task-checkbox:hover .checkbox-icon {
+  opacity: 1;
+}
+
+/* Upcoming Items */
+.upcoming-item {
+  background-color: #fffaf0;
+  border-left: 3px solid #ed8936;
+}
+
+.upcoming-item:hover {
+  background-color: #fef5e7;
+}
+
+/* Feedback Items */
+.feedback-item {
+  background-color: #f0fff4;
+  border-left: 3px solid #38a169;
+}
+
+.feedback-item:hover {
+  background-color: #e6fffa;
+}
+
+/* Task Icons */
+.task-icon {
+  color: #a0aec0;
+  font-size: 14px;
+  width: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.feedback-icon {
+  color: #38a169;
+}
+
+/* Task Details */
+.task-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.task-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+  line-height: 1.2;
+}
+
+.task-due-date {
+  font-size: 12px;
+  color: #718096;
+  font-style: italic;
+}
+
+.task-status {
+  font-size: 12px;
+  color: #38a169;
+  font-style: italic;
+}
+
+/* Remove Button */
+.task-remove {
+  background: none;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.task-item:hover .task-remove {
+  opacity: 1;
+}
+
+.task-remove:hover {
+  color: #e53e3e;
+  background-color: #fed7d7;
+}
+
+/* Loading State */
+.task-sidebar-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #718096;
+  font-size: 14px;
+}
+
+/* Scrollbar Styling */
+.task-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.task-sidebar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.task-sidebar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.task-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* No tasks message */
+.no-tasks {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* Loading state */
+.task-sidebar-loading {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .task-sidebar {
+    display: none;
+  }
+}

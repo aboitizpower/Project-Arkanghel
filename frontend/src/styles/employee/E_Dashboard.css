@@ -12,6 +12,7 @@
   display: flex; /* Make main-content a flex container */
   flex-direction: column; /* Arrange children in a column */
   overflow-y: auto; /* Add this to enable internal scrolling if content exceeds height */
+  margin-right: 0; /* Remove any margin to accommodate sidebar */
 }
 
 /* Ensure the content within main-content can grow */

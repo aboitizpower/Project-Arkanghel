@@ -4,14 +4,24 @@ const router = express.Router();
 
 // Create a new assessment - Used by AssessmentCreate.jsx
 router.post('/assessments', (req, res) => {
-    const { chapter_id, title, total_points, passing_score } = req.body;
+    const { chapter_id, title, total_points, passing_score, deadline } = req.body;
     
     if (!chapter_id || !title || !total_points || !passing_score) {
         return res.status(400).json({ error: 'chapter_id, title, total_points, and passing_score are required.' });
     }
     
-    const sql = 'INSERT INTO assessments (chapter_id, title, total_points, passing_score) VALUES (?, ?, ?, ?)';
-    req.db.query(sql, [chapter_id, title, total_points, passing_score], (err, result) => {
+    // Validate deadline format if provided
+    let deadlineValue = null;
+    if (deadline) {
+        const deadlineDate = new Date(deadline);
+        if (isNaN(deadlineDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid deadline format. Please use a valid date.' });
+        }
+        deadlineValue = deadlineDate;
+    }
+    
+    const sql = 'INSERT INTO assessments (chapter_id, title, total_points, passing_score, deadline) VALUES (?, ?, ?, ?, ?)';
+    req.db.query(sql, [chapter_id, title, total_points, passing_score, deadlineValue], (err, result) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }

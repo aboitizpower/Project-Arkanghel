@@ -24,6 +24,7 @@ import takeAssessmentsRoutes from './routes/employee/TakeAssessments.js'
 import eAssessmentsRoutes from './routes/employee/E_Assessments.js'
 import eDashboardRoutes from './routes/employee/E_Dashboard.js'
 import eLeaderboardRoutes from './routes/employee/E_Leaderboard.js'
+import eTasksRoutes from './routes/employee/E_Tasks.js'
 
 const app = express()
 
@@ -67,6 +68,7 @@ app.use('/', takeAssessmentsRoutes) // TakeAssessments.jsx
 app.use('/', eAssessmentsRoutes)    // E_Assessments.jsx
 app.use('/employee', eDashboardRoutes)      // E_Dashboard.jsx
 app.use('/', eLeaderboardRoutes)    // E_Leaderboard.jsx
+app.use('/employee', eTasksRoutes)  // TaskSidebar.jsx
 
 // Start server
 const PORT = process.env.PORT || 8081

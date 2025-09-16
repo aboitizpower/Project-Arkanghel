@@ -38,6 +38,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
   const [modalQuestion, setModalQuestion] = useState('');
   const [modalOptions, setModalOptions] = useState(['', '', '', '']);
   const [modalCorrectAnswer, setModalCorrectAnswer] = useState('');
+  const [deadline, setDeadline] = useState('');
 
   // Fetch workstream data if not provided as prop
   useEffect(() => {
@@ -207,7 +208,8 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                         'identification'
         })),
         chapter_id: chapterIdToSend,
-        is_final: isFinalToSend
+        is_final: isFinalToSend,
+        deadline: deadline || null
       };
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
       await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
@@ -339,6 +341,19 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                   rows="4"
                   placeholder="Enter assessment description (optional)"
                 />
+              </div>
+              {/* Optional deadline */}
+              <div className="form-group">
+                <label htmlFor="assessment-deadline">Assessment Deadline (optional)</label>
+                <input
+                  type="datetime-local"
+                  id="assessment-deadline"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="form-control"
+                  placeholder="Select deadline date and time"
+                />
+                <small className="form-text">Leave empty for no deadline. Students who submit after the deadline will receive a score of 0.</small>
               </div>
               {/* The description field is now supported in the DB and will be sent as part of the payload */}
               <div className="form-actions">

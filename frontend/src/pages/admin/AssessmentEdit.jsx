@@ -27,6 +27,13 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const navigate = useNavigate();
   const [usedChapterIds, setUsedChapterIds] = useState([]);
   const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
+  const [deadline, setDeadline] = useState(() => {
+    if (assessment?.deadline) {
+      const date = new Date(assessment.deadline);
+      return date.toISOString().slice(0, 16); // Format for datetime-local input
+    }
+    return '';
+  });
 
   // Add Question Modal State
   const [showModal, setShowModal] = useState(false);
@@ -220,7 +227,8 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         // Send chapter_id only if it's not a final assessment
         chapter_id: is_final ? null : selectedChapter,
         // Ensure workstream_id is included for the backend logic
-        workstream_id: workstream?.workstream_id
+        workstream_id: workstream?.workstream_id,
+        deadline: deadline || null
       };
 
       await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, payload);
@@ -442,6 +450,25 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
             ) : (
               <p style={{whiteSpace: 'pre-line'}}>{editedDescription || 'No description'}</p>
             )}
+          </div>
+
+          {/* Deadline Card */}
+          <div className="edit-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: 15 }}>Deadline</span>
+            </div>
+            <div className="form-group">
+              <label htmlFor="assessment-deadline">Assessment Deadline (optional)</label>
+              <input
+                type="datetime-local"
+                id="assessment-deadline"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="form-control"
+                placeholder="Select deadline date and time"
+              />
+              <small className="form-text">Leave empty for no deadline. Students who submit after the deadline will receive a score of 0.</small>
+            </div>
           </div>
         </div>
 

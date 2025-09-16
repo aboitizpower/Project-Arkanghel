@@ -59,7 +59,7 @@ router.get('/assessments/:id', (req, res) => {
 // Update an assessment - Used by AssessmentEdit.jsx
 router.put('/assessments/:id', (req, res) => {
     const { id } = req.params;
-    const { title, description, is_final, chapter_id, workstream_id } = req.body;
+    const { title, description, is_final, chapter_id, workstream_id, deadline } = req.body;
 
     // Automatically set is_final if the title is 'Final Assessment'
     if (title && title.trim().toLowerCase() === 'final assessment') {
@@ -70,9 +70,30 @@ router.put('/assessments/:id', (req, res) => {
         return res.status(400).json({ error: 'title, description, and is_final are required.' });
     }
 
+    // Validate deadline format if provided
+    let deadlineValue = null;
+    if (deadline !== undefined) {
+        if (deadline === null || deadline === '') {
+            deadlineValue = null; // Allow clearing the deadline
+        } else {
+            const deadlineDate = new Date(deadline);
+            if (isNaN(deadlineDate.getTime())) {
+                return res.status(400).json({ error: 'Invalid deadline format. Please use a valid date.' });
+            }
+            deadlineValue = deadlineDate;
+        }
+    }
+
     const updateAssessment = (target_chapter_id) => {
-        const sql = 'UPDATE assessments SET title = ?, description = ?, is_final = ?, chapter_id = ?, updated_at = NOW() WHERE assessment_id = ?';
-        const params = [title, description, is_final, target_chapter_id, id];
+        let sql, params;
+        if (deadline !== undefined) {
+            sql = 'UPDATE assessments SET title = ?, description = ?, is_final = ?, chapter_id = ?, deadline = ?, updated_at = NOW() WHERE assessment_id = ?';
+            params = [title, description, is_final, target_chapter_id, deadlineValue, id];
+        } else {
+            sql = 'UPDATE assessments SET title = ?, description = ?, is_final = ?, chapter_id = ?, updated_at = NOW() WHERE assessment_id = ?';
+            params = [title, description, is_final, target_chapter_id, id];
+        }
+        
         req.db.query(sql, params, (err, result) => {
             if (err) {
                 console.error('Failed to update assessment:', err);
