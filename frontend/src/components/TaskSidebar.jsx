@@ -208,9 +208,9 @@ const TaskSidebar = () => {
         </div>
       </div>
 
-      {/* Recent Feedback Section */}
+      {/* Task Completed / Done Section*/}
       <div className="task-section">
-        <h3 className="task-section-title">Done</h3>
+        <h3 className="task-section-title">Completed</h3>
         <div className="task-list">
           {recentFeedback && recentFeedback.length > 0 ? (
             recentFeedback.map(feedback => (
