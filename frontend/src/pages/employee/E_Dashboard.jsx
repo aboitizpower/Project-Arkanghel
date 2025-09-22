@@ -108,7 +108,8 @@ const E_Dashboard = () => {
                   return (
                       <div 
                           key={ws.workstream_id} 
-                          className={`card-ws ${!hasContent ? 'inactive' : ''}`}
+                          className={`card-ws ${!hasContent ? 'inactive' : 'clickable'}`}
+                          onClick={() => hasContent && navigate(`/employee/modules/${ws.workstream_id}`)}
                       >
                           <div className="card-ws-image-container">
                               {ws.image_type ? 

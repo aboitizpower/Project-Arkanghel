@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const ViewModules = () => {
     const { moduleId } = useParams(); // Get module ID from URL
+    const { user, loading: authLoading } = useAuth();
     const [workstreams, setWorkstreams] = useState([]);
     const [chapters, setChapters] = useState([]);
     const [selectedWorkstream, setSelectedWorkstream] = useState(null);
@@ -23,64 +25,146 @@ const ViewModules = () => {
     const [showAssessmentModal, setShowAssessmentModal] = useState(false);
     const [showAssessmentCompletedModal, setShowAssessmentCompletedModal] = useState(false);
 
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [userId, setUserId] = useState(null);
 
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Handle authentication state and data fetching
     useEffect(() => {
-        const loggedInUserId = localStorage.getItem('userId');
-        if (loggedInUserId) {
-            setUserId(loggedInUserId);
-        } else {
-            setError("You must be logged in to view this page.");
+        if (authLoading) return; // Still loading auth state
+        
+        if (!user) {
+            // If user is not authenticated, redirect to login
+            navigate('/login', { state: { from: location.pathname } });
+            return;
         }
-    }, []);
+
+        // If we have a moduleId and user is authenticated, fetch data
+        if (moduleId && user.id) {
+            const fetchData = async () => {
+                try {
+                    setIsLoading(true);
+                    setError('');
+                    await fetchWorkstreamById(moduleId);
+                } catch (err) {
+                    console.error('Error loading module:', err);
+                    setError('Failed to load module. Please try again.');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            fetchData();
+        }
+    }, [moduleId, user, authLoading, navigate, location]);
 
     // Fetch specific workstream based on moduleId
     const fetchWorkstreamById = async (workstreamId) => {
-        if (!userId) return;
-        setIsLoading(true);
+        if (!user?.id) {
+            throw new Error('User not authenticated');
+        }
+        
         try {
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}?userId=${userId}`);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                },
+                params: {
+                    userId: user.id
+                }
+            });
+            
+            if (!response.data || !response.data.workstream) {
+                throw new Error('Invalid workstream data received');
+            }
+            
             const workstream = response.data.workstream;
             setSelectedWorkstream(workstream);
-            await fetchChapters(workstreamId);
-            await fetchUserProgress(workstreamId);
-            setError('');
+            
+            // Fetch chapters and user progress in parallel
+            const [chaptersData] = await Promise.all([
+                fetchChapters(workstreamId),
+                fetchUserProgress(workstreamId)
+            ]);
+            
+            // If there are chapters, select the first one by default
+            if (chaptersData?.length > 0 && !selectedChapter) {
+                setSelectedChapter(chaptersData[0]);
+            }
+            
+            return workstream;
         } catch (err) {
-            setError('Failed to fetch workstream. Please try again later.');
-            console.error(err);
+            console.error('Error in fetchWorkstreamById:', err);
+            setError(err.response?.data?.message || 'Failed to load module. Please try again.');
+            throw err; // Re-throw to be caught by the caller
         }
-        setIsLoading(false);
     };
 
     const fetchChapters = async (workstreamId) => {
+        if (!user?.id) {
+            throw new Error('User not authenticated');
+        }
+
         try {
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
-            setChapters(response.data);
-            setError('');
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            
+            if (!Array.isArray(response.data)) {
+                throw new Error('Invalid chapters data received');
+            }
+            
+            const sortedChapters = [...response.data].sort((a, b) => {
+                // Sort by order if available, otherwise by chapter_id
+                if (a.order !== undefined && b.order !== undefined) {
+                    return a.order - b.order;
+                }
+                return a.chapter_id - b.chapter_id;
+            });
+            
+            setChapters(sortedChapters);
+            return sortedChapters;
         } catch (err) {
-            setError('Failed to fetch chapters. Please try again later.');
-            console.error(err);
+            console.error('Error in fetchChapters:', err);
+            setError('Failed to load chapters. Please try again later.');
+            throw err; // Re-throw to be caught by the caller
         }
     };
 
     const fetchUserProgress = async (workstreamId) => {
-        if (!userId) return;
+        if (!user?.id) {
+            throw new Error('User not authenticated');
+        }
+        
         try {
-            const response = await axios.get(`${API_URL}/user-progress/${userId}/${workstreamId}`);
+            const response = await axios.get(`${API_URL}/user-progress/${user.id}/${workstreamId}`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            
+            if (!response.data || !Array.isArray(response.data.chapters)) {
+                console.warn('Invalid user progress data format received');
+                return new Set();
+            }
+            
             const progressData = response.data.chapters.reduce((acc, chapter) => {
-                if (chapter.is_completed) {
+                if (chapter.is_completed && chapter.chapter_id) {
                     acc.add(chapter.chapter_id);
                 }
                 return acc;
             }, new Set());
+            
             setCompletedChapters(progressData);
+            return progressData;
         } catch (err) {
-            console.error('Failed to fetch user progress:', err);
+            console.error('Error in fetchUserProgress:', err);
+            // Don't show error to user for progress, just return empty set
+            return new Set();
         }
     };
 
@@ -114,7 +198,10 @@ const ViewModules = () => {
                 
                 // Check if user has passed this assessment by checking answers table
                 try {
-                    const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed?userId=${userId}`);
+                    const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed`, {
+                        params: { userId: user.id },
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    });
                     setIsAssessmentPassed(passCheckResponse.data.passed || false);
                 } catch (passErr) {
                     console.log('Assessment not taken yet or failed to check pass status');
@@ -127,7 +214,7 @@ const ViewModules = () => {
     };
 
     const handleSelectChapter = async (chapter, workstream = selectedWorkstream, preserveAssessmentStatus = false) => {
-        if (!userId || !chapter) {
+        if (!user?.id || !chapter) {
             setError("Cannot select chapter. User or chapter data is missing.");
             return;
         }
@@ -138,8 +225,12 @@ const ViewModules = () => {
             // Mark chapter as viewed only if a workstream is selected
             if (workstream && workstream.workstream_id) {
                 await axios.post(`${API_URL}/employee/progress`, {
-                    userId: userId,
+                    userId: user.id,
                     chapterId: chapter.chapter_id,
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
                 });
                 // Optimistically update completed chapters
                 setCompletedChapters(prev => new Set(prev).add(chapter.chapter_id));
@@ -184,7 +275,8 @@ const ViewModules = () => {
         
         const currentIndex = chapters.findIndex(ch => ch.chapter_id === selectedChapter.chapter_id);
         if (currentIndex > 0) {
-            handleSelectChapter(chapters[currentIndex - 1]);
+            const prevChapter = chapters[currentIndex - 1];
+            handleSelectChapter(prevChapter);
         }
     };
 
@@ -192,18 +284,24 @@ const ViewModules = () => {
         if (assessmentForCurrentChapter) {
             // Check if user has completed this assessment with perfect score
             try {
-                const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentForCurrentChapter.assessment_id}/perfect-score?userId=${userId}`);
+                const perfectScoreResponse = await axios.get(
+                    `${API_URL}/employee/assessment/${assessmentForCurrentChapter.assessment_id}/perfect-score`,
+                    {
+                        params: { userId: user.id },
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    }
+                );
                 
                 if (perfectScoreResponse.data.completed_with_perfect_score) {
                     // Show completion dialog and prevent access
                     setShowAssessmentCompletedModal(true);
                     return;
                 }
-            } catch (perfectScoreErr) {
-                console.log('Assessment not completed with perfect score or error checking:', perfectScoreErr);
+            } catch (err) {
+                console.error('Error checking perfect score:', err);
             }
-
-            // Navigate to assessment if not completed with perfect score
+            
+            // Navigate to assessment
             navigate(`/employee/assessment/${assessmentForCurrentChapter.assessment_id}`, {
                 state: { 
                     chapterId: selectedChapter.chapter_id,
@@ -253,10 +351,10 @@ const ViewModules = () => {
 
     // Load workstream on component mount
     useEffect(() => {
-        if (moduleId && userId) {
+        if (moduleId && user?.id) {
             fetchWorkstreamById(parseInt(moduleId));
         }
-    }, [moduleId, userId]);
+    }, [moduleId, user?.id]);
 
     // This useEffect is the single source of truth for selecting a chapter.
     useEffect(() => {

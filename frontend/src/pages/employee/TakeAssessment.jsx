@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../../styles/employee/E_Assessment.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaLock } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
@@ -31,16 +32,23 @@ const TakeAssessments = () => {
     const [currentPage, setCurrentPage] = useState(0);
     const questionsPerPage = 1;
 
+    const { user } = useAuth();
+
     useEffect(() => {
         const fetchAssessmentData = async () => {
             setIsLoading(true);
             try {
                 // Check if user has completed this assessment with perfect score
-                const userId = localStorage.getItem('userId');
-                if (userId) {
+                if (user?.id) {
                     try {
-                        console.log(`Checking perfect score for assessment ${assessmentId}, user ${userId}`);
-                        const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentId}/perfect-score?userId=${userId}`);
+                        console.log(`Checking perfect score for assessment ${assessmentId}, user ${user.id}`);
+                        const perfectScoreResponse = await axios.get(
+                            `${API_URL}/employee/assessment/${assessmentId}/perfect-score`,
+                            {
+                                params: { userId: user.id },
+                                headers: { 'Authorization': `Bearer ${user.token}` }
+                            }
+                        );
                         
                         console.log('Perfect score response:', perfectScoreResponse.data);
                         
@@ -105,7 +113,6 @@ const TakeAssessments = () => {
         fetchAssessmentData();
     }, [assessmentId, chapterId, workstreamId]);
 
-
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
     };
@@ -168,11 +175,11 @@ const TakeAssessments = () => {
     };
 
     const handleSubmit = async () => {
-        const userId = localStorage.getItem('userId');
-        if (!userId) {
+        if (!user) {
             alert('You must be logged in to submit.');
             return;
         }
+        
         if (Object.keys(answers).length !== questions.length) {
             alert('Please answer all questions before submitting.');
             return;
@@ -185,16 +192,22 @@ const TakeAssessments = () => {
 
         console.log('Submitting assessment:', {
             assessmentId,
-            userId: parseInt(userId, 10),
+            userId: user.id,
             answers: formattedAnswers
         });
 
         setIsLoading(true);
         try {
-            const response = await axios.post(`${API_URL}/assessments/${assessmentId}/submit`, {
-                user_id: parseInt(userId, 10),
-                answers: formattedAnswers
-            });
+            const response = await axios.post(
+                `${API_URL}/assessments/${assessmentId}/submit`,
+                {
+                    user_id: user.id,
+                    answers: formattedAnswers
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                }
+            );
             
             console.log('Submission response:', response.data);
             

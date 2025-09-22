@@ -85,10 +85,32 @@
 .card {
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card.clickable {
     cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card.inactive {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.card.inactive .card-content {
+    opacity: 0.8;
 }
 
 .card:hover {
@@ -103,7 +125,14 @@
 }
 
 .card-content {
-    padding: 15px;
+    padding: 1.25rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+    background: white;
+    transition: all 0.2s ease;
 }
 
 .card-content h3 {
@@ -355,33 +384,34 @@
     width: 100%;
     max-width: 420px; 
     min-width: 260px; 
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+    position: relative;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
-    margin: 0 auto;
 }
 
-.card-ws:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+.card-ws.clickable {
+    cursor: pointer;
+}
+
+.card-ws.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .card-ws.inactive {
-    opacity: 0.6;
-    cursor: not-allowed;
+    opacity: 0.7;
+    background-color: #f8f9fa;
 }
 
-.card-ws.inactive:hover {
-    transform: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.card-ws.inactive .card-ws-image-container {
-    cursor: not-allowed;
+.card-ws.inactive .card-ws-content {
+    opacity: 0.8;
 }
 
 .card-ws-image-container {
@@ -410,11 +440,14 @@
 }
 
 .card-ws-content {
-    padding: 0.8rem; 
+    padding: 1.25rem;
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
-    padding-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    background: white;
+    transition: all 0.2s ease;
 }
 
 .card-ws-title {

@@ -451,7 +451,11 @@ const E_Modules = () => {
                         }
 
                         return (
-                            <div key={ws.workstream_id} className={`card-ws ${!hasContent ? 'inactive' : ''}`} onClick={() => hasContent && handleSelectWorkstream(ws)}>
+                            <div 
+                              key={ws.workstream_id} 
+                              className={`card-ws ${!hasContent ? 'inactive' : 'clickable'}`}
+                              onClick={() => hasContent && navigate(`/employee/modules/${ws.workstream_id}`)}
+                          >
                                 <div className="card-ws-image-container">
                                     {ws.image_type ? 
                                         <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
