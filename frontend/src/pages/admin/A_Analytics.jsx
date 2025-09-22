@@ -7,6 +7,7 @@ import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Analytics.css';
 import { Users, TrendingUp, AlertTriangle, Activity, FileCheck, BookOpenCheck, Filter } from 'lucide-react';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
@@ -16,9 +17,8 @@ const A_Analytics = () => {
     const [topUsers, setTopUsers] = useState([]);
     const [assessmentTracker, setAssessmentTracker] = useState([]);
     const [criticalAreas, setCriticalAreas] = useState([]);
-    const [userName, setUserName] = useState('');
     const [workstreams, setWorkstreams] = useState([]);
-    
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [selectedWorkstream, setSelectedWorkstream] = useState('all');
     const [selectedTimeRange, setSelectedTimeRange] = useState('monthly');
@@ -145,7 +145,9 @@ const A_Analytics = () => {
             <AdminSidebar />
             <main className="analytics-main">
                 <LoadingOverlay loading={loading} />
-                <h1 className="welcome-header">Welcome, {userName}!</h1>
+                <h1 className="welcome-header">
+                    Welcome, {user ? `${user.first_name} ${user.last_name}` : 'Admin'}!
+                </h1>
                 <div className="analytics-grid">
                     {/* KPI Cards - Row 1 */}
                     <div className="enhanced-kpi-card total-users-card">

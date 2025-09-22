@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { Suspense } from 'react';
+import { AuthProvider, useAuth } from './auth/AuthProvider.jsx';
+import AuthWrapper from './components/auth/AuthWrapper';
+import './components/auth/AuthButton.css'; // Import the CSS for transitions
 
 import Login from './pages/Login';
-import Register from './pages/Register';
 import NotFound from './pages/NotFound';
 
 import E_Dashboard from './pages/employee/E_Dashboard';
@@ -25,49 +27,24 @@ import ChapterEdit from './pages/admin/ChapterEdit';
 import AssessmentCreate from './pages/admin/AssessmentCreate';
 import AssessmentEdit from './pages/admin/AssessmentEdit';
 
-// Auth context for user state
-export const AuthContext = createContext();
 
-function AuthProvider({ children }) {
-    const [user, setUserState] = useState(null);
-    const [loading, setLoading] = useState(true);
-    // On mount, initialize user from localStorage
-    useEffect(() => {
-        try {
-            const stored = localStorage.getItem('user');
-            if (stored) setUserState(JSON.parse(stored));
-        } catch {}
-        setLoading(false);
-    }, []);
-    // When setUser is called, update both state and localStorage
-    const setUser = (userObj) => {
-        setUserState(userObj);
-        if (userObj) {
-            localStorage.setItem('user', JSON.stringify(userObj));
-        } else {
-            localStorage.removeItem('user');
-        }
-    };
-    if (loading) return null; // or a spinner if you want
-    return <AuthContext.Provider value={{ user, setUser }}>{children}</AuthContext.Provider>;
-}
-
-function useAuth() {
-    const ctx = useContext(AuthContext);
-    return ctx ? ctx.user : null;
-}
 
 // Route guard for admin (must be outside App to use hooks)
-function RequireAdmin({ children }) {
-    const user = useAuth();
+// This component protects routes that require authentication.
+function ProtectedRoute({ children, adminOnly = false }) {
+    const { user } = useAuth();
     const location = useLocation();
+
     if (!user) {
+        // User not logged in, redirect to login page
         return <Navigate to="/" state={{ from: location }} replace />;
     }
-    // Only block if user is not admin
-    if (!user.isAdmin) {
-        return <Navigate to="/employee/dashboard" state={{ from: location }} replace />;
+
+    if (adminOnly && !user.isAdmin) {
+        // User is not an admin, redirect to employee dashboard
+        return <Navigate to="/employee/dashboard" replace />;
     }
+
     return children;
 }
 
@@ -75,35 +52,147 @@ export default function App() {
     return (
         <AuthProvider>
             <Router>
-                <Routes>
-                    <Route path="/" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
+                <Suspense fallback={<div className="page-transition">Loading...</div>}>
+                    <Routes>
+                        <Route path="/" element={
+                            <AuthWrapper>
+                                <Login />
+                            </AuthWrapper>
+                        } />
 
-                    {/* Employee Routes */}
-                    <Route path="/employee/dashboard" element={<E_Dashboard />} />
-                    <Route path="/employee/modules" element={<E_Modules />} />
-                    <Route path="/employee/modules/:moduleId" element={<ViewModules />} />
-                    <Route path="/employee/assessment/:assessmentId" element={<TakeAssessments />} />
-                    <Route path="/employee/assessments" element={<E_Assessments />} />
-                    <Route path="/employee/leaderboard" element={<E_Leaderboard />} />
+                        {/* Protected Employee Routes */}
+                        <Route path="/employee/dashboard" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <E_Dashboard />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/employee/modules" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <E_Modules />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/employee/modules/:moduleId" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <ViewModules />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/employee/assessment/:assessmentId" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <TakeAssessments />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/employee/assessments" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <E_Assessments />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/employee/leaderboard" element={
+                            <ProtectedRoute>
+                                <AuthWrapper>
+                                    <E_Leaderboard />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
 
-                    {/* Admin Routes - protected */}
-                    <Route path="/admin/analytics" element={<RequireAdmin><A_Analytics /></RequireAdmin>} />
-                    <Route path="/admin/modules" element={<RequireAdmin><A_Modules /></RequireAdmin>} />
-                    <Route path="/admin/assessment" element={<RequireAdmin><A_Assessment /></RequireAdmin>} />
-                    <Route path="/admin/users" element={<RequireAdmin><A_Users /></RequireAdmin>} />
-                    <Route path="/admin/leaderboard" element={<RequireAdmin><A_Leaderboard /></RequireAdmin>} />
+                        {/* Protected Admin Routes */}
+                        <Route path="/admin/analytics" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Analytics />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/modules" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Modules />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/assessment" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Assessment />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/users" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Users />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/leaderboard" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Leaderboard />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/workstream/create" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <WorkstreamCreate />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/workstream/:workstreamId/edit" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <WorkstreamEdit />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/workstream/:workstreamId/chapter/create" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <ChapterCreate />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/workstream/:workstreamId/chapter/:chapterId/edit" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <ChapterEdit />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/workstream/:workstreamId/assessment/create" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <AssessmentCreate />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/assessment/:assessmentId/edit" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <AssessmentEdit />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                    <Route path="/admin/workstream/:workstreamId/chapter/:chapterId/edit" element={<ProtectedRoute adminOnly={true}><ChapterEdit /></ProtectedRoute>} />
+                    <Route path="/admin/workstream/:workstreamId/assessment/create" element={<ProtectedRoute adminOnly={true}><AssessmentCreate /></ProtectedRoute>} />
+                    <Route path="/admin/assessment/:assessmentId/edit" element={<ProtectedRoute adminOnly={true}><AssessmentEdit /></ProtectedRoute>} />
 
-                    {/* Admin Workstream/Chapter/Assessment CRUD Routes - protected */}
-                    <Route path="/admin/workstream/create" element={<RequireAdmin><WorkstreamCreate /></RequireAdmin>} />
-                    <Route path="/admin/workstream/:workstreamId/edit" element={<RequireAdmin><WorkstreamEdit /></RequireAdmin>} />
-                    <Route path="/admin/workstream/:workstreamId/chapter/create" element={<RequireAdmin><ChapterCreate /></RequireAdmin>} />
-                    <Route path="/admin/workstream/:workstreamId/chapter/:chapterId/edit" element={<RequireAdmin><ChapterEdit /></RequireAdmin>} />
-                    <Route path="/admin/workstream/:workstreamId/assessment/create" element={<RequireAdmin><AssessmentCreate /></RequireAdmin>} />
-                    <Route path="/admin/assessment/:assessmentId/edit" element={<RequireAdmin><AssessmentEdit /></RequireAdmin>} />
-
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
+                        <Route path="*" element={
+                            <AuthWrapper>
+                                <NotFound />
+                            </AuthWrapper>
+                        } />
+                    </Routes>
+                </Suspense>
             </Router>
         </AuthProvider>
     );

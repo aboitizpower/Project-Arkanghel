@@ -5,6 +5,7 @@ import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
 import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
@@ -19,10 +20,9 @@ const E_Modules = () => {
     const [currentContentView, setCurrentContentView] = useState('video'); // 'video' or 'pdf'
     const [completedChapters, setCompletedChapters] = useState(new Set());
 
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [userId, setUserId] = useState(null);
-
+    const { user } = useAuth();
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -32,21 +32,27 @@ const E_Modules = () => {
     const location = useLocation();
 
     useEffect(() => {
-        const loggedInUserId = localStorage.getItem('userId');
-        if (loggedInUserId) {
-            setUserId(loggedInUserId);
-        } else {
+        if (!user) {
             setError("You must be logged in to view this page.");
+            setIsLoading(false);
+            return;
         }
-    }, []);
+        
+        // Reset error when user is available
+        setError('');
+    }, [user]);
 
     useEffect(() => {
         const { workstreamId, chapterId, refresh } = location.state || {};
-        if (refresh && workstreamId && userId) {
+        if (refresh && workstreamId && user) {
             // Refresh workstreams data first to get updated progress
             const refreshAndNavigate = async () => {
                 try {
-                    const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
+                    const response = await axios.get(`${API_URL}/employee/workstreams`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
+                    });
                     setWorkstreams(response.data);
                     
                     const workstreamToSelect = response.data.find(ws => ws.workstream_id === parseInt(workstreamId));
@@ -61,7 +67,7 @@ const E_Modules = () => {
             };
             refreshAndNavigate();
         }
-    }, [location.state, navigate, userId]);
+    }, [location.state, navigate, user]);
 
     useEffect(() => {
         // This effect runs when chapters are populated and location state has a chapterId
@@ -77,31 +83,111 @@ const E_Modules = () => {
     }, [chapters, location.state]);
 
     const fetchWorkstreams = useCallback(async () => {
-        if (!userId) return;
-        setIsLoading(true);
-        try {
-            const response = await axios.get(`${API_URL}/employee/workstreams?userId=${userId}`);
-            setWorkstreams(response.data);
-            setError('');
-        } catch (err) {
-            setError('Failed to fetch workstreams. Please try again later.');
-            console.error(err);
+        if (!user || !user.token || !user.id) {
+            setError('No user session found. Please log in again.');
+            setIsLoading(false);
+            return;
         }
-        setIsLoading(false);
-    }, [userId]);
+        
+        setIsLoading(true);
+        
+        try {
+            // Create axios instance with default config
+            const api = axios.create({
+                baseURL: API_URL,
+                withCredentials: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                xsrfCookieName: 'XSRF-TOKEN',
+                xsrfHeaderName: 'X-XSRF-TOKEN'
+            });
+            
+            // First make an OPTIONS request to handle preflight
+            await api.options('/employee/workstreams');
+            
+            // Then make the actual GET request
+            const response = await api.get('/employee/workstreams', {
+                params: { userId: user.id },
+                withCredentials: true
+            });
+            
+            console.log('Workstreams API Response:', {
+                status: response.status,
+                statusText: response.statusText,
+                data: response.data
+            });
+            
+            if (!response.data) {
+                throw new Error('Empty response from server');
+            }
+            
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                // Show all workstreams, even those without content
+                const allWorkstreams = response.data.filter(ws => ws.is_published !== false);
+                
+                if (allWorkstreams.length > 0) {
+                    setWorkstreams(allWorkstreams);
+                    setError('');
+                } else {
+                    setError('No published workstreams found.');
+                    setWorkstreams([]);
+                }
+            } else {
+                setError('No workstreams assigned to your account. Please contact your administrator.');
+                setWorkstreams([]);
+            }
+            
+        } catch (error) {
+            console.error('Error fetching workstreams:', error);
+            
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                if (error.response.status === 401) {
+                    setError('Your session has expired. Please log in again.');
+                } else if (error.response.status === 403) {
+                    setError('You do not have permission to view workstreams.');
+                } else if (error.response.status === 404) {
+                    setError('Workstreams endpoint not found. Please contact support.');
+                } else if (error.response.data && error.response.data.error) {
+                    setError(`Server error: ${error.response.data.error}`);
+                } else {
+                    setError(`Server returned ${error.response.status}: ${error.response.statusText}`);
+                }
+            } else if (error.request) {
+                // The request was made but no response was received
+                console.error('No response received:', error.request);
+                setError('No response from server. Please check your network connection and try again.');
+            } else {
+                // Something happened in setting up the request
+                setError(`Error: ${error.message}`);
+            }
+            
+            setWorkstreams([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user]);
 
     useEffect(() => {
-        if (userId) {
+        if (user) {
             fetchWorkstreams();
         }
-    }, [userId, fetchWorkstreams]);
-
+    }, [user, fetchWorkstreams]);
 
     const fetchChapters = async (workstreamId) => {
-        if (!userId) return;
+        if (!user) return;
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}?userId=${userId}`);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            
             const fetchedChapters = response.data.chapters || [];
             setChapters(fetchedChapters);
 
@@ -110,17 +196,19 @@ const E_Modules = () => {
                 if (!selectedChapter) {
                     handleSelectChapter(fetchedChapters[0]);
                 }
+            } else {
+                setError('No chapters available for this workstream.');
             }
-            setError('');
         } catch (err) {
-            setError('Failed to fetch chapters. Please try again later.');
-            console.error(err);
+            const errorMessage = err.response?.data?.message || 'Failed to fetch chapters. Please try again later.';
+            setError(errorMessage);
+            console.error('Error fetching chapters:', err);
         }
         setIsLoading(false);
     };
 
     const fetchUserProgress = async (workstreamId) => {
-        if (!userId) return;
+        if (!user) return;
         try {
             // Corrected API endpoint
             const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/progress?userId=${userId}`);

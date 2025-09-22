@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { FaCalendarAlt, FaCheckCircle, FaClock, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../auth/AuthProvider';
 import '../styles/components/TaskSidebar.css';
 
 const API_URL = 'http://localhost:8081';
@@ -10,21 +11,40 @@ const TaskSidebar = () => {
   const [upcomingTasks, setUpcomingTasks] = useState([]);
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
-  const userId = localStorage.getItem('userId');
+  const { user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
-    if (userId) {
+    if (user?.id) {
       fetchTaskData();
+    } else {
+      // If no user but we're not loading, show sample data
+      setLoading(false);
+      setSampleData();
     }
-  }, [userId]);
+  }, [user]);
 
   const fetchTaskData = async () => {
+    if (!user?.id) return;
+    
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/employee/tasks/${userId}`);
-      setTodos(response.data.todos || []);
-      setUpcomingTasks(response.data.upcomingTasks || []);
-      setRecentFeedback(response.data.recentFeedback || []);
+      const response = await axios.get(`${API_URL}/employee/tasks/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        }
+      });
+      
+      // If no data or empty arrays, fall back to sample data
+      if (!response.data || 
+          (!response.data.todos && !response.data.upcomingTasks && !response.data.recentFeedback)) {
+        console.log('No task data received, showing sample data');
+        setSampleData();
+      } else {
+        setTodos(response.data.todos || []);
+        setUpcomingTasks(response.data.upcomingTasks || []);
+        setRecentFeedback(response.data.recentFeedback || []);
+      }
     } catch (error) {
       console.error('Error fetching task data:', error);
       // Set sample data for development
@@ -144,7 +164,10 @@ const TaskSidebar = () => {
   if (loading) {
     return (
       <div className="task-sidebar">
-        <div className="task-sidebar-loading">Loading...</div>
+        <div className="task-sidebar-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading tasks...</p>
+        </div>
       </div>
     );
   }

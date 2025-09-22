@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../auth/AuthProvider.jsx';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import TaskSidebar from '../../components/TaskSidebar';
 import '../../styles/employee/E_Dashboard.css'; // Dashboard-specific styles
@@ -15,8 +16,7 @@ const E_Dashboard = () => {
   const [kpiMetrics, setKpiMetrics] = useState({ inProgress: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userName, setUserName] = useState('');
-  const userId = localStorage.getItem('userId');
+  const { user } = useAuth(); // Get user from the auth context
   const navigate = useNavigate();
 
   // Pagination state
@@ -24,10 +24,12 @@ const E_Dashboard = () => {
   const workstreamsPerPage = 8;
 
   useEffect(() => {
-    if (userId) {
+    // Check if the user object and user.id are available from the auth context
+    if (user && user.id) {
       const fetchDashboardData = async () => {
         try {
-          const response = await axios.get(`${API_URL}/employee/dashboard/${userId}`);
+          // Use user.id from the auth context for the API call
+          const response = await axios.get(`${API_URL}/employee/dashboard/${user.id}`);
           const workstreamsData = response.data.workstreams;
           setWorkstreams(workstreamsData);
           
@@ -46,7 +48,6 @@ const E_Dashboard = () => {
             inProgress: inProgressCount,
             completed: completedCount
           });
-          setUserName(response.data.user.name);
         } catch (err) {
           console.error('Full API Error:', err);
           const errorMessage = err.response?.data?.details || err.response?.data?.error || err.message || 'Failed to fetch dashboard data.';
@@ -57,11 +58,11 @@ const E_Dashboard = () => {
         }
       };
       fetchDashboardData();
-    } else {
-      setError('You must be logged in to view this page.');
+    } else if (user === null) { // Only set error if user is explicitly null (not just loading)
+      setError('User not found.');
       setLoading(false);
     }
-  }, [userId]);
+  }, [user]); // Depend on the user object from the auth context
 
   const startIndex = (currentPage - 1) * workstreamsPerPage;
   const endIndex = startIndex + workstreamsPerPage;
@@ -72,7 +73,7 @@ const E_Dashboard = () => {
       <EmployeeSidebar />
       <main className="main-content">
         <LoadingOverlay loading={loading} />
-        <h1 className="welcome-header">Welcome, {userName}!</h1>
+        <h1 className="welcome-header">Welcome, {user ? `${user.first_name} ${user.last_name}` : ''}!</h1>
         
         {error && <p className="error-message">{error}</p>}
         

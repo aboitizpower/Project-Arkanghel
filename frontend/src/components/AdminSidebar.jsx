@@ -1,14 +1,14 @@
 import React, { useContext } from 'react';
 import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { AuthContext } from '../App';
+import { useAuth } from '../auth/AuthProvider.jsx';
 import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle, FaUserTie, FaArrowLeft } from 'react-icons/fa';
 import '../styles/admin/AdminSidebar.css';
 
 const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, setUser } = useContext(AuthContext);
+  const { user, logout } = useAuth();
   let firstName = user && user.first_name ? user.first_name : '';
   let lastName = user && user.last_name ? user.last_name : '';
   const fullName = `${firstName} ${lastName}`.trim();
@@ -17,10 +17,8 @@ const AdminSidebar = () => {
   const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : '';
 
   const handleLogout = () => {
-    if (setUser) setUser(null);
-    localStorage.removeItem('user');
+    logout();
     navigate('/');
-    window.location.reload();
   };
 
   // Show 'Back to Admin Pages' if on employee page, otherwise show 'View Employee Pages'

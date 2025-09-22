@@ -192,11 +192,36 @@
 /* Loading State */
 .task-sidebar-loading {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 200px;
-  color: #718096;
+  color: #4a5568;
   font-size: 14px;
+  gap: 15px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3182ce;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* No Tasks State */
+.no-tasks {
+  color: #718096;
+  font-style: italic;
+  text-align: center;
+  padding: 15px 0;
+  font-size: 13px;
 }
 
 /* Scrollbar Styling */
