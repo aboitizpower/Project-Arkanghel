@@ -95,10 +95,6 @@ const A_Analytics = () => {
     }
 
     useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.first_name) {
-            setUserName(user.first_name);
-        }
         const fetchAllData = async () => {
             setLoading(true);
             try {

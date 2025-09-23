@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
-import { FaSort, FaChevronDown, FaSearch, FaCog } from 'react-icons/fa';
+import { FaSort, FaChevronDown, FaSearch, FaCog, FaTrash } from 'react-icons/fa';
 import '../../styles/admin/A_Users.css';
 import '../../styles/admin/AdminCommon.css';
 import { useLocation } from 'react-router-dom';
@@ -38,11 +38,14 @@ const A_Users = () => {
   const [wsModalChecked, setWsModalChecked] = useState([]);
   const [wsModalLoading, setWsModalLoading] = useState(false);
   const [wsModalSaving, setWsModalSaving] = useState(false);
+  const [clearProgressUser, setClearProgressUser] = useState(null);
+  const [clearingProgress, setClearingProgress] = useState(false);
 
   const location = useLocation();
   useEffect(() => {
     // Close modal and dropdown on route change
     setWsModalUser(null);
+    setClearProgressUser(null);
     setSortOpen(false);
   }, [location.pathname]);
 
@@ -166,6 +169,41 @@ const A_Users = () => {
     return `${workstreams.length} Workstreams (All)`;
   };
 
+  // Clear progress functionality
+  const openClearProgressModal = (user) => {
+    setClearProgressUser(user);
+  };
+
+  const closeClearProgressModal = () => {
+    setClearProgressUser(null);
+    setClearingProgress(false);
+  };
+
+  const handleClearProgress = async () => {
+    if (!clearProgressUser) return;
+    
+    setClearingProgress(true);
+    try {
+      const res = await fetch(`http://localhost:8081/users/${clearProgressUser.id}/progress`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        alert(`Successfully cleared all progress for ${clearProgressUser.first_name} ${clearProgressUser.last_name}.\n\nDetails:\n- Assessment scores deleted: ${data.details.answersDeleted}\n- Chapter progress deleted: ${data.details.progressDeleted}\n- Assessment results deleted: ${data.details.resultsDeleted}\n- Total records deleted: ${data.details.totalDeleted}`);
+        closeClearProgressModal();
+      } else {
+        alert(`Failed to clear progress: ${data.error || 'Unknown error occurred'}`);
+      }
+    } catch (err) {
+      console.error('Error clearing progress:', err);
+      alert('Failed to clear progress. Please check the server connection.');
+    }
+    setClearingProgress(false);
+  };
+
   const filteredUsers = users
     .filter(user => {
       const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
@@ -257,12 +295,13 @@ const A_Users = () => {
                 <th>Role</th>
                 <th>Workstreams</th>
                 <th>Date Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {currentUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="admin-table-empty">
+                  <td colSpan="7" className="admin-table-empty">
                     No users found matching your search or filter.
                   </td>
                 </tr>
@@ -303,6 +342,16 @@ const A_Users = () => {
                         month: 'short',
                         day: 'numeric',
                       })}
+                    </td>
+                    <td className="admin-users-actions">
+                      <button 
+                        onClick={() => openClearProgressModal(user)} 
+                        className="clear-progress-btn"
+                        title="Clear all progress for this user"
+                      >
+                        <FaTrash />
+                        <span>Clear Progress</span>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -381,6 +430,43 @@ const A_Users = () => {
               <div className="ws-modal-actions">
                 <button onClick={closeWsModal} disabled={wsModalSaving}>Cancel</button>
                 <button onClick={saveWsModal} disabled={wsModalSaving}>{wsModalSaving ? 'Saving...' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Clear Progress Confirmation Modal */}
+        {clearProgressUser && (
+          <div className="ws-modal-overlay" onClick={closeClearProgressModal}>
+            <div className="ws-modal clear-progress-modal" onClick={e => e.stopPropagation()}>
+              <div className="ws-modal-header">
+                <h2>Clear Progress for {clearProgressUser.first_name} {clearProgressUser.last_name}</h2>
+                <button className="ws-modal-close" onClick={closeClearProgressModal} aria-label="Close">×</button>
+              </div>
+              <div className="clear-progress-content">
+                <div className="warning-icon">⚠️</div>
+                <p className="warning-message">
+                  <strong>Warning:</strong> This action will permanently delete all progress for this user, including:
+                </p>
+                <ul className="progress-items">
+                  <li>All chapter views and completion status</li>
+                  <li>All assessment scores and attempts</li>
+                  <li>All assessment results and history</li>
+                </ul>
+                <p className="confirmation-text">
+                  This action <strong>cannot be undone</strong>. Are you sure you want to continue?
+                </p>
+              </div>
+              <hr className="ws-modal-divider" />
+              <div className="ws-modal-actions">
+                <button onClick={closeClearProgressModal} disabled={clearingProgress}>Cancel</button>
+                <button 
+                  onClick={handleClearProgress} 
+                  disabled={clearingProgress}
+                  className="danger-btn"
+                >
+                  {clearingProgress ? 'Clearing...' : 'Clear All Progress'}
+                </button>
               </div>
             </div>
           </div>

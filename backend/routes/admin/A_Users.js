@@ -315,22 +315,9 @@ router.delete('/users/:id', (req, res) => {
                     });
                 }
                 
-                // Delete user's assessment results
-                const deleteResultsSql = 'DELETE FROM assessment_results WHERE user_id = ?';
-                req.db.query(deleteResultsSql, [id], (err) => {
-                    if (err) {
-                        console.error('Error deleting assessment results:', err);
-                        return req.db.rollback(() => {
-                            res.status(500).json({
-                                success: false,
-                                error: 'Failed to delete user assessment data. Please try again.'
-                            });
-                        });
-                    }
-                    
-                    // Finally, delete the user
-                    const deleteUserSql = 'DELETE FROM users WHERE user_id = ?';
-                    req.db.query(deleteUserSql, [id], (err, result) => {
+                // Finally, delete the user (no assessment_results table to clear)
+                const deleteUserSql = 'DELETE FROM users WHERE user_id = ?';
+                req.db.query(deleteUserSql, [id], (err, result) => {
                         if (err) {
                             console.error('Error deleting user:', err);
                             return req.db.rollback(() => {
@@ -371,7 +358,6 @@ router.delete('/users/:id', (req, res) => {
                         });
                     });
                 });
-            });
         });
     }
 });
@@ -487,6 +473,120 @@ router.put('/users/:id/workstreams', (req, res) => {
                 });
             });
         };
+    });
+});
+
+/**
+ * @route DELETE /users/:id/progress
+ * @description Clear all progress for a specific user (admin only)
+ * @access Private (Admin)
+ * @param {string} id - ID of the user to clear progress for
+ * @returns {Object} Success or error message
+ */
+router.delete('/users/:id/progress', (req, res) => {
+    const { id } = req.params;
+    
+    console.log(`Attempting to clear progress for user ID: ${id}`);
+    
+    // Input validation
+    if (isNaN(parseInt(id))) {
+        console.warn('Invalid user ID provided for progress clearing:', id);
+        return res.status(400).json({
+            success: false,
+            error: 'A valid user ID is required.'
+        });
+    }
+    
+    // First, check if the user exists
+    const checkUserSql = 'SELECT user_id, first_name, last_name FROM users WHERE user_id = ?';
+    req.db.query(checkUserSql, [id], (err, results) => {
+        if (err) {
+            console.error('Error checking user existence:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to verify user. Please try again.'
+            });
+        }
+        
+        if (results.length === 0) {
+            console.warn('User not found for progress clearing:', id);
+            return res.status(404).json({
+                success: false,
+                error: 'User not found.'
+            });
+        }
+        
+        const user = results[0];
+        console.log(`Clearing progress for user: ${user.first_name} ${user.last_name} (ID: ${id})`);
+        
+        // Use transactions to ensure data consistency
+        req.db.beginTransaction(err => {
+            if (err) {
+                console.error('Error beginning transaction for progress clearing:', err);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to initiate progress clearing. Please try again.'
+                });
+            }
+            
+            // Delete user's answers (assessment scores)
+            const deleteAnswersSql = 'DELETE FROM answers WHERE user_id = ?';
+            req.db.query(deleteAnswersSql, [id], (err, answersResult) => {
+                if (err) {
+                    console.error('Error deleting user answers:', err);
+                    return req.db.rollback(() => {
+                        res.status(500).json({
+                            success: false,
+                            error: 'Failed to clear assessment scores. Please try again.'
+                        });
+                    });
+                }
+                
+                console.log(`Deleted ${answersResult.affectedRows} answers for user ${id}`);
+                
+                // Delete user's progress (chapter views)
+                const deleteProgressSql = 'DELETE FROM user_progress WHERE user_id = ?';
+                req.db.query(deleteProgressSql, [id], (err, progressResult) => {
+                    if (err) {
+                        console.error('Error deleting user progress:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({
+                                success: false,
+                                error: 'Failed to clear chapter progress. Please try again.'
+                            });
+                        });
+                    }
+                    
+                    console.log(`Deleted ${progressResult.affectedRows} progress records for user ${id}`);
+                    
+                    // Commit the transaction (no assessment_results table to clear)
+                    req.db.commit(err => {
+                        if (err) {
+                            console.error('Error committing transaction:', err);
+                            return req.db.rollback(() => {
+                                res.status(500).json({
+                                    success: false,
+                                    error: 'Failed to complete progress clearing. Please try again.'
+                                });
+                            });
+                        }
+                        
+                        const totalDeleted = answersResult.affectedRows + progressResult.affectedRows;
+                        console.log(`Successfully cleared all progress for user ${user.first_name} ${user.last_name} (ID: ${id}). Total records deleted: ${totalDeleted}`);
+                        
+                        res.json({
+                            success: true,
+                            message: `Successfully cleared all progress for ${user.first_name} ${user.last_name}.`,
+                            details: {
+                                answersDeleted: answersResult.affectedRows,
+                                progressDeleted: progressResult.affectedRows,
+                                totalDeleted: totalDeleted
+                            }
+                        });
+                    });
+                });
+            });
+        });
     });
 });
 

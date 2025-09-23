@@ -190,8 +190,10 @@ const ViewModules = () => {
 
         // Fetch assessment for this chapter
         try {
+            console.log(`Fetching assessment for chapter ${chapter.chapter_id}: ${chapter.title}`);
             const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`);
             const assessmentData = assessmentResponse.data.assessment;
+            console.log(`Assessment data for chapter ${chapter.chapter_id}:`, assessmentData);
 
             if (assessmentData && assessmentData.assessment_id) {
                 setAssessmentForCurrentChapter(assessmentData);
@@ -207,9 +209,16 @@ const ViewModules = () => {
                     console.log('Assessment not taken yet or failed to check pass status');
                     setIsAssessmentPassed(false);
                 }
+            } else {
+                // No assessment for this chapter, clear assessment state
+                setAssessmentForCurrentChapter(null);
+                setIsAssessmentPassed(false);
             }
         } catch (err) {
             console.error('Error fetching assessment:', err);
+            // On error, clear assessment state
+            setAssessmentForCurrentChapter(null);
+            setIsAssessmentPassed(false);
         }
     };
 
@@ -248,7 +257,7 @@ const ViewModules = () => {
         navigate('/employee/modules');
     };
 
-    const handleNextChapter = () => {
+    const handleNextChapter = async () => {
         if (!selectedChapter || !chapters.length) return;
         
         const currentIndex = chapters.findIndex(ch => ch.chapter_id === selectedChapter.chapter_id);
@@ -261,6 +270,22 @@ const ViewModules = () => {
                 return;
             }
             
+            // Mark current chapter as completed before moving to next
+            try {
+                await axios.post(`${API_URL}/employee/progress`, {
+                    userId: user.id,
+                    chapterId: selectedChapter.chapter_id,
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+                // Optimistically update completed chapters
+                setCompletedChapters(prev => new Set(prev).add(selectedChapter.chapter_id));
+            } catch (err) {
+                console.error('Error marking chapter as completed:', err);
+            }
+            
             // If next chapter is a final assessment, redirect to assessment directly
             if (nextChapter.title.toLowerCase().includes('final assessment')) {
                 handleFinalAssessmentClick(nextChapter);
@@ -270,12 +295,29 @@ const ViewModules = () => {
         }
     };
 
-    const handlePreviousChapter = () => {
+    const handlePreviousChapter = async () => {
         if (!selectedChapter || !chapters.length) return;
         
         const currentIndex = chapters.findIndex(ch => ch.chapter_id === selectedChapter.chapter_id);
         if (currentIndex > 0) {
             const prevChapter = chapters[currentIndex - 1];
+            
+            // Mark current chapter as completed before moving to previous
+            try {
+                await axios.post(`${API_URL}/employee/progress`, {
+                    userId: user.id,
+                    chapterId: selectedChapter.chapter_id,
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                });
+                // Optimistically update completed chapters
+                setCompletedChapters(prev => new Set(prev).add(selectedChapter.chapter_id));
+            } catch (err) {
+                console.error('Error marking chapter as completed:', err);
+            }
+            
             handleSelectChapter(prevChapter);
         }
     };
@@ -320,7 +362,7 @@ const ViewModules = () => {
             if (assessmentData && assessmentData.assessment_id) {
                 // Check if user has completed this final assessment with perfect score
                 try {
-                    const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/perfect-score?userId=${userId}`);
+                    const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/perfect-score?userId=${user.id}`);
                     
                     if (perfectScoreResponse.data.completed_with_perfect_score) {
                         // Show completion dialog and prevent access
@@ -394,7 +436,7 @@ const ViewModules = () => {
             // If the specified chapter is a final assessment and workstream is complete, redirect to last regular chapter
             if (chapterToSelect && chapterToSelect.title.toLowerCase().includes('final assessment')) {
                 // Check if workstream is complete by fetching fresh progress data
-                axios.get(`${API_URL}/user-progress/${userId}/${selectedWorkstream.workstream_id}`)
+                axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`)
                     .then(response => {
                         const progressData = response.data.chapters.reduce((acc, chapter) => {
                             if (chapter.is_completed) {
@@ -438,7 +480,7 @@ const ViewModules = () => {
                 const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
                 
                 // Get the latest completed chapters from the API call
-                const updatedCompletedResponse = axios.get(`${API_URL}/user-progress/${userId}/${selectedWorkstream.workstream_id}`)
+                const updatedCompletedResponse = axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`)
                     .then(response => {
                         const progressData = response.data.chapters.reduce((acc, chapter) => {
                             if (chapter.is_completed) {
@@ -486,11 +528,12 @@ const ViewModules = () => {
         // A chapter is considered complete if it's in the completed set.
         const isCurrentChapterCompleted = completedChapters.has(selectedChapter.chapter_id);
         // The 'Next' button is disabled if the current chapter has an assessment that has not yet been passed.
-        const isNextButtonDisabled = assessmentForCurrentChapter && !isCurrentChapterCompleted;
+        const isNextButtonDisabled = assessmentForCurrentChapter && !isAssessmentPassed && !isCurrentChapterCompleted;
 
         // Check if chapter has video or PDF content
         const hasVideo = selectedChapter.video_filename;
         const hasPdf = selectedChapter.pdf_filename;
+        const hasAnyContent = hasVideo || hasPdf;
 
         return (
             <div className="module-view">
@@ -599,6 +642,26 @@ const ViewModules = () => {
                                 height="100%"
                                 style={{ border: 'none' }}
                             />
+                        ) : hasAnyContent ? (
+                            <div className="media-placeholder">
+                                <p>Content is loading or temporarily unavailable.</p>
+                                <p>Expected content: {hasVideo ? 'Video' : ''}{hasVideo && hasPdf ? ' and ' : ''}{hasPdf ? 'PDF' : ''}</p>
+                                <button 
+                                    onClick={() => window.location.reload()} 
+                                    className="btn-reload"
+                                    style={{
+                                        padding: '8px 16px',
+                                        backgroundColor: '#007bff',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        marginTop: '10px'
+                                    }}
+                                >
+                                    Reload Page
+                                </button>
+                            </div>
                         ) : (
                             <div className="media-placeholder">
                                 <p>No content available for this chapter.</p>
