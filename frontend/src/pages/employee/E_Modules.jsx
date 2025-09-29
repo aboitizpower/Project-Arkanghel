@@ -226,8 +226,14 @@ const E_Modules = () => {
 
     const handleSelectWorkstream = async (workstream) => {
         const hasContent = workstream.regular_chapters_count > 0 || workstream.assessments_count > 0;
-        if (!userId || !hasContent) return;
-
+        const isExpired = workstream.is_expired || false;
+        
+        if (!userId || !hasContent || isExpired) {
+            if (isExpired) {
+                alert('This workstream has expired and is no longer accessible.');
+            }
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -438,9 +444,13 @@ const E_Modules = () => {
                         const progress = ws.chapters_count > 0 ? Math.round(ws.progress || 0) : 0;
                         const isCompleted = progress === 100;
                         const hasContent = ws.regular_chapters_count > 0 || ws.assessments_count > 0;
+                        const isExpired = ws.is_expired || false;
+                        const deadline = ws.deadline ? new Date(ws.deadline) : null;
 
                         let actionButton;
-                        if (!hasContent) {
+                        if (isExpired) {
+                            actionButton = <button className="action-btn expired" disabled>Expired</button>;
+                        } else if (!hasContent) {
                             actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
                         } else if (isCompleted) {
                             actionButton = <button className="action-btn completed">Completed</button>;
@@ -453,8 +463,8 @@ const E_Modules = () => {
                         return (
                             <div 
                               key={ws.workstream_id} 
-                              className={`card-ws ${!hasContent ? 'inactive' : 'clickable'}`}
-                              onClick={() => hasContent && navigate(`/employee/modules/${ws.workstream_id}`)}
+                              className={`card-ws ${!hasContent || isExpired ? 'inactive' : 'clickable'} ${isExpired ? 'expired' : ''}`}
+                              onClick={() => hasContent && !isExpired && navigate(`/employee/modules/${ws.workstream_id}`)}
                           >
                                 <div className="card-ws-image-container">
                                     {ws.image_type ? 
@@ -469,6 +479,15 @@ const E_Modules = () => {
                                         <span>•</span>
                                         <span>{ws.assessments_count || 0} Assessments</span>
                                     </div>
+                                    {deadline && (
+                                        <div className={`card-ws-deadline ${isExpired ? 'expired' : ''}`}>
+                                            <span className="deadline-label">Deadline:</span>
+                                            <span className="deadline-date">
+                                                {deadline.toLocaleDateString()} {deadline.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                            {isExpired && <span className="expired-badge">EXPIRED</span>}
+                                        </div>
+                                    )}
                                     {hasContent ? (
                                         <>
                                             <div className="card-ws-progress">

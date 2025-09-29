@@ -24,9 +24,10 @@ const WorkstreamEdit = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [isEditing, setIsEditing] = useState({ title: false, description: false, image: false });
+  const [isEditing, setIsEditing] = useState({ title: false, description: false, image: false, deadline: false });
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  const [editedDeadline, setEditedDeadline] = useState('');
   const [newImage, setNewImage] = useState(null);
 
   const [selectedChapter, setSelectedChapter] = useState(null);
@@ -43,9 +44,12 @@ const WorkstreamEdit = () => {
       const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`);
       const data = response.data;
       console.log('Fetched workstream data:', data);
+      console.log('Fetched workstream deadline:', data.deadline); // Debug log
 
       // The backend now returns a single workstream object with 'chapters' and 'final_assessments' arrays.
-      setWorkstream(data); 
+      setWorkstream(data);
+      console.log('Set workstream state to:', data); // Debug log
+      console.log('Workstream state deadline:', data.deadline); // Debug log 
 
       const chaptersWithUrls = (data.chapters || []).map(chapter => ({
         ...chapter,
@@ -56,6 +60,14 @@ const WorkstreamEdit = () => {
 
       setEditedTitle(data.title);
       setEditedDescription(data.description);
+      // Convert MySQL datetime format to datetime-local format for input
+      if (data.deadline) {
+        // MySQL format: "2025-10-04 04:14:00" -> datetime-local format: "2025-10-04T04:14"
+        const deadlineForInput = data.deadline.replace(' ', 'T').slice(0, 16);
+        setEditedDeadline(deadlineForInput);
+      } else {
+        setEditedDeadline('');
+      }
 
     } catch (error) {
       console.error('Failed to fetch workstream:', error);
@@ -159,26 +171,53 @@ const WorkstreamEdit = () => {
         payload = new FormData();
         payload.append('title', workstream.title);
         payload.append('description', workstream.description);
+        if (workstream.deadline) payload.append('deadline', workstream.deadline);
         payload.append('image', newImage);
         headers['Content-Type'] = 'multipart/form-data';
       } else {
         // Construct a clean payload with only the necessary fields
+        let deadlineValue = workstream.deadline;
+        if (field === 'deadline') {
+          if (editedDeadline && editedDeadline.trim() !== '') {
+            // Send datetime-local format directly without timezone conversion
+            // Format: "2025-10-04T04:14" -> "2025-10-04 04:14:00"
+            deadlineValue = editedDeadline.replace('T', ' ') + ':00';
+          } else {
+            deadlineValue = null;
+          }
+        }
+        
         payload = {
           title: field === 'title' ? editedTitle : workstream.title,
           description: field === 'description' ? editedDescription : workstream.description,
+          deadline: deadlineValue,
         };
+        
+        console.log('Sending payload:', payload); // Debug log
+        console.log('editedDeadline:', editedDeadline); // Debug log
       }
 
             const response = await axios.put(`${API_URL}/workstreams/${workstreamId}`, payload, { headers });
 
       // Success: backend now returns the full updated workstream object.
       // Use this data directly to update state, avoiding a race condition.
-      const updatedWorkstream = response.data;
+      const updatedWorkstream = response.data.workstream || response.data;
+      console.log('Received updated workstream:', updatedWorkstream); // Debug log
+      console.log('Updated workstream deadline:', updatedWorkstream.deadline); // Debug log
       if (updatedWorkstream) {
         setWorkstream(updatedWorkstream);
         setChapters(updatedWorkstream.chapters || []);
         setEditedTitle(updatedWorkstream.title || '');
         setEditedDescription(updatedWorkstream.description || '');
+        // Convert MySQL datetime format back to datetime-local format
+        if (updatedWorkstream.deadline) {
+          // MySQL format: "2025-10-04 04:14:00" -> datetime-local format: "2025-10-04T04:14"
+          const deadlineForInput = updatedWorkstream.deadline.replace(' ', 'T').slice(0, 16);
+          setEditedDeadline(deadlineForInput);
+        } else {
+          setEditedDeadline('');
+        }
+        console.log('Updated editedDeadline to:', updatedWorkstream.deadline ? new Date(updatedWorkstream.deadline).toISOString().slice(0, 16) : ''); // Debug log
       }
 
       setIsEditing({ ...isEditing, [field]: false });
@@ -196,6 +235,15 @@ const WorkstreamEdit = () => {
     if (workstream) {
       if (field === 'title') setEditedTitle(workstream.title);
       if (field === 'description') setEditedDescription(workstream.description);
+      if (field === 'deadline') {
+        if (workstream.deadline) {
+          // MySQL format: "2025-10-04 04:14:00" -> datetime-local format: "2025-10-04T04:14"
+          const deadlineForInput = workstream.deadline.replace(' ', 'T').slice(0, 16);
+          setEditedDeadline(deadlineForInput);
+        } else {
+          setEditedDeadline('');
+        }
+      }
     }
     if (field === 'image') setNewImage(null);
   };
@@ -438,6 +486,65 @@ const WorkstreamEdit = () => {
                     </div>
                   ) : (
                     <p className="inline-value">{workstream.description}</p>
+                  )}
+                </div>
+
+                <div className="divider-horizontal"></div>
+
+                {/* Inline Deadline Edit */}
+                <div className="inline-edit-section">
+                  <div className="inline-edit-header">
+                    <label>Workstream Deadline</label>
+                    {!isEditing.deadline && (
+                      <button className="btn-inline-edit" onClick={() => setIsEditing({ ...isEditing, deadline: true })}>
+                        <FaPencilAlt /> Edit deadline
+                      </button>
+                    )}
+                  </div>
+                  {isEditing.deadline ? (
+                    <div className="inline-edit-content">
+                      <input 
+                        type="datetime-local"
+                        value={editedDeadline}
+                        onChange={(e) => setEditedDeadline(e.target.value)}
+                        className="inline-input"
+                      />
+                      <small className="form-text">Leave empty for no deadline. Students will not be able to access this workstream after the deadline.</small>
+                      <div className="inline-edit-actions">
+                        <button className="btn-cancel" onClick={() => handleCancel('deadline')}>Cancel</button>
+                        <button className="btn-save" onClick={() => handleSave('deadline')}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="inline-value">
+                      {(() => {
+                        console.log('Rendering deadline - workstream.deadline:', workstream.deadline); // Debug log
+                        console.log('Rendering deadline - typeof workstream.deadline:', typeof workstream.deadline); // Debug log
+                        
+                        if (workstream.deadline) {
+                          console.log('Deadline exists, value:', workstream.deadline);
+                          console.log('Deadline type:', typeof workstream.deadline);
+                          console.log('Deadline length:', workstream.deadline.length);
+                          console.log('Deadline truthy check:', !!workstream.deadline);
+                          
+                          const parsedDate = new Date(workstream.deadline);
+                          console.log('Rendering deadline - parsed date:', parsedDate); // Debug log
+                          console.log('Rendering deadline - parsed date valid:', !isNaN(parsedDate.getTime())); // Debug log
+                          
+                          if (!isNaN(parsedDate.getTime())) {
+                            const formatted = parsedDate.toLocaleString();
+                            console.log('Formatted date:', formatted);
+                            return formatted;
+                          } else {
+                            return `Invalid date: ${workstream.deadline}`;
+                          }
+                        } else {
+                          console.log('No deadline - workstream.deadline is falsy:', workstream.deadline);
+                        }
+                        
+                        return 'No deadline set';
+                      })()}
+                    </p>
                   )}
                 </div>
 

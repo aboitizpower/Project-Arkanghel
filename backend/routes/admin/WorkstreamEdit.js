@@ -32,11 +32,35 @@ router.get('/workstreams/:id', (req, res) => {
 // Update a workstream and return the complete, updated object - Used by WorkstreamEdit.jsx
 router.put('/workstreams/:id', upload.single('image'), (req, res) => {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description, deadline } = req.body;
+    
+    console.log('Received update request:', { id, title, description, deadline }); // Debug log
+    
+    // Validate deadline format if provided
+    let deadlineValue = null;
+    if (deadline !== undefined) {
+        if (deadline === null || deadline === '') {
+            deadlineValue = null; // Allow clearing the deadline
+        } else {
+            const deadlineDate = new Date(deadline);
+            if (isNaN(deadlineDate.getTime())) {
+                console.log('Invalid deadline format:', deadline); // Debug log
+                return res.status(400).json({ error: 'Invalid deadline format. Please use a valid date.' });
+            }
+            // Convert to MySQL datetime format (YYYY-MM-DD HH:mm:ss)
+            deadlineValue = deadlineDate.toISOString().slice(0, 19).replace('T', ' ');
+            console.log('Parsed deadline for MySQL:', deadlineValue); // Debug log
+        }
+    }
 
     // 1. Update the workstream
     let updateSql = 'UPDATE workstreams SET title = ?, description = ?';
     const updateParams = [title, description];
+
+    if (deadline !== undefined) {
+        updateSql += ', deadline = ?';
+        updateParams.push(deadlineValue);
+    }
 
     if (req.file) {
         updateSql += ', image = ?, image_type = ?';
@@ -45,6 +69,8 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
     }
     updateSql += ' WHERE workstream_id = ?';
     updateParams.push(id);
+
+    console.log('Executing SQL:', updateSql, 'with params:', updateParams); // Debug log
 
     req.db.query(updateSql, updateParams, (err, result) => {
         if (err) {
@@ -55,12 +81,13 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
         }
 
         // 2. Fetch and return the complete workstream data
-        const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams WHERE workstream_id = ?';
+        const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published, deadline FROM workstreams WHERE workstream_id = ?';
         req.db.query(workstreamSql, [id], (err, workstreamResults) => {
             if (err) return res.status(500).json({ error: `Failed to fetch workstream after update: ${err.message}` });
             if (workstreamResults.length === 0) return res.status(404).json({ error: 'Workstream not found after update.' });
 
             const workstream = workstreamResults[0];
+            console.log('Fetched updated workstream:', workstream); // Debug log
             const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
 
             req.db.query(chaptersSql, [id], (err, chapters) => {

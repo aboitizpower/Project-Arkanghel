@@ -30,6 +30,7 @@ router.get('/employee/workstreams', (req, res) => {
             w.description, 
             w.image_type, 
             w.created_at,
+            w.deadline,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE) AS chapters_count,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
             (
@@ -96,7 +97,7 @@ router.get('/employee/workstreams', (req, res) => {
             NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ?)
             OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ? AND uwp.workstream_id = w.workstream_id AND uwp.has_access = TRUE)
           )
-        ORDER BY w.created_at DESC
+        ORDER BY w.created_at ASC
     `;
 
     req.db.query(sql, [userId, userId, userId, userId], (err, results) => {
@@ -107,7 +108,21 @@ router.get('/employee/workstreams', (req, res) => {
                 error: 'Failed to fetch workstreams. Please try again later.' 
             });
         }
-        res.json(results);
+        
+        // Add deadline status to each workstream
+        const now = new Date();
+        const workstreamsWithDeadlineStatus = results.map(workstream => {
+            const deadline = workstream.deadline ? new Date(workstream.deadline) : null;
+            const isExpired = deadline && now > deadline;
+            
+            return {
+                ...workstream,
+                deadline: deadline ? deadline.toISOString() : null,
+                is_expired: isExpired
+            };
+        });
+        
+        res.json(workstreamsWithDeadlineStatus);
     });
 });
 
@@ -135,7 +150,8 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
             w.title, 
             w.description, 
             w.image_type,
-            w.created_at
+            w.created_at,
+            w.deadline
         FROM workstreams w
         WHERE w.workstream_id = ? AND w.is_published = TRUE
           AND (
@@ -161,6 +177,21 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
         }
 
         const workstream = workstreamResults[0];
+        
+        // Check if workstream has expired
+        const now = new Date();
+        const deadline = workstream.deadline ? new Date(workstream.deadline) : null;
+        const isExpired = deadline && now > deadline;
+        
+        if (isExpired) {
+            return res.status(403).json({
+                success: false,
+                error: 'This workstream deadline has passed. You can no longer access this workstream.',
+                expired: true,
+                deadline: deadline.toISOString(),
+                current_time: now.toISOString()
+            });
+        }
         
         const chaptersSql = `
             SELECT 

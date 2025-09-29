@@ -1,4 +1,73 @@
 /* E_Modules.css */
+
+/* Workstream deadline styling */
+.card-ws-deadline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 4px 8px;
+  background: #e0f2fe;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.card-ws-deadline.expired {
+  background: #fee2e2;
+  border-color: #ef4444;
+}
+
+.card-ws-deadline .deadline-label {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.card-ws-deadline.expired .deadline-label {
+  color: #dc2626;
+}
+
+.card-ws-deadline .deadline-date {
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.card-ws-deadline.expired .deadline-date {
+  color: #dc2626;
+}
+
+.card-ws-deadline .expired-badge {
+  background: #dc2626;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+}
+
+/* Expired workstream styling */
+.card-ws.expired {
+  opacity: 0.6;
+  filter: grayscale(50%);
+}
+
+.card-ws.expired .card-ws-title {
+  color: #6b7280;
+}
+
+.action-btn.expired {
+  background-color: #dc2626;
+  color: white;
+  cursor: not-allowed;
+}
+
+.action-btn.expired:hover {
+  background-color: #dc2626;
+}
+
 .e-modules-page {
   display: flex;
   height: 100vh;

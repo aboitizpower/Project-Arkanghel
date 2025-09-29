@@ -13,6 +13,7 @@ const WorkstreamCreate = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [image, setImage] = useState(null);
+    const [deadline, setDeadline] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
@@ -28,6 +29,14 @@ const WorkstreamCreate = () => {
         const formData = new FormData();
         formData.append('title', title);
         formData.append('description', description);
+        
+        // Convert deadline to MySQL format (same as edit functionality)
+        if (deadline && deadline.trim() !== '') {
+            const deadlineValue = deadline.replace('T', ' ') + ':00';
+            formData.append('deadline', deadlineValue);
+            console.log('WorkstreamCreate sending deadline:', deadlineValue); // Debug log
+        }
+        
         if (image) formData.append('image', image);
 
         setIsLoading(true);
@@ -98,6 +107,19 @@ const WorkstreamCreate = () => {
                                 rows="5"
                                 placeholder="Enter a description"
                             />
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="ws-deadline">Workstream Deadline (optional)</label>
+                            <input
+                                id="ws-deadline"
+                                type="datetime-local"
+                                value={deadline}
+                                onChange={(e) => setDeadline(e.target.value)}
+                                className="form-control"
+                                placeholder="Select deadline date and time"
+                            />
+                            <small className="form-text">Leave empty for no deadline. Students will not be able to access this workstream after the deadline.</small>
                         </div>
 
                         <div className="form-group">

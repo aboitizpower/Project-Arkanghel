@@ -9,16 +9,45 @@ const upload = multer({ storage: storage });
 
 // Create a new workstream - Used by WorkstreamCreate.jsx
 router.post('/workstreams', upload.single('image'), (req, res) => {
-    const { title, description } = req.body;
+    console.log('=== A_MODULES POST /workstreams ROUTE HIT ==='); // Debug log
+    const { title, description, deadline } = req.body;
     const image = req.file ? req.file.buffer : null;
     const image_type = req.file ? req.file.mimetype : null;
+
+    console.log('A_Modules POST received:', { title, description, deadline }); // Debug log
 
     if (!title || !description) {
         return res.status(400).json({ error: 'Title and description are required.' });
     }
 
-    const sql = 'INSERT INTO workstreams (title, description, image, image_type) VALUES (?, ?, ?, ?)';
-    req.db.query(sql, [title, description, image, image_type], (err, result) => {
+    // Validate deadline format if provided
+    let deadlineValue = null;
+    if (deadline !== undefined && deadline !== null && deadline !== '') {
+        // Check if deadline is already in MySQL format (YYYY-MM-DD HH:mm:ss)
+        const mysqlDateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+        if (mysqlDateRegex.test(deadline)) {
+            // Already in correct format
+            deadlineValue = deadline;
+            console.log('A_Modules POST: Deadline already in MySQL format:', deadlineValue); // Debug log
+        } else {
+            // Try to parse as ISO string and convert
+            const deadlineDate = new Date(deadline);
+            if (isNaN(deadlineDate.getTime())) {
+                console.log('A_Modules POST: Invalid deadline format:', deadline); // Debug log
+                return res.status(400).json({ error: 'Invalid deadline format. Please use a valid date.' });
+            }
+            // Convert to MySQL datetime format (YYYY-MM-DD HH:mm:ss)
+            deadlineValue = deadlineDate.toISOString().slice(0, 19).replace('T', ' ');
+            console.log('A_Modules POST: Converted deadline to MySQL format:', deadlineValue); // Debug log
+        }
+    }
+
+    const sql = 'INSERT INTO workstreams (title, description, image, image_type, deadline) VALUES (?, ?, ?, ?, ?)';
+    const params = [title, description, image, image_type, deadlineValue];
+    
+    console.log('A_Modules POST executing SQL:', sql, 'with params:', params); // Debug log
+    
+    req.db.query(sql, params, (err, result) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
@@ -28,6 +57,7 @@ router.post('/workstreams', upload.single('image'), (req, res) => {
 
 // Read all workstreams (for admin) - Used by A_Modules.jsx
 router.get('/workstreams', (req, res) => {
+    console.log('=== A_MODULES GET /workstreams ROUTE HIT ==='); // Debug log
     const sql = `
         SELECT 
             w.workstream_id, 
@@ -36,6 +66,7 @@ router.get('/workstreams', (req, res) => {
             w.image_type, 
             w.created_at, 
             w.is_published,
+            w.deadline,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) AS chapters_count,
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title NOT LIKE '%Final Assessment%') as regular_chapters_count,
             (
@@ -51,6 +82,8 @@ router.get('/workstreams', (req, res) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
+        console.log('A_Modules GET returning workstreams:', results); // Debug log
+        console.log('A_Modules GET first workstream deadline:', results[0]?.deadline); // Debug log
         res.json(results);
     });
 });
@@ -291,12 +324,47 @@ router.get('/workstreams/:id/complete', (req, res) => {
 
 // Update a workstream and return the complete, updated object
 router.put('/workstreams/:id', upload.single('image'), (req, res) => {
+    console.log('=== A_MODULES PUT /workstreams/:id ROUTE HIT ==='); // Debug log
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description, deadline } = req.body;
+    
+    console.log('A_Modules received:', { id, title, description, deadline }); // Debug log
+
+    // Validate deadline format if provided
+    let deadlineValue = null;
+    if (deadline !== undefined) {
+        if (deadline === null || deadline === '') {
+            deadlineValue = null; // Allow clearing the deadline
+        } else {
+            // Check if deadline is already in MySQL format (YYYY-MM-DD HH:mm:ss)
+            const mysqlDateRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+            if (mysqlDateRegex.test(deadline)) {
+                // Already in correct format
+                deadlineValue = deadline;
+                console.log('Deadline already in MySQL format:', deadlineValue); // Debug log
+            } else {
+                // Try to parse as ISO string and convert
+                const deadlineDate = new Date(deadline);
+                if (isNaN(deadlineDate.getTime())) {
+                    console.log('Invalid deadline format:', deadline); // Debug log
+                    return res.status(400).json({ error: 'Invalid deadline format. Please use a valid date.' });
+                }
+                // Convert to MySQL datetime format (YYYY-MM-DD HH:mm:ss)
+                deadlineValue = deadlineDate.toISOString().slice(0, 19).replace('T', ' ');
+                console.log('Converted deadline to MySQL format:', deadlineValue); // Debug log
+            }
+        }
+    }
 
     // 1. Update the workstream
     let updateSql = 'UPDATE workstreams SET title = ?, description = ?';
     const updateParams = [title, description];
+
+    // Add deadline if provided
+    if (deadline !== undefined) {
+        updateSql += ', deadline = ?';
+        updateParams.push(deadlineValue);
+    }
 
     if (req.file) {
         updateSql += ', image = ?, image_type = ?';
@@ -305,6 +373,8 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
     }
     updateSql += ' WHERE workstream_id = ?';
     updateParams.push(id);
+
+    console.log('A_Modules executing SQL:', updateSql, 'with params:', updateParams); // Debug log
 
     req.db.query(updateSql, updateParams, (err, result) => {
         if (err) {
@@ -315,12 +385,14 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
         }
 
         // 2. Fetch and return the complete workstream data (mimicking the /complete endpoint)
-        const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams WHERE workstream_id = ?';
+        const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published, deadline FROM workstreams WHERE workstream_id = ?';
         req.db.query(workstreamSql, [id], (err, workstreamResults) => {
             if (err) return res.status(500).json({ error: `Failed to fetch workstream after update: ${err.message}` });
             if (workstreamResults.length === 0) return res.status(404).json({ error: 'Workstream not found after update.' });
 
             const workstream = workstreamResults[0];
+            console.log('A_Modules fetched updated workstream:', workstream); // Debug log
+            console.log('A_Modules workstream deadline:', workstream.deadline); // Debug log
             const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
 
             req.db.query(chaptersSql, [id], (err, chapters) => {

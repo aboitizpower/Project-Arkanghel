@@ -181,7 +181,7 @@ router.get('/dashboard/:userId', (req, res) => {
                     NOT EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ?)
                     OR EXISTS (SELECT 1 FROM user_workstream_permissions uwp WHERE uwp.user_id = ? AND uwp.workstream_id = w.workstream_id AND uwp.has_access = TRUE)
                   )
-                ORDER BY w.created_at DESC
+                ORDER BY w.created_at ASC
             `;
             
             req.db.query(workstreamsSql, [userId, userId, userId, userId, userId, userId], (wsErr, workstreamsResults) => {
