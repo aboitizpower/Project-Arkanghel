@@ -477,16 +477,101 @@ router.put('/users/:id/workstreams', (req, res) => {
 });
 
 /**
+ * @route GET /users/:id/progress-options
+ * @description Get available workstreams and assessments for progress clearing options
+ * @access Private (Admin)
+ * @param {string} id - ID of the user
+ * @returns {Object} Available workstreams and assessments for the user
+ */
+router.get('/users/:id/progress-options', (req, res) => {
+    const { id } = req.params;
+    
+    console.log(`Fetching progress options for user ID: ${id}`);
+    
+    // Input validation
+    if (isNaN(parseInt(id))) {
+        console.warn('Invalid user ID provided for progress options:', id);
+        return res.status(400).json({
+            success: false,
+            error: 'A valid user ID is required.'
+        });
+    }
+    
+    // Get workstreams with user progress
+    const workstreamsQuery = `
+        SELECT DISTINCT w.workstream_id, w.title, w.description,
+               COUNT(DISTINCT up.progress_id) as chapter_progress_count,
+               COUNT(DISTINCT ans.answer_id) as answer_count
+        FROM workstreams w
+        LEFT JOIN module_chapters mc ON w.workstream_id = mc.workstream_id
+        LEFT JOIN user_progress up ON mc.chapter_id = up.chapter_id AND up.user_id = ?
+        LEFT JOIN assessments a ON mc.chapter_id = a.chapter_id OR w.workstream_id = a.workstream_id
+        LEFT JOIN questions q ON a.assessment_id = q.assessment_id
+        LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
+        WHERE w.is_published = TRUE
+        GROUP BY w.workstream_id, w.title, w.description
+        HAVING chapter_progress_count > 0 OR answer_count > 0
+        ORDER BY w.title
+    `;
+    
+    // Get assessments with user attempts
+    const assessmentsQuery = `
+        SELECT DISTINCT a.assessment_id, a.title, a.description, w.title as workstream_title,
+               mc.title as chapter_title, COUNT(DISTINCT ans.answer_id) as answer_count
+        FROM assessments a
+        LEFT JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        LEFT JOIN workstreams w ON mc.workstream_id = w.workstream_id OR a.workstream_id = w.workstream_id
+        LEFT JOIN questions q ON a.assessment_id = q.assessment_id
+        LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
+        WHERE ans.answer_id IS NOT NULL
+        GROUP BY a.assessment_id, a.title, a.description, w.title, mc.title
+        ORDER BY w.title, a.title
+    `;
+    
+    req.db.query(workstreamsQuery, [id, id], (err, workstreams) => {
+        if (err) {
+            console.error('Error fetching workstreams for progress options:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch workstream options. Please try again.'
+            });
+        }
+        
+        req.db.query(assessmentsQuery, [id], (err, assessments) => {
+            if (err) {
+                console.error('Error fetching assessments for progress options:', err);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch assessment options. Please try again.'
+                });
+            }
+            
+            console.log(`Found ${workstreams.length} workstreams and ${assessments.length} assessments with progress for user ${id}`);
+            
+            res.json({
+                success: true,
+                workstreams,
+                assessments
+            });
+        });
+    });
+});
+
+/**
  * @route DELETE /users/:id/progress
- * @description Clear all progress for a specific user (admin only)
+ * @description Clear progress for a specific user with granular options (admin only)
  * @access Private (Admin)
  * @param {string} id - ID of the user to clear progress for
+ * @param {string} clearType - Type of clearing: 'all', 'assessments', 'workstream', 'assessment'
+ * @param {number} workstreamId - ID of specific workstream (for workstream clearing)
+ * @param {number} assessmentId - ID of specific assessment (for assessment clearing)
  * @returns {Object} Success or error message
  */
 router.delete('/users/:id/progress', (req, res) => {
     const { id } = req.params;
+    const { clearType = 'all', workstreamId, assessmentId } = req.body;
     
-    console.log(`Attempting to clear progress for user ID: ${id}`);
+    console.log(`Attempting to clear progress for user ID: ${id}, type: ${clearType}`);
     
     // Input validation
     if (isNaN(parseInt(id))) {
@@ -494,6 +579,30 @@ router.delete('/users/:id/progress', (req, res) => {
         return res.status(400).json({
             success: false,
             error: 'A valid user ID is required.'
+        });
+    }
+    
+    // Validate clearType
+    const validClearTypes = ['all', 'assessments', 'workstream', 'assessment'];
+    if (!validClearTypes.includes(clearType)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid clear type. Must be one of: all, assessments, workstream, assessment'
+        });
+    }
+    
+    // Validate required parameters for specific clear types
+    if (clearType === 'workstream' && !workstreamId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Workstream ID is required for workstream clearing.'
+        });
+    }
+    
+    if (clearType === 'assessment' && !assessmentId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Assessment ID is required for assessment clearing.'
         });
     }
     
@@ -517,7 +626,7 @@ router.delete('/users/:id/progress', (req, res) => {
         }
         
         const user = results[0];
-        console.log(`Clearing progress for user: ${user.first_name} ${user.last_name} (ID: ${id})`);
+        console.log(`Clearing ${clearType} progress for user: ${user.first_name} ${user.last_name} (ID: ${id})`);
         
         // Use transactions to ensure data consistency
         req.db.beginTransaction(err => {
@@ -529,63 +638,214 @@ router.delete('/users/:id/progress', (req, res) => {
                 });
             }
             
-            // Delete user's answers (assessment scores)
-            const deleteAnswersSql = 'DELETE FROM answers WHERE user_id = ?';
-            req.db.query(deleteAnswersSql, [id], (err, answersResult) => {
-                if (err) {
-                    console.error('Error deleting user answers:', err);
+            // Define clearing functions based on clearType
+            switch (clearType) {
+                case 'all':
+                    clearAllProgress();
+                    break;
+                case 'assessments':
+                    clearAllAssessmentAttempts();
+                    break;
+                case 'workstream':
+                    clearWorkstreamProgress();
+                    break;
+                case 'assessment':
+                    clearSpecificAssessmentProgress();
+                    break;
+                default:
                     return req.db.rollback(() => {
-                        res.status(500).json({
+                        res.status(400).json({
                             success: false,
-                            error: 'Failed to clear assessment scores. Please try again.'
+                            error: 'Invalid clear type specified.'
                         });
                     });
-                }
-                
-                console.log(`Deleted ${answersResult.affectedRows} answers for user ${id}`);
-                
-                // Delete user's progress (chapter views)
-                const deleteProgressSql = 'DELETE FROM user_progress WHERE user_id = ?';
-                req.db.query(deleteProgressSql, [id], (err, progressResult) => {
+            }
+            
+            function clearAllProgress() {
+                // Delete user's answers (assessment scores)
+                const deleteAnswersSql = 'DELETE FROM answers WHERE user_id = ?';
+                req.db.query(deleteAnswersSql, [id], (err, answersResult) => {
                     if (err) {
-                        console.error('Error deleting user progress:', err);
+                        console.error('Error deleting user answers:', err);
                         return req.db.rollback(() => {
                             res.status(500).json({
                                 success: false,
-                                error: 'Failed to clear chapter progress. Please try again.'
+                                error: 'Failed to clear assessment scores. Please try again.'
                             });
                         });
                     }
                     
-                    console.log(`Deleted ${progressResult.affectedRows} progress records for user ${id}`);
+                    console.log(`Deleted ${answersResult.affectedRows} answers for user ${id}`);
                     
-                    // Commit the transaction (no assessment_results table to clear)
-                    req.db.commit(err => {
+                    // Delete user's progress (chapter views)
+                    const deleteProgressSql = 'DELETE FROM user_progress WHERE user_id = ?';
+                    req.db.query(deleteProgressSql, [id], (err, progressResult) => {
                         if (err) {
-                            console.error('Error committing transaction:', err);
+                            console.error('Error deleting user progress:', err);
                             return req.db.rollback(() => {
                                 res.status(500).json({
                                     success: false,
-                                    error: 'Failed to complete progress clearing. Please try again.'
+                                    error: 'Failed to clear chapter progress. Please try again.'
                                 });
                             });
                         }
                         
-                        const totalDeleted = answersResult.affectedRows + progressResult.affectedRows;
-                        console.log(`Successfully cleared all progress for user ${user.first_name} ${user.last_name} (ID: ${id}). Total records deleted: ${totalDeleted}`);
+                        console.log(`Deleted ${progressResult.affectedRows} progress records for user ${id}`);
                         
-                        res.json({
-                            success: true,
-                            message: `Successfully cleared all progress for ${user.first_name} ${user.last_name}.`,
-                            details: {
+                        commitTransaction({
+                            answersDeleted: answersResult.affectedRows,
+                            progressDeleted: progressResult.affectedRows,
+                            totalDeleted: answersResult.affectedRows + progressResult.affectedRows
+                        }, 'all progress');
+                    });
+                });
+            }
+            
+            function clearAllAssessmentAttempts() {
+                // Delete all user's answers (assessment attempts)
+                const deleteAnswersSql = 'DELETE FROM answers WHERE user_id = ?';
+                req.db.query(deleteAnswersSql, [id], (err, answersResult) => {
+                    if (err) {
+                        console.error('Error deleting user answers:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({
+                                success: false,
+                                error: 'Failed to clear assessment attempts. Please try again.'
+                            });
+                        });
+                    }
+                    
+                    console.log(`Deleted ${answersResult.affectedRows} assessment attempts for user ${id}`);
+                    
+                    commitTransaction({
+                        answersDeleted: answersResult.affectedRows,
+                        progressDeleted: 0,
+                        totalDeleted: answersResult.affectedRows
+                    }, 'all assessment attempts');
+                });
+            }
+            
+            function clearWorkstreamProgress() {
+                // Get chapters for the specific workstream
+                const getChaptersSql = 'SELECT chapter_id FROM module_chapters WHERE workstream_id = ?';
+                req.db.query(getChaptersSql, [workstreamId], (err, chapters) => {
+                    if (err) {
+                        console.error('Error fetching chapters for workstream:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({
+                                success: false,
+                                error: 'Failed to fetch workstream chapters. Please try again.'
+                            });
+                        });
+                    }
+                    
+                    if (chapters.length === 0) {
+                        return commitTransaction({
+                            answersDeleted: 0,
+                            progressDeleted: 0,
+                            totalDeleted: 0
+                        }, `workstream progress (no chapters found)`);
+                    }
+                    
+                    const chapterIds = chapters.map(c => c.chapter_id);
+                    
+                    // Delete answers for assessments in this workstream
+                    const deleteAnswersSql = `
+                        DELETE ans FROM answers ans
+                        JOIN questions q ON ans.question_id = q.question_id
+                        JOIN assessments a ON q.assessment_id = a.assessment_id
+                        LEFT JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                        WHERE ans.user_id = ? AND (
+                            mc.workstream_id = ? OR a.workstream_id = ?
+                        )
+                    `;
+                    
+                    req.db.query(deleteAnswersSql, [id, workstreamId, workstreamId], (err, answersResult) => {
+                        if (err) {
+                            console.error('Error deleting workstream answers:', err);
+                            return req.db.rollback(() => {
+                                res.status(500).json({
+                                    success: false,
+                                    error: 'Failed to clear workstream assessment scores. Please try again.'
+                                });
+                            });
+                        }
+                        
+                        // Delete chapter progress for this workstream
+                        const deleteProgressSql = 'DELETE FROM user_progress WHERE user_id = ? AND chapter_id IN (?)';
+                        req.db.query(deleteProgressSql, [id, chapterIds], (err, progressResult) => {
+                            if (err) {
+                                console.error('Error deleting workstream progress:', err);
+                                return req.db.rollback(() => {
+                                    res.status(500).json({
+                                        success: false,
+                                        error: 'Failed to clear workstream chapter progress. Please try again.'
+                                    });
+                                });
+                            }
+                            
+                            console.log(`Deleted ${answersResult.affectedRows} answers and ${progressResult.affectedRows} progress records for workstream ${workstreamId}`);
+                            
+                            commitTransaction({
                                 answersDeleted: answersResult.affectedRows,
                                 progressDeleted: progressResult.affectedRows,
-                                totalDeleted: totalDeleted
-                            }
+                                totalDeleted: answersResult.affectedRows + progressResult.affectedRows
+                            }, `workstream progress`);
                         });
                     });
                 });
-            });
+            }
+            
+            function clearSpecificAssessmentProgress() {
+                // Delete answers for the specific assessment
+                const deleteAnswersSql = `
+                    DELETE ans FROM answers ans
+                    JOIN questions q ON ans.question_id = q.question_id
+                    WHERE ans.user_id = ? AND q.assessment_id = ?
+                `;
+                
+                req.db.query(deleteAnswersSql, [id, assessmentId], (err, answersResult) => {
+                    if (err) {
+                        console.error('Error deleting assessment answers:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({
+                                success: false,
+                                error: 'Failed to clear assessment scores. Please try again.'
+                            });
+                        });
+                    }
+                    
+                    console.log(`Deleted ${answersResult.affectedRows} answers for assessment ${assessmentId}`);
+                    
+                    commitTransaction({
+                        answersDeleted: answersResult.affectedRows,
+                        progressDeleted: 0,
+                        totalDeleted: answersResult.affectedRows
+                    }, `assessment progress`);
+                });
+            }
+            
+            function commitTransaction(details, progressType) {
+                req.db.commit(err => {
+                    if (err) {
+                        console.error('Error committing transaction:', err);
+                        return req.db.rollback(() => {
+                            res.status(500).json({
+                                success: false,
+                                error: 'Failed to complete progress clearing. Please try again.'
+                            });
+                        });
+                    }
+                    
+                    console.log(`Successfully cleared ${progressType} for user ${user.first_name} ${user.last_name} (ID: ${id}). Total records deleted: ${details.totalDeleted}`);
+                    
+                    res.json({
+                        success: true,
+                        message: `Successfully cleared ${progressType} for ${user.first_name} ${user.last_name}.`,
+                        details
+                    });
+                });
+            }
         });
     });
 });

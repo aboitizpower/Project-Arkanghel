@@ -40,6 +40,12 @@ const A_Users = () => {
   const [wsModalSaving, setWsModalSaving] = useState(false);
   const [clearProgressUser, setClearProgressUser] = useState(null);
   const [clearingProgress, setClearingProgress] = useState(false);
+  const [clearType, setClearType] = useState('all');
+  const [selectedWorkstream, setSelectedWorkstream] = useState('');
+  const [selectedAssessment, setSelectedAssessment] = useState('');
+  const [availableWorkstreams, setAvailableWorkstreams] = useState([]);
+  const [availableAssessments, setAvailableAssessments] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const location = useLocation();
   useEffect(() => {
@@ -170,29 +176,83 @@ const A_Users = () => {
   };
 
   // Clear progress functionality
-  const openClearProgressModal = (user) => {
+  const openClearProgressModal = async (user) => {
     setClearProgressUser(user);
+    setClearType('all');
+    setSelectedWorkstream('');
+    setSelectedAssessment('');
+    setLoadingOptions(true);
+    
+    try {
+      const res = await fetch(`http://localhost:8081/users/${user.id}/progress-options`);
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setAvailableWorkstreams(data.workstreams || []);
+        setAvailableAssessments(data.assessments || []);
+      } else {
+        console.error('Failed to fetch progress options:', data.error);
+        setAvailableWorkstreams([]);
+        setAvailableAssessments([]);
+      }
+    } catch (err) {
+      console.error('Error fetching progress options:', err);
+      setAvailableWorkstreams([]);
+      setAvailableAssessments([]);
+    }
+    
+    setLoadingOptions(false);
   };
 
   const closeClearProgressModal = () => {
     setClearProgressUser(null);
     setClearingProgress(false);
+    setClearType('all');
+    setSelectedWorkstream('');
+    setSelectedAssessment('');
+    setAvailableWorkstreams([]);
+    setAvailableAssessments([]);
+    setLoadingOptions(false);
   };
 
   const handleClearProgress = async () => {
     if (!clearProgressUser) return;
     
+    // Validate required selections
+    if (clearType === 'workstream' && !selectedWorkstream) {
+      alert('Please select a workstream to clear.');
+      return;
+    }
+    
+    if (clearType === 'assessment' && !selectedAssessment) {
+      alert('Please select an assessment to clear.');
+      return;
+    }
+    
     setClearingProgress(true);
     try {
+      const requestBody = {
+        clearType,
+        ...(clearType === 'workstream' && { workstreamId: parseInt(selectedWorkstream) }),
+        ...(clearType === 'assessment' && { assessmentId: parseInt(selectedAssessment) })
+      };
+      
       const res = await fetch(`http://localhost:8081/users/${clearProgressUser.id}/progress`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
       });
       
       const data = await res.json();
       
       if (res.ok && data.success) {
-        alert(`Successfully cleared all progress for ${clearProgressUser.first_name} ${clearProgressUser.last_name}.\n\nDetails:\n- Assessment scores deleted: ${data.details.answersDeleted}\n- Chapter progress deleted: ${data.details.progressDeleted}\n- Assessment results deleted: ${data.details.resultsDeleted}\n- Total records deleted: ${data.details.totalDeleted}`);
+        let detailsMessage = `Details:\n- Assessment scores deleted: ${data.details.answersDeleted}`;
+        if (data.details.progressDeleted > 0) {
+          detailsMessage += `\n- Chapter progress deleted: ${data.details.progressDeleted}`;
+        }
+        detailsMessage += `\n- Total records deleted: ${data.details.totalDeleted}`;
+        
+        alert(`${data.message}\n\n${detailsMessage}`);
         closeClearProgressModal();
       } else {
         alert(`Failed to clear progress: ${data.error || 'Unknown error occurred'}`);
@@ -444,15 +504,114 @@ const A_Users = () => {
                 <button className="ws-modal-close" onClick={closeClearProgressModal} aria-label="Close">×</button>
               </div>
               <div className="clear-progress-content">
-                <div className="warning-icon">⚠️</div>
                 <p className="warning-message">
-                  <strong>Warning:</strong> This action will permanently delete all progress for this user, including:
+                  Select the type of progress data to clear for this user:
                 </p>
-                <ul className="progress-items">
-                  <li>All chapter views and completion status</li>
-                  <li>All assessment scores and attempts</li>
-                  <li>All assessment results and history</li>
-                </ul>
+                
+                {loadingOptions ? (
+                  <div className="loading-options">Loading available options...</div>
+                ) : (
+                  <div className="clear-options">
+                    <div className="clear-option">
+                      <label className="clear-option-label">
+                        <input
+                          type="radio"
+                          name="clearType"
+                          value="all"
+                          checked={clearType === 'all'}
+                          onChange={(e) => setClearType(e.target.value)}
+                        />
+                        <div className="clear-option-content">
+                          <span className="clear-option-title">Clear All Progress</span>
+                          <span className="clear-option-desc">Removes all chapter progress and assessment attempts</span>
+                        </div>
+                      </label>
+                    </div>
+                    
+                    <div className="clear-option">
+                      <label className="clear-option-label">
+                        <input
+                          type="radio"
+                          name="clearType"
+                          value="assessments"
+                          checked={clearType === 'assessments'}
+                          onChange={(e) => setClearType(e.target.value)}
+                        />
+                        <div className="clear-option-content">
+                          <span className="clear-option-title">Clear All Assessment Attempts</span>
+                          <span className="clear-option-desc">Removes all assessment scores and attempts (keeps chapter progress)</span>
+                        </div>
+                      </label>
+                    </div>
+                    
+                    <div className="clear-option">
+                      <label className="clear-option-label">
+                        <input
+                          type="radio"
+                          name="clearType"
+                          value="workstream"
+                          checked={clearType === 'workstream'}
+                          onChange={(e) => setClearType(e.target.value)}
+                          disabled={availableWorkstreams.length === 0}
+                        />
+                        <div className="clear-option-content">
+                          <span className="clear-option-title">Clear Selected Workstream Progress</span>
+                          <span className="clear-option-desc">Removes progress for a specific workstream only</span>
+                          {clearType === 'workstream' && (
+                            <div className="clear-option-select">
+                              <select
+                                value={selectedWorkstream}
+                                onChange={(e) => setSelectedWorkstream(e.target.value)}
+                                disabled={availableWorkstreams.length === 0}
+                              >
+                                <option value="">Select a workstream...</option>
+                                {availableWorkstreams.map(ws => (
+                                  <option key={ws.workstream_id} value={ws.workstream_id}>
+                                    {ws.title} ({ws.chapter_progress_count} chapters, {ws.answer_count} answers)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+                    
+                    <div className="clear-option">
+                      <label className="clear-option-label">
+                        <input
+                          type="radio"
+                          name="clearType"
+                          value="assessment"
+                          checked={clearType === 'assessment'}
+                          onChange={(e) => setClearType(e.target.value)}
+                          disabled={availableAssessments.length === 0}
+                        />
+                        <div className="clear-option-content">
+                          <span className="clear-option-title">Clear Selected Assessment Progress</span>
+                          <span className="clear-option-desc">Removes attempts for a specific assessment only</span>
+                          {clearType === 'assessment' && (
+                            <div className="clear-option-select">
+                              <select
+                                value={selectedAssessment}
+                                onChange={(e) => setSelectedAssessment(e.target.value)}
+                                disabled={availableAssessments.length === 0}
+                              >
+                                <option value="">Select an assessment...</option>
+                                {availableAssessments.map(assessment => (
+                                  <option key={assessment.assessment_id} value={assessment.assessment_id}>
+                                    {assessment.title} - {assessment.workstream_title || assessment.chapter_title} ({assessment.answer_count} answers)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
+                
                 <p className="confirmation-text">
                   This action <strong>cannot be undone</strong>. Are you sure you want to continue?
                 </p>
@@ -462,10 +621,10 @@ const A_Users = () => {
                 <button onClick={closeClearProgressModal} disabled={clearingProgress}>Cancel</button>
                 <button 
                   onClick={handleClearProgress} 
-                  disabled={clearingProgress}
+                  disabled={clearingProgress || loadingOptions}
                   className="danger-btn"
                 >
-                  {clearingProgress ? 'Clearing...' : 'Clear All Progress'}
+                  {clearingProgress ? 'Clearing...' : `Clear ${clearType === 'all' ? 'All' : clearType === 'assessments' ? 'Assessment' : clearType === 'workstream' ? 'Workstream' : 'Assessment'} Progress`}
                 </button>
               </div>
             </div>
