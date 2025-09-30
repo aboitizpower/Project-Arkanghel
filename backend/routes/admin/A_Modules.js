@@ -244,7 +244,7 @@ router.get('/workstreams/:id/complete', (req, res) => {
     const { id } = req.params;
     
     // First get the workstream data
-    const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published FROM workstreams WHERE workstream_id = ?';
+    const workstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published, deadline FROM workstreams WHERE workstream_id = ?';
     req.db.query(workstreamSql, [id], (err, workstreamResults) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -254,6 +254,8 @@ router.get('/workstreams/:id/complete', (req, res) => {
         }
         
         const workstream = workstreamResults[0];
+        console.log('A_Modules /complete endpoint - fetched workstream:', workstream); // Debug log
+        console.log('A_Modules /complete endpoint - workstream deadline:', workstream.deadline); // Debug log
         
         // Then get all chapters for this workstream
         const chaptersSql = `
@@ -282,11 +284,14 @@ router.get('/workstreams/:id/complete', (req, res) => {
             
             if (chapterIds.length === 0) {
                 // No chapters, return workstream with empty chapters array
-                return res.json({
+                const responsePayload = {
                     ...workstream,
                     chapters: [],
                     image_url: workstream.image_type ? `/workstreams/${id}/image` : null
-                });
+                };
+                console.log('A_Modules /complete endpoint - sending response (no chapters):', responsePayload); // Debug log
+                console.log('A_Modules /complete endpoint - response deadline (no chapters):', responsePayload.deadline); // Debug log
+                return res.json(responsePayload);
             }
             
             const assessmentsSql = 'SELECT assessment_id, chapter_id, title, total_points FROM assessments WHERE chapter_id IN (?) ORDER BY assessment_id ASC';
@@ -312,11 +317,14 @@ router.get('/workstreams/:id/complete', (req, res) => {
                     pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
                 }));
                 
-                res.json({
+                const responsePayload = {
                     ...workstream,
                     chapters: chaptersWithAssessments,
                     image_url: workstream.image_type ? `/workstreams/${id}/image` : null
-                });
+                };
+                console.log('A_Modules /complete endpoint - sending response:', responsePayload); // Debug log
+                console.log('A_Modules /complete endpoint - response deadline:', responsePayload.deadline); // Debug log
+                res.json(responsePayload);
             });
         });
     });

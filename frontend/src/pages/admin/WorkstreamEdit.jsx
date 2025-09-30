@@ -19,7 +19,7 @@ const WorkstreamEdit = () => {
   const { workstreamId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [workstream, setWorkstream] = useState({ final_assessments: [] });
+  const [workstream, setWorkstream] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,7 +47,11 @@ const WorkstreamEdit = () => {
       console.log('Fetched workstream deadline:', data.deadline); // Debug log
 
       // The backend now returns a single workstream object with 'chapters' and 'final_assessments' arrays.
-      setWorkstream(data);
+      // Ensure we preserve all properties including deadline
+      setWorkstream({
+        ...data,
+        final_assessments: data.final_assessments || []
+      });
       console.log('Set workstream state to:', data); // Debug log
       console.log('Workstream state deadline:', data.deadline); // Debug log 
 
@@ -456,7 +460,7 @@ const WorkstreamEdit = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="inline-value">{workstream.title}</p>
+                    <p className="inline-value">{workstream?.title || 'Loading...'}</p>
                   )}
                 </div>
 
@@ -485,7 +489,7 @@ const WorkstreamEdit = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="inline-value">{workstream.description}</p>
+                    <p className="inline-value">{workstream?.description || 'Loading...'}</p>
                   )}
                 </div>
 
@@ -518,6 +522,10 @@ const WorkstreamEdit = () => {
                   ) : (
                     <p className="inline-value">
                       {(() => {
+                        if (!workstream) {
+                          return 'Loading...';
+                        }
+                        
                         console.log('Rendering deadline - workstream.deadline:', workstream.deadline); // Debug log
                         console.log('Rendering deadline - typeof workstream.deadline:', typeof workstream.deadline); // Debug log
                         
@@ -570,7 +578,7 @@ const WorkstreamEdit = () => {
                       <div className="workstream-image-box">
                         {newImage ? (
                            <img src={URL.createObjectURL(newImage)} alt="New preview" className="workstream-image" />
-                        ) : workstream.image_url && (
+                        ) : workstream?.image_url && (
                           <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Current" className="workstream-image" />
                         )}
                       </div>
@@ -581,7 +589,7 @@ const WorkstreamEdit = () => {
                     </div>
                   ) : (
                     <div className="workstream-image-box">
-                      {workstream.image_url && (
+                      {workstream?.image_url && (
                         <img src={`${API_URL}${workstream.image_url}?t=${new Date().getTime()}`} alt="Workstream" className="workstream-image" />
                       )}
                     </div>
