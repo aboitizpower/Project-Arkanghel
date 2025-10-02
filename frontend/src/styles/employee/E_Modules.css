@@ -1,5 +1,10 @@
 /* E_Modules.css */
 
+/* Disable scrolling for the entire page when in module view */
+body.module-view-active {
+    overflow: hidden;
+}
+
 /* Workstream deadline styling */
 .card-ws-deadline {
   display: flex;
@@ -67,25 +72,18 @@
 .action-btn.expired:hover {
   background-color: #dc2626;
 }
-
 .e-modules-page {
   display: flex;
   height: 100vh;
+  overflow: hidden; /* Disable scrolling for the whole page */
 }
 
 .modules-main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background-color: #f4f7f6; /* Match background */
-}
-
-.page-container {
-    padding: 1.5rem;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    overflow: hidden; /* Disable scrolling for main content */
+    background-color: #f4f7f6; /* Match background */
 }
 
 .error-message {
@@ -1036,12 +1034,11 @@
     color: #6c757d;
     cursor: not-allowed;
 }
-
 /* Page Layout */
 .e-modules-page {
     display: flex;
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden; /* Disable scrolling for the whole page */
 }
 
 .main-content {
@@ -1069,6 +1066,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: auto; /* Prevent sidebar itself from scrolling */
 }
 
 .module-view-header {
@@ -1131,7 +1129,8 @@
 }
 
 .chapter-list-container {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0; /* Important for flex child to be scrollable */
     overflow-y: auto; /* Allow only this part to scroll */
     padding: 1rem;
 }

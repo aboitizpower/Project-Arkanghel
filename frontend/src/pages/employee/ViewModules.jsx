@@ -36,6 +36,14 @@ const ViewModules = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Disable body scrolling when component mounts, enable when unmounts
+    useEffect(() => {
+        document.body.classList.add('module-view-active');
+        return () => {
+            document.body.classList.remove('module-view-active');
+        };
+    }, []);
+
     // Handle authentication state and data fetching
     useEffect(() => {
         if (authLoading) return; // Still loading auth state
@@ -174,6 +182,11 @@ const ViewModules = () => {
                 const completedItems = progressData.size;
                 const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
                 setWorkstreamProgress(progress);
+                
+                // Clear last viewed chapter when workstream is completed
+                if (progress === 100) {
+                    clearLastViewedChapter(selectedWorkstream.workstream_id);
+                }
             }
             
             return progressData;
@@ -238,6 +251,26 @@ const ViewModules = () => {
         }
     };
 
+    // Store last viewed chapter in localStorage
+    const storeLastViewedChapter = (workstreamId, chapterId) => {
+        const key = `lastViewedChapter_${user?.id}_${workstreamId}`;
+        localStorage.setItem(key, chapterId.toString());
+        console.log('Stored last viewed chapter:', { workstreamId, chapterId, key });
+    };
+
+    // Get last viewed chapter from localStorage
+    const getLastViewedChapter = (workstreamId) => {
+        const key = `lastViewedChapter_${user?.id}_${workstreamId}`;
+        const chapterId = localStorage.getItem(key);
+        return chapterId ? parseInt(chapterId) : null;
+    };
+
+    // Clear last viewed chapter (when workstream is completed)
+    const clearLastViewedChapter = (workstreamId) => {
+        const key = `lastViewedChapter_${user?.id}_${workstreamId}`;
+        localStorage.removeItem(key);
+    };
+
     const handleSelectChapter = async (chapter, workstream = selectedWorkstream, preserveAssessmentStatus = false) => {
         if (!user?.id || !chapter) {
             setError("Cannot select chapter. User or chapter data is missing.");
@@ -245,6 +278,8 @@ const ViewModules = () => {
         }
 
         try {
+            // Store this chapter as the last viewed for this workstream
+            storeLastViewedChapter(workstream.workstream_id, chapter.chapter_id);
             await _selectChapterForView(chapter, preserveAssessmentStatus);
 
             // Mark chapter as viewed only if a workstream is selected
@@ -609,7 +644,21 @@ const ViewModules = () => {
                             totalChapters: chapters.length
                         });
                         
-                        if (allRegularCompleted && regularChapters.length > 0) {
+                        // First, check if there's a last viewed chapter stored
+                        const lastViewedChapterId = getLastViewedChapter(selectedWorkstream.workstream_id);
+                        const lastViewedChapter = lastViewedChapterId ? chapters.find(ch => ch.chapter_id === lastViewedChapterId) : null;
+                        
+                        console.log('Last viewed chapter check:', {
+                            workstreamId: selectedWorkstream.workstream_id,
+                            lastViewedChapterId,
+                            lastViewedChapter: lastViewedChapter?.title
+                        });
+                        
+                        if (lastViewedChapter) {
+                            // Return to the last viewed chapter
+                            console.log('Returning to last viewed chapter:', lastViewedChapter.title);
+                            handleSelectChapter(lastViewedChapter, selectedWorkstream);
+                        } else if (allRegularCompleted && regularChapters.length > 0) {
                             // If workstream is complete, navigate to the last regular chapter instead of first
                             const lastRegularChapter = regularChapters[regularChapters.length - 1];
                             console.log('Selecting last regular chapter:', lastRegularChapter.title);

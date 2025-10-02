@@ -7,6 +7,8 @@ import axios from 'axios';
 import { FaPencilAlt, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import '../../styles/admin/AssessmentEdit.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import ConfirmationModal from '../../components/ConfirmationModal';
+import NotificationDialog from '../../components/NotificationDialog';
 
 const API_URL = 'http://localhost:8081';
 
@@ -42,6 +44,20 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [modalOptions, setModalOptions] = useState(['', '', '', '']);
   const [modalCorrectAnswer, setModalCorrectAnswer] = useState('');
   const [modalEditIndex, setModalEditIndex] = useState(null); // Track which question is being edited
+
+  // Delete confirmation modal state
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({
+    isVisible: false,
+    questionId: null,
+    questionText: ''
+  });
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    isVisible: false,
+    message: '',
+    type: 'success'
+  });
 
   const openModal = (editIndex = null) => {
     if (editIndex !== null) {
@@ -131,7 +147,9 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
     setIsSubmitting(true);
     try {
-      if (modalEditIndex !== null && questions[modalEditIndex]?.question_id) {
+      const isEditing = modalEditIndex !== null && questions[modalEditIndex]?.question_id;
+      
+      if (isEditing) {
         const questionId = questions[modalEditIndex].question_id;
         await axios.put(`${API_URL}/questions/${questionId}`, questionPayload);
       } else {
@@ -141,23 +159,48 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
       setQuestions(response.data.questions || []);
       closeModal();
+      
+      // Show success notification
+      setNotification({
+        isVisible: true,
+        message: isEditing ? 'Question updated successfully!' : 'Question added successfully!',
+        type: 'success'
+      });
     } catch (err) {
       setError('Failed to save question: ' + (err?.response?.data?.error || err.message));
+      
+      // Show error notification
+      setNotification({
+        isVisible: true,
+        message: `Failed to ${modalEditIndex !== null ? 'update' : 'add'} question. Please try again.`,
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteQuestion = async (questionId) => {
+  const handleDeleteQuestion = (questionId) => {
     if (!questionId) {
       setError('Invalid question ID');
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
-      return;
-    }
+    // Find the question to get its text for the confirmation modal
+    const questionToDelete = questions.find(q => q.question_id === questionId);
+    const questionText = questionToDelete ? questionToDelete.question_text : 'this question';
 
+    // Show confirmation modal
+    setDeleteConfirmModal({
+      isVisible: true,
+      questionId: questionId,
+      questionText: questionText
+    });
+  };
+
+  const confirmDeleteQuestion = async () => {
+    const { questionId } = deleteConfirmModal;
+    
     setIsSubmitting(true);
     try {
       await axios.delete(`${API_URL}/questions/${questionId}`);
@@ -167,12 +210,48 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       setQuestions(response.data.questions || []);
       
       setError(null); // Clear any previous errors
+      
+      // Show success notification
+      setNotification({
+        isVisible: true,
+        message: 'Question deleted successfully!',
+        type: 'success'
+      });
     } catch (err) {
       setError('Failed to delete question: ' + (err?.response?.data?.error || err.message));
       console.error('Error deleting question:', err);
+      
+      // Show error notification
+      setNotification({
+        isVisible: true,
+        message: 'Failed to delete question. Please try again.',
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
+      // Close the confirmation modal
+      setDeleteConfirmModal({
+        isVisible: false,
+        questionId: null,
+        questionText: ''
+      });
     }
+  };
+
+  const cancelDeleteQuestion = () => {
+    setDeleteConfirmModal({
+      isVisible: false,
+      questionId: null,
+      questionText: ''
+    });
+  };
+
+  const closeNotification = () => {
+    setNotification({
+      isVisible: false,
+      message: '',
+      type: 'success'
+    });
   };
 
   const location = useLocation();
@@ -265,8 +344,22 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       }
       setIsEditingDescription(false);
 
+      // Show success notification
+      setNotification({
+        isVisible: true,
+        message: 'Assessment details updated successfully!',
+        type: 'success'
+      });
+
     } catch (err) {
       setError('Failed to save changes: ' + (err.response?.data?.error || err.message));
+      
+      // Show error notification
+      setNotification({
+        isVisible: true,
+        message: 'Failed to update assessment details. Please try again.',
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -612,6 +705,26 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isVisible={deleteConfirmModal.isVisible}
+        title="Delete Question"
+        message={`Are you sure you want to delete this question? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteQuestion}
+        onCancel={cancelDeleteQuestion}
+        type="danger"
+      />
+
+      {/* Notification Dialog */}
+      <NotificationDialog
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={closeNotification}
+      />
     </main>
   );
 };

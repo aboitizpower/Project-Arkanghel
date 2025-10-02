@@ -5,6 +5,7 @@ import '../../styles/admin/A_Users.css';
 import '../../styles/admin/AdminCommon.css';
 import { useLocation } from 'react-router-dom';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import NotificationDialog from '../../components/NotificationDialog';
 
 const getInitials = (first, last) => {
   if (!first && !last) return '?';
@@ -46,6 +47,21 @@ const A_Users = () => {
   const [availableWorkstreams, setAvailableWorkstreams] = useState([]);
   const [availableAssessments, setAvailableAssessments] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    isVisible: false,
+    message: '',
+    type: 'success'
+  });
+
+  const closeNotification = () => {
+    setNotification({
+      isVisible: false,
+      message: '',
+      type: 'success'
+    });
+  };
 
   const location = useLocation();
   useEffect(() => {
@@ -105,10 +121,18 @@ const A_Users = () => {
       } else {
         // If the API call fails, show an error and don't change the UI
         const errorData = await res.json().catch(() => ({ error: 'An unknown error occurred.' }));
-        alert(`Failed to update role: ${errorData.error}`);
+        setNotification({
+          isVisible: true,
+          message: `Failed to update role: ${errorData.error}`,
+          type: 'error'
+        });
       }
     } catch (err) {
-      alert("Failed to update role. Please check the server connection.");
+      setNotification({
+        isVisible: true,
+        message: "Failed to update role. Please check the server connection.",
+        type: 'error'
+      });
     }
     setUpdatingId(null);
   };
@@ -154,11 +178,24 @@ const A_Users = () => {
           )
         );
         closeWsModal();
+        setNotification({
+          isVisible: true,
+          message: 'Workstream permissions updated successfully!',
+          type: 'success'
+        });
       } else {
-        alert('Failed to save workstream permissions.');
+        setNotification({
+          isVisible: true,
+          message: 'Failed to save workstream permissions.',
+          type: 'error'
+        });
       }
     } catch (err) {
-      alert('Failed to save workstream permissions.');
+      setNotification({
+        isVisible: true,
+        message: 'Failed to save workstream permissions.',
+        type: 'error'
+      });
     }
     setWsModalSaving(false);
   };
@@ -220,12 +257,20 @@ const A_Users = () => {
     
     // Validate required selections
     if (clearType === 'workstream' && !selectedWorkstream) {
-      alert('Please select a workstream to clear.');
+      setNotification({
+        isVisible: true,
+        message: 'Please select a workstream to clear.',
+        type: 'warning'
+      });
       return;
     }
     
     if (clearType === 'assessment' && !selectedAssessment) {
-      alert('Please select an assessment to clear.');
+      setNotification({
+        isVisible: true,
+        message: 'Please select an assessment to clear.',
+        type: 'warning'
+      });
       return;
     }
     
@@ -252,14 +297,26 @@ const A_Users = () => {
         }
         detailsMessage += `\n- Total records deleted: ${data.details.totalDeleted}`;
         
-        alert(`${data.message}\n\n${detailsMessage}`);
+        setNotification({
+          isVisible: true,
+          message: `${data.message}\n\n${detailsMessage}`,
+          type: 'success'
+        });
         closeClearProgressModal();
       } else {
-        alert(`Failed to clear progress: ${data.error || 'Unknown error occurred'}`);
+        setNotification({
+          isVisible: true,
+          message: `Failed to clear progress: ${data.error || 'Unknown error occurred'}`,
+          type: 'error'
+        });
       }
     } catch (err) {
       console.error('Error clearing progress:', err);
-      alert('Failed to clear progress. Please check the server connection.');
+      setNotification({
+        isVisible: true,
+        message: 'Failed to clear progress. Please check the server connection.',
+        type: 'error'
+      });
     }
     setClearingProgress(false);
   };
@@ -630,6 +687,14 @@ const A_Users = () => {
             </div>
           </div>
         )}
+
+        {/* Notification Dialog */}
+        <NotificationDialog
+          message={notification.message}
+          type={notification.type}
+          isVisible={notification.isVisible}
+          onClose={closeNotification}
+        />
       </main>
     </div>
   );

@@ -227,9 +227,30 @@ const WorkstreamEdit = () => {
       setIsEditing({ ...isEditing, [field]: false });
       if (field === 'image') setNewImage(null);
 
+      // Show success notification
+      const fieldNames = {
+        title: 'Title',
+        description: 'Description', 
+        deadline: 'Deadline',
+        image: 'Image'
+      };
+      
+      setNotification({
+        message: `${fieldNames[field]} updated successfully!`,
+        type: 'success',
+        isVisible: true
+      });
+
     } catch (err) {
       console.error(`Failed to update ${field}:`, err);
       setError(`Failed to update ${field}. Please try again.`);
+      
+      // Show error notification
+      setNotification({
+        message: `Failed to update ${field}. Please try again.`,
+        type: 'error',
+        isVisible: true
+      });
     }
   };
 
