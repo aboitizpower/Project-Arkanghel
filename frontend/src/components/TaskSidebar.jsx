@@ -11,6 +11,7 @@ const TaskSidebar = () => {
   const [upcomingTasks, setUpcomingTasks] = useState([]);
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dueToday');
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -161,100 +162,138 @@ const TaskSidebar = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="task-sidebar">
-        <div className="task-sidebar-loading">
+  const renderTabContent = () => {
+    if (loading) {
+      return (
+        <div className="tab-content-loading">
           <div className="loading-spinner"></div>
           <p>Loading tasks...</p>
         </div>
-      </div>
-    );
-  }
+      );
+    }
+
+    switch (activeTab) {
+      case 'dueToday':
+        return (
+          <div className="task-list">
+            {todos && todos.length > 0 ? (
+              todos.filter(todo => !todo.completed).map(todo => (
+                <div key={todo.id} className="task-item todo-item">
+                  <div className="task-item-content">
+                    <button 
+                      className="task-checkbox"
+                      onClick={() => markTodoComplete(todo.id)}
+                    >
+                      <FaCheckCircle className="checkbox-icon" />
+                    </button>
+                    <div className="task-details">
+                      <span className="task-title">{todo.title || 'Untitled Task'}</span>
+                      <span className="task-due-date">{formatDueDate(todo.dueDate)}</span>
+                    </div>
+                  </div>
+                  <button 
+                    className="task-remove"
+                    onClick={() => removeTodo(todo.id)}
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="no-tasks">No pending tasks</div>
+            )}
+          </div>
+        );
+      case 'comingUp':
+        return (
+          <div className="task-list">
+            {upcomingTasks && upcomingTasks.length > 0 ? (
+              upcomingTasks.map(task => (
+                <div key={task.id} className="task-item upcoming-item">
+                  <div className="task-item-content">
+                    <div className="task-icon">
+                      <FaClock />
+                    </div>
+                    <div className="task-details">
+                      <span className="task-title">{task.title || 'Untitled Task'}</span>
+                      <span className="task-due-date">{formatDueDate(task.dueDate)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-tasks">No upcoming tasks</div>
+            )}
+          </div>
+        );
+      case 'completed':
+        return (
+          <div className="task-list">
+            {recentFeedback && recentFeedback.length > 0 ? (
+              recentFeedback.map(feedback => (
+                <div key={feedback.id} className="task-item feedback-item">
+                  <div className="task-item-content">
+                    <div className="task-icon feedback-icon">
+                      <FaCheckCircle />
+                    </div>
+                    <div className="task-details">
+                      <span className="task-title">{feedback.title || 'Untitled Feedback'}</span>
+                      <span className="task-status">
+                        {feedback.status || feedback.score || 'No status'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-tasks">No recent feedback</div>
+            )}
+          </div>
+        );
+      default:
+        return <div className="no-tasks">Select a tab to view tasks</div>;
+    }
+  };
 
   return (
     <div className="task-sidebar">
-      {/* Due Today Section */}
-      <div className="task-section">
-        <h3 className="task-section-title">Due Today</h3>
-        <div className="task-list">
-          {todos && todos.length > 0 ? (
-            todos.filter(todo => !todo.completed).map(todo => (
-              <div key={todo.id} className="task-item todo-item">
-                <div className="task-item-content">
-                  <button 
-                    className="task-checkbox"
-                    onClick={() => markTodoComplete(todo.id)}
-                  >
-                    <FaCheckCircle className="checkbox-icon" />
-                  </button>
-                  <div className="task-details">
-                    <span className="task-title">{todo.title || 'Untitled Task'}</span>
-                    <span className="task-due-date">{formatDueDate(todo.dueDate)}</span>
-                  </div>
-                </div>
-                <button 
-                  className="task-remove"
-                  onClick={() => removeTodo(todo.id)}
-                >
-                  <FaTimes />
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="no-tasks">No pending tasks</div>
+      {/* Tab Navigation */}
+      <div className="sidebar-tab-navigation">
+        <button 
+          className={`sidebar-tab-button ${activeTab === 'dueToday' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dueToday')}
+        >
+          <FaCalendarAlt className="tab-icon" />
+          <span className="tab-text">Due Today</span>
+          {todos && todos.filter(todo => !todo.completed).length > 0 && (
+            <span className="tab-badge">{todos.filter(todo => !todo.completed).length}</span>
           )}
-        </div>
+        </button>
+        <button 
+          className={`sidebar-tab-button ${activeTab === 'comingUp' ? 'active' : ''}`}
+          onClick={() => setActiveTab('comingUp')}
+        >
+          <FaClock className="tab-icon" />
+          <span className="tab-text">Coming Up</span>
+          {upcomingTasks && upcomingTasks.length > 0 && (
+            <span className="tab-badge">{upcomingTasks.length}</span>
+          )}
+        </button>
+        <button 
+          className={`sidebar-tab-button ${activeTab === 'completed' ? 'active' : ''}`}
+          onClick={() => setActiveTab('completed')}
+        >
+          <FaCheckCircle className="tab-icon" />
+          <span className="tab-text">Completed</span>
+          {recentFeedback && recentFeedback.length > 0 && (
+            <span className="tab-badge">{recentFeedback.length}</span>
+          )}
+        </button>
       </div>
 
-      {/* Coming Up Section */}
-      <div className="task-section">
-        <h3 className="task-section-title">Coming Up</h3>
-        <div className="task-list">
-          {upcomingTasks && upcomingTasks.length > 0 ? (
-            upcomingTasks.map(task => (
-              <div key={task.id} className="task-item upcoming-item">
-                <div className="task-item-content">
-                  <div className="task-icon">
-                    <FaClock />
-                  </div>
-                  <div className="task-details">
-                    <span className="task-title">{task.title || 'Untitled Task'}</span>
-                    <span className="task-due-date">{formatDueDate(task.dueDate)}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-tasks">No upcoming tasks</div>
-          )}
-        </div>
-      </div>
-
-      {/* Task Completed / Done Section*/}
-      <div className="task-section">
-        <h3 className="task-section-title">Completed</h3>
-        <div className="task-list">
-          {recentFeedback && recentFeedback.length > 0 ? (
-            recentFeedback.map(feedback => (
-              <div key={feedback.id} className="task-item feedback-item">
-                <div className="task-item-content">
-                  <div className="task-icon feedback-icon">
-                    <FaCheckCircle />
-                  </div>
-                  <div className="task-details">
-                    <span className="task-title">{feedback.title || 'Untitled Feedback'}</span>
-                    <span className="task-status">
-                      {feedback.status || feedback.score || 'No status'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-tasks">No recent feedback</div>
-          )}
-        </div>
+      {/* Tab Content */}
+      <div className="sidebar-tab-content">
+        {renderTabContent()}
       </div>
     </div>
   );
