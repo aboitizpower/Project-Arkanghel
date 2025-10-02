@@ -35,6 +35,20 @@ const TakeAssessments = () => {
     const { user } = useAuth();
 
     useEffect(() => {
+        // Don't fetch if no assessmentId is present or if we're not on the assessment route
+        if (!assessmentId || !location.pathname.includes('/employee/assessment/')) {
+            setIsLoading(false);
+            // Don't show error if we're not on the assessment route (component is being unmounted)
+            if (location.pathname.includes('/employee/assessment/')) {
+                setError('No assessment ID provided');
+            }
+            return;
+        }
+
+        // Create AbortController for request cancellation
+        const abortController = new AbortController();
+        const signal = abortController.signal;
+
         const fetchAssessmentData = async () => {
             setIsLoading(true);
             try {
@@ -46,7 +60,8 @@ const TakeAssessments = () => {
                             `${API_URL}/employee/assessment/${assessmentId}/perfect-score`,
                             {
                                 params: { userId: user.id },
-                                headers: { 'Authorization': `Bearer ${user.token}` }
+                                headers: { 'Authorization': `Bearer ${user.token}` },
+                                signal: signal
                             }
                         );
                         
@@ -70,48 +85,66 @@ const TakeAssessments = () => {
                     }
                 }
 
-                const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`);
-                setAssessment(assessmentRes.data);
-                
-                // Check deadline if exists
-                if (assessmentRes.data.deadline) {
-                    const deadlineDate = new Date(assessmentRes.data.deadline);
-                    const now = new Date();
-                    setDeadline(deadlineDate);
-                    setIsExpired(now > deadlineDate);
+                const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`, { signal });
+                if (!signal.aborted) {
+                    setAssessment(assessmentRes.data);
+                    
+                    // Check deadline if exists
+                    if (assessmentRes.data.deadline) {
+                        const deadlineDate = new Date(assessmentRes.data.deadline);
+                        const now = new Date();
+                        setDeadline(deadlineDate);
+                        setIsExpired(now > deadlineDate);
+                    }
                 }
 
-                const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`);
-                setQuestions(questionsRes.data);
+                const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`, { signal });
+                if (!signal.aborted) {
+                    setQuestions(questionsRes.data);
+                }
 
                 // Check if this is a final assessment and get workstream info
                 if (chapterId && workstreamId) {
-                    const chapterRes = await axios.get(`${API_URL}/employee/chapters/${chapterId}`);
-                    const chapter = chapterRes.data.chapter;
-                    
-                    if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
-                        setIsFinalAssessment(true);
+                    const chapterRes = await axios.get(`${API_URL}/employee/chapters/${chapterId}`, { signal });
+                    if (!signal.aborted) {
+                        const chapter = chapterRes.data.chapter;
                         
-                        // Get workstream info
-                        const workstreamRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`);
-                        setWorkstreamInfo(workstreamRes.data);
+                        if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
+                            setIsFinalAssessment(true);
+                            
+                            // Get workstream info
+                            const workstreamRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`, { signal });
+                            if (!signal.aborted) {
+                                setWorkstreamInfo(workstreamRes.data);
+                            }
+                        }
                     }
                 }
             } catch (err) {
-                if (err.response?.status === 403 && err.response?.data?.expired) {
-                    setError('This assessment deadline has passed. You can no longer take this assessment.');
-                    setIsExpired(true);
-                } else {
-                    setError('Failed to load assessment data.');
+                // Don't set error if request was aborted (component unmounted)
+                if (!signal.aborted) {
+                    if (err.response?.status === 403 && err.response?.data?.expired) {
+                        setError('This assessment deadline has passed. You can no longer take this assessment.');
+                        setIsExpired(true);
+                    } else {
+                        setError('Failed to load assessment data.');
+                    }
+                    console.error(err);
                 }
-                console.error(err);
             } finally {
-                setIsLoading(false);
+                if (!signal.aborted) {
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchAssessmentData();
-    }, [assessmentId, chapterId, workstreamId]);
+
+        // Cleanup function to abort requests when component unmounts
+        return () => {
+            abortController.abort();
+        };
+    }, [assessmentId, chapterId, workstreamId, user, navigate, location.pathname]);
 
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -259,69 +292,36 @@ const TakeAssessments = () => {
     const currentQuestions = questions.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
     const progress = ((currentPage + 1) / totalPages) * 100;
 
+    // Don't render if we're not on the assessment route (prevents flash during navigation)
+    if (!location.pathname.includes('/employee/assessment/')) {
+        return null;
+    }
+
     if (isLoading) return <LoadingOverlay loading={true} />;
     if (error) return <div className="error-message">{error}</div>;
 
-    const handleBackToChapter = async () => {
+    const handleBackToChapter = () => {
         console.log('TakeAssessment - handleBackToChapter called with:', { chapterId, workstreamId });
         
-        try {
-            // Check if this is a final assessment by fetching the chapter details
-            console.log('Fetching chapter details for chapterId:', chapterId);
-            const chapterResponse = await axios.get(`${API_URL}/employee/chapters/${chapterId}`);
-            const chapter = chapterResponse.data.chapter;
-            
-            console.log('Chapter details received:', chapter);
-            console.log('Chapter title:', chapter?.title);
-            console.log('Is final assessment?', chapter?.title?.toLowerCase().includes('final assessment'));
-            
-            // If this is a final assessment, navigate to the last regular chapter
-            if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
-                console.log('Detected final assessment, fetching all chapters for workstream:', workstreamId);
-                
-                // Fetch all chapters in the workstream to find the last regular chapter
-                const chaptersResponse = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
-                const chapters = chaptersResponse.data;
-                
-                console.log('All chapters in workstream:', chapters);
-                
-                // Find the last regular chapter (not a final assessment)
-                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
-                console.log('Regular chapters (filtered):', regularChapters);
-                
-                const lastRegularChapter = regularChapters[regularChapters.length - 1];
-                console.log('Last regular chapter:', lastRegularChapter);
-                
-                if (lastRegularChapter) {
-                    console.log('Navigating to last regular chapter:', lastRegularChapter.chapter_id);
-                    navigate(`/employee/modules/${workstreamId}`, {
-                        state: { 
-                            chapterId: lastRegularChapter.chapter_id,
-                            workstreamId: workstreamId,
-                            refresh: true
-                        }
-                    });
-                    return;
-                } else {
-                    console.log('No regular chapters found, falling back to default behavior');
+        // Immediate navigation without API calls to prevent 404 errors
+        if (workstreamId && chapterId) {
+            console.log('Navigating immediately to chapter:', chapterId);
+            navigate(`/employee/modules/${workstreamId}`, {
+                state: { 
+                    chapterId: chapterId,
+                    workstreamId: workstreamId,
+                    refresh: true
                 }
-            } else {
-                console.log('Not a final assessment, using regular navigation');
-            }
-        } catch (error) {
-            console.error('Error checking chapter type:', error);
-            console.error('Error details:', error.response?.data);
+            });
+        } else if (workstreamId) {
+            // If no specific chapter, navigate to workstream without chapter ID
+            console.log('Navigating to workstream without specific chapter');
+            navigate(`/employee/modules/${workstreamId}`);
+        } else {
+            // Fallback to modules list
+            console.log('Fallback navigation to modules list');
+            navigate('/employee/modules');
         }
-        
-        // Fallback to regular behavior for non-final assessments or on error
-        console.log('Using fallback navigation to chapterId:', chapterId);
-        navigate(`/employee/modules/${workstreamId}`, {
-            state: { 
-                chapterId: chapterId,
-                workstreamId: workstreamId,
-                refresh: true
-            }
-        });
     };
 
     const handleCloseResultsModal = async () => {
@@ -374,15 +374,22 @@ const TakeAssessments = () => {
             }
         } else {
             // Navigate back to chapter after closing modal (regular assessments)
+            // Use immediate navigation without API calls to prevent 404 errors
             console.log('Regular assessment navigation - chapterId:', chapterId, 'workstreamId:', workstreamId, 'passed:', assessmentResults?.passed);
-            navigate(`/employee/modules/${workstreamId}`, {
-                state: { 
-                    refresh: true, 
-                    chapterId: chapterId,
-                    workstreamId: workstreamId,
-                    assessmentPassed: assessmentResults?.passed
-                }
-            });
+            if (workstreamId && chapterId) {
+                navigate(`/employee/modules/${workstreamId}`, {
+                    state: { 
+                        refresh: true, 
+                        chapterId: chapterId,
+                        workstreamId: workstreamId,
+                        assessmentPassed: assessmentResults?.passed
+                    }
+                });
+            } else if (workstreamId) {
+                navigate(`/employee/modules/${workstreamId}`);
+            } else {
+                navigate('/employee/modules');
+            }
         }
     };
 
