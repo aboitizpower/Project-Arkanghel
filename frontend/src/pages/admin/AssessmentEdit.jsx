@@ -148,6 +148,33 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     }
   };
 
+  const handleDeleteQuestion = async (questionId) => {
+    if (!questionId) {
+      setError('Invalid question ID');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await axios.delete(`${API_URL}/questions/${questionId}`);
+      
+      // Refresh the questions list after deletion
+      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+      setQuestions(response.data.questions || []);
+      
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      setError('Failed to delete question: ' + (err?.response?.data?.error || err.message));
+      console.error('Error deleting question:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const location = useLocation();
   useEffect(() => {
     setShowModal(false);

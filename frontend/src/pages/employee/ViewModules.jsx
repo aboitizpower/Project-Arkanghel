@@ -3,9 +3,11 @@ import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
-import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight, FaCertificate, FaTrophy, FaDownload } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
+import arkanghelLogo from '../../assets/arkanghel_logo.png';
+import certBackground from '../../assets/certbg.png';
 
 const API_URL = 'http://localhost:8081';
 
@@ -24,6 +26,9 @@ const ViewModules = () => {
     const [hasHandledRefreshNavigation, setHasHandledRefreshNavigation] = useState(false);
     const [showAssessmentModal, setShowAssessmentModal] = useState(false);
     const [showAssessmentCompletedModal, setShowAssessmentCompletedModal] = useState(false);
+    const [workstreamProgress, setWorkstreamProgress] = useState(0);
+    const [showCertificateModal, setShowCertificateModal] = useState(false);
+    const [certificateData, setCertificateData] = useState(null);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -160,6 +165,17 @@ const ViewModules = () => {
             }, new Set());
             
             setCompletedChapters(progressData);
+            
+            // Calculate overall workstream progress
+            if (chapters.length > 0) {
+                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
+                const finalAssessmentChapters = chapters.filter(ch => ch.title.toLowerCase().includes('final assessment'));
+                const totalItems = regularChapters.length + finalAssessmentChapters.length;
+                const completedItems = progressData.size;
+                const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                setWorkstreamProgress(progress);
+            }
+            
             return progressData;
         } catch (err) {
             console.error('Error in fetchUserProgress:', err);
@@ -391,6 +407,101 @@ const ViewModules = () => {
         }
     };
 
+    const handleDownloadCertificate = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/employee/certificates/${selectedWorkstream.workstream_id}`, {
+                params: { userId: user.id },
+                responseType: 'blob', // Important for PDF download
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Generate filename
+            const filename = `Certificate_${selectedWorkstream.title.replace(/[^a-zA-Z0-9]/g, '_')}_${user.first_name}_${user.last_name}.pdf`;
+            link.setAttribute('download', filename);
+            
+            // Append to html link element page
+            document.body.appendChild(link);
+            
+            // Start download
+            link.click();
+            
+            // Clean up and remove the link
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Error downloading certificate:', error);
+            if (error.response?.status === 400) {
+                alert('Certificate not available. Please ensure you have completed 100% of the workstream.');
+            } else {
+                alert('Failed to download certificate. Please try again later.');
+            }
+        }
+    };
+
+    const handleFinishWorkstream = async () => {
+        try {
+            console.log('Starting workstream finish process...');
+            console.log('User:', user);
+            console.log('Selected workstream:', selectedWorkstream);
+            console.log('Selected chapter:', selectedChapter);
+            
+            // Prepare certificate data immediately
+            const certData = {
+                userName: `${user.first_name} ${user.last_name}`,
+                workstreamTitle: selectedWorkstream.title,
+                completionDate: new Date(),
+                userEmail: user.email,
+                workstreamId: selectedWorkstream.workstream_id
+            };
+            
+            console.log('Setting certificate data:', certData);
+            setCertificateData(certData);
+            setShowCertificateModal(true);
+            console.log('Modal should be showing now');
+            
+            // Mark current chapter as completed in background
+            try {
+                await axios.post(`${API_URL}/employee/progress`, {
+                    userId: user.id,
+                    chapterId: selectedChapter.chapter_id
+                });
+                console.log('Chapter marked as completed');
+                
+                // Update completed chapters state
+                setCompletedChapters(prev => new Set(prev).add(selectedChapter.chapter_id));
+            } catch (progressError) {
+                console.error('Error marking progress:', progressError);
+            }
+
+        } catch (error) {
+            console.error('Error finishing workstream:', error);
+            alert('Error completing workstream. Please try again.');
+        }
+    };
+
+    const checkWorkstreamCompletion = async (workstreamId) => {
+        try {
+            const response = await axios.get(`${API_URL}/employee/certificates/${workstreamId}/status`, {
+                params: { userId: user.id },
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error checking completion status:', error);
+            return { canDownloadCertificate: false };
+        }
+    };
+
     // Load workstream on component mount
     useEffect(() => {
         if (moduleId && user?.id) {
@@ -518,6 +629,11 @@ const ViewModules = () => {
         }
     }, [chapters, selectedWorkstream, location.state, navigate]);
 
+    // Debug modal state changes
+    useEffect(() => {
+        console.log('Modal state changed:', { showCertificateModal, certificateData });
+    }, [showCertificateModal, certificateData]);
+
     const renderModuleView = () => {
         if (!selectedWorkstream || !selectedChapter) return null;
 
@@ -544,6 +660,25 @@ const ViewModules = () => {
                         </button>
                         <h2>{selectedWorkstream.title}</h2>
                         <p className="workstream-description">{selectedWorkstream.description}</p>
+                        
+                        {/* Progress and Certificate Section */}
+                        <div className="workstream-progress-section">
+                            <div className="progress-info">
+                                <span className="progress-label">Progress: {workstreamProgress}%</span>
+                                <div className="progress-bar-container">
+                                    <div className="progress-bar" style={{ width: `${workstreamProgress}%` }}></div>
+                                </div>
+                            </div>
+                            {workstreamProgress === 100 && (
+                                <button 
+                                    className="certificate-download-btn"
+                                    onClick={handleDownloadCertificate}
+                                    title="Download Certificate of Completion"
+                                >
+                                    <FaCertificate /> Download Certificate
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {chapters.length > 0 && (
@@ -694,9 +829,19 @@ const ViewModules = () => {
                                     <FaClipboardList /> Take Assessment
                                 </button>
                             )}
-                            <button onClick={handleNextChapter} className="btn-next-chapter" disabled={isNextButtonDisabled || isLastChapter}>
-                                Next <FaChevronRight />
-                            </button>
+                            {isLastChapter ? (
+                                <button 
+                                    onClick={handleFinishWorkstream} 
+                                    className="btn-finish-workstream" 
+                                    disabled={isNextButtonDisabled}
+                                >
+                                    <FaCertificate /> Finish & Get Certificate
+                                </button>
+                            ) : (
+                                <button onClick={handleNextChapter} className="btn-next-chapter" disabled={isNextButtonDisabled}>
+                                    Next <FaChevronRight />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -757,6 +902,82 @@ const ViewModules = () => {
                                     onClick={() => setShowAssessmentCompletedModal(false)}
                                 >
                                     OK
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Certificate Modal */}
+                {showCertificateModal && certificateData && (
+                    <div className="modal-overlay certificate-modal-overlay" onClick={() => setShowCertificateModal(false)}>
+                        <div className="certificate-modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="certificate-modal-header">
+                                <h2><FaTrophy /> Congratulations!</h2>
+                                <button 
+                                    className="modal-close-btn"
+                                    onClick={() => setShowCertificateModal(false)}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            
+                            <div className="certificate-display">
+                                <div className="certificate-border">
+                                    <div className="certificate-background">
+                                        <img src={certBackground} alt="" className="certificate-bg-pattern" />
+                                    </div>
+                                    <div className="certificate-logo-section">
+                                        <img src={arkanghelLogo} alt="Arkanghel Logo" className="certificate-logo-img" />
+                                    </div>
+                                    <div className="certificate-content">
+                                        <div className="certificate-header">
+                                            <h1>CERTIFICATE OF COMPLETION</h1>
+                                            <div className="certificate-decoration"></div>
+                                        </div>
+                                        
+                                        <div className="certificate-body">
+                                            <p className="certificate-text">This is to certify that</p>
+                                            <h2 className="certificate-name">{certificateData.userName}</h2>
+                                            <p className="certificate-text">has successfully completed the learning workstream</p>
+                                            <h3 className="certificate-workstream">{certificateData.workstreamTitle}</h3>
+                                            <p className="certificate-date">
+                                                Completed on {certificateData.completionDate.toLocaleDateString('en-US', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="certificate-footer">
+                                            <div className="certificate-logo">
+                                                <strong>PROJECT ARKANGHEL</strong>
+                                                <span>Learning Management System</span>
+                                            </div>
+                                            <div className="certificate-id">
+                                                Certificate ID: {btoa(`${certificateData.userEmail}-${certificateData.workstreamTitle}-${certificateData.completionDate.getTime()}`).substring(0, 12).toUpperCase()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="certificate-modal-actions">
+                                <button 
+                                    className="btn-download-certificate"
+                                    onClick={handleDownloadCertificate}
+                                >
+                                    <FaDownload /> Download PDF Certificate
+                                </button>
+                                <button 
+                                    className="btn-back-to-modules"
+                                    onClick={() => {
+                                        setShowCertificateModal(false);
+                                        navigate('/employee/modules');
+                                    }}
+                                >
+                                    Back to Modules
                                 </button>
                             </div>
                         </div>

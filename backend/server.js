@@ -32,6 +32,7 @@ import eAssessmentsRoutes from './routes/employee/E_Assessments.js';
 import eDashboardRoutes from './routes/employee/E_Dashboard.js';
 import eLeaderboardRoutes from './routes/employee/E_Leaderboard.js';
 import eTasksRoutes from './routes/employee/E_Tasks.js';
+import certificatesRoutes from './routes/employee/Certificates.js';
 
 const app = express();
 
@@ -78,6 +79,7 @@ app.use('/', eAssessmentsRoutes)    // E_Assessments.jsx
 app.use('/employee', eDashboardRoutes)      // E_Dashboard.jsx
 app.use('/', eLeaderboardRoutes)    // E_Leaderboard.jsx
 app.use('/employee', eTasksRoutes)  // TaskSidebar.jsx
+app.use('/employee/certificates', certificatesRoutes)  // Certificate generation
 
 // Start server
 const PORT = process.env.PORT || 8081
