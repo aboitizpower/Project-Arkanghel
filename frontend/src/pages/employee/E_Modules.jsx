@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Modules.css';
-import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight, FaCertificate, FaDownload } from 'react-icons/fa';
+import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -427,44 +427,6 @@ const E_Modules = () => {
         }
     };
 
-    const handleDownloadCertificate = async (workstreamId, workstreamTitle) => {
-        try {
-            const response = await axios.get(`${API_URL}/employee/certificates/${workstreamId}`, {
-                params: { userId: user.id },
-                responseType: 'blob', // Important for PDF download
-                headers: {
-                    'Authorization': `Bearer ${user.token}`
-                }
-            });
-
-            // Create blob link to download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            
-            // Generate filename
-            const filename = `Certificate_${workstreamTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${user.first_name}_${user.last_name}.pdf`;
-            link.setAttribute('download', filename);
-            
-            // Append to html link element page
-            document.body.appendChild(link);
-            
-            // Start download
-            link.click();
-            
-            // Clean up and remove the link
-            link.parentNode.removeChild(link);
-            window.URL.revokeObjectURL(url);
-
-        } catch (error) {
-            console.error('Error downloading certificate:', error);
-            if (error.response?.status === 400) {
-                alert('Certificate not available. Please ensure you have completed 100% of the workstream.');
-            } else {
-                alert('Failed to download certificate. Please try again later.');
-            }
-        }
-    };
 
     const renderWorkstreamView = () => {
         const totalPages = Math.ceil(workstreams.length / workstreamsPerPage);
@@ -492,21 +454,7 @@ const E_Modules = () => {
                         } else if (!hasContent) {
                             actionButton = <button className="action-btn no-content" disabled>No Content Available</button>;
                         } else if (isCompleted) {
-                            actionButton = (
-                                <div className="completed-actions">
-                                    <button className="action-btn completed">Completed</button>
-                                    <button 
-                                        className="action-btn certificate-btn" 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownloadCertificate(ws.workstream_id, ws.title);
-                                        }}
-                                        title="Download Certificate"
-                                    >
-                                        <FaCertificate /> Certificate
-                                    </button>
-                                </div>
-                            );
+                            actionButton = <button className="action-btn completed">Completed</button>;
                         } else if (ws.has_final_assessment && ws.all_regular_chapters_completed) {
                             actionButton = <button className="action-btn start-learning" onClick={() => handleSelectWorkstream(ws)}>Take Final Assessment</button>;
                         } else {

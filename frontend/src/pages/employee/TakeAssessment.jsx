@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../../styles/employee/E_Assessment.css';
-import { FaBook, FaClipboardList, FaArrowLeft, FaLock } from 'react-icons/fa';
+import { FaBook, FaClipboardList, FaArrowLeft, FaLock, FaCertificate } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -27,6 +27,8 @@ const TakeAssessments = () => {
     const [isFinalAssessment, setIsFinalAssessment] = useState(false);
     const [deadline, setDeadline] = useState(null);
     const [isExpired, setIsExpired] = useState(false);
+    const [showCertificateModal, setShowCertificateModal] = useState(false);
+    const [certificateData, setCertificateData] = useState(null);
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(0);
@@ -287,6 +289,60 @@ const TakeAssessments = () => {
         }
     };
 
+    const handleFinishAndGetCertificate = async () => {
+        try {
+            // Prepare certificate data
+            const certData = {
+                userName: `${user.first_name} ${user.last_name}`,
+                workstreamTitle: workstreamInfo?.title || 'Workstream',
+                completionDate: new Date(),
+                userEmail: user.email,
+                workstreamId: workstreamId
+            };
+            
+            setCertificateData(certData);
+            setShowCertificateModal(true);
+            setShowResultsModal(false);
+
+        } catch (error) {
+            console.error('Error preparing certificate:', error);
+            alert('Error preparing certificate. Please try again.');
+        }
+    };
+
+    const handleDownloadCertificate = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/employee/certificates/${workstreamId}`, {
+                params: { userId: user.id },
+                responseType: 'blob',
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Generate filename
+            const filename = `Certificate_${workstreamInfo?.title?.replace(/[^a-zA-Z0-9]/g, '_')}_${user.first_name}_${user.last_name}.pdf`;
+            link.setAttribute('download', filename);
+            
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Error downloading certificate:', error);
+            if (error.response?.status === 400) {
+                alert('Certificate not available. Please ensure you have completed 100% of the workstream.');
+            } else {
+                alert('Failed to download certificate. Please try again later.');
+            }
+        }
+    };
 
     const totalPages = Math.ceil(questions.length / questionsPerPage);
     const currentQuestions = questions.slice(currentPage * questionsPerPage, (currentPage + 1) * questionsPerPage);
@@ -301,7 +357,7 @@ const TakeAssessments = () => {
     if (error) return <div className="error-message">{error}</div>;
 
     const handleBackToChapter = () => {
-        console.log('TakeAssessment - handleBackToChapter called with:', { chapterId, workstreamId });
+        console.log('Take Assessment - handleBackToChapter called with:', { chapterId, workstreamId });
         
         // Immediate navigation without API calls to prevent 404 errors
         if (workstreamId && chapterId) {
@@ -510,10 +566,89 @@ const TakeAssessments = () => {
                         </div>
                         
                         <div className="results-footer">
-                            <button onClick={handleCloseResultsModal} className="continue-btn">
+                            <button 
+                                onClick={isFinalAssessment && assessmentResults.passed ? handleFinishAndGetCertificate : handleCloseResultsModal} 
+                                className="continue-btn"
+                            >
                                 {isFinalAssessment && assessmentResults.passed 
-                                    ? 'Back to Workstreams' 
+                                    ? <><FaCertificate /> Finish and Get Certificate</> 
                                     : 'Continue to Chapter'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Certificate Modal */}
+            {showCertificateModal && certificateData && (
+                <div className="modal-overlay certificate-modal-overlay">
+                    <div className="certificate-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="certificate-modal-header">
+                            <h2><FaCertificate /> Congratulations!</h2>
+                            <button 
+                                className="modal-close-btn"
+                                onClick={() => setShowCertificateModal(false)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        
+                        <div className="certificate-display">
+                            <div className="certificate-border">
+                                <div className="certificate-background">
+                                    <div className="certificate-bg-pattern"></div>
+                                </div>
+                                <div className="certificate-logo-section">
+                                    <div className="certificate-logo-placeholder">LOGO</div>
+                                </div>
+                                <div className="certificate-content">
+                                    <div className="certificate-header">
+                                        <h1>CERTIFICATE OF COMPLETION</h1>
+                                        <div className="certificate-decoration"></div>
+                                    </div>
+                                    
+                                    <div className="certificate-body">
+                                        <p className="certificate-text">This is to certify that</p>
+                                        <h2 className="certificate-name">{certificateData.userName}</h2>
+                                        <p className="certificate-text">has successfully completed the learning workstream</p>
+                                        <h3 className="certificate-workstream">{certificateData.workstreamTitle}</h3>
+                                        <p className="certificate-date">
+                                            Completed on {certificateData.completionDate.toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="certificate-footer">
+                                        <div className="certificate-logo">
+                                            <strong>PROJECT ARKANGHEL</strong>
+                                            <span>Learning Management System</span>
+                                        </div>
+                                        <div className="certificate-id">
+                                            Certificate ID: {btoa(`${certificateData.userEmail}-${certificateData.workstreamTitle}-${certificateData.completionDate.getTime()}`).substring(0, 12).toUpperCase()}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="certificate-modal-actions">
+                            <button 
+                                className="btn-download-certificate"
+                                onClick={handleDownloadCertificate}
+                            >
+                                <FaCertificate /> Download PDF Certificate
+                            </button>
+                            <button 
+                                className="btn-back-to-modules"
+                                onClick={() => {
+                                    setShowCertificateModal(false);
+                                    navigate('/employee/modules');
+                                }}
+                            >
+                                Back to Modules
                             </button>
                         </div>
                     </div>

@@ -44,32 +44,107 @@ export const generateCertificate = (certificateData) => {
             // Background and border
             doc.rect(30, 30, pageWidth - 60, pageHeight - 60)
                .stroke('#2c3e50')
-               .lineWidth(3);
+               .lineWidth(4);
 
-            doc.rect(40, 40, pageWidth - 80, pageHeight - 80)
+            doc.rect(45, 45, pageWidth - 90, pageHeight - 90)
                .stroke('#3498db')
-               .lineWidth(1);
+               .lineWidth(2);
+
+            // Add background pattern image
+            try {
+                const backgroundPath = path.join(process.cwd(), 'assets', 'certbg.png');
+                if (fs.existsSync(backgroundPath)) {
+                    doc.save();
+                    doc.opacity(0.3);
+                    // Position the background pattern spanning from top to bottom, wider for better visual impact
+                    const bgWidth = 900; // Increased width for wider appearance
+                    const bgHeight = pageHeight - 100; // Full height minus margins
+                    const bgX = pageWidth - bgWidth - 60; // Adjusted position to accommodate wider background
+                    const bgY = 50; // Start from top margin
+                    doc.image(backgroundPath, bgX, bgY, { width: bgWidth, height: bgHeight });
+                    doc.restore();
+                }
+            } catch (error) {
+                console.log('Background image not found, using fallback pattern');
+                // Fallback pattern if image not found
+                doc.save();
+                doc.opacity(0.1);
+                for (let i = 0; i < 20; i++) {
+                    for (let j = 0; j < 15; j++) {
+                        const x = 400 + (i * 20);
+                        const y = 50 + (j * 20);
+                        if (x < pageWidth - 100) {
+                            doc.rect(x, y, 10, 10).fill('#3498db');
+                            doc.rect(x + 10, y + 10, 10, 10).fill('#ffb347');
+                        }
+                    }
+                }
+                doc.restore();
+            }
+
+            // Add Arkanghel logo in top-left
+            try {
+                const logoPath = path.join(process.cwd(), 'assets', 'arkanghel_logo.png');
+                if (fs.existsSync(logoPath)) {
+                    doc.image(logoPath, 60, 60, { width: 45, height: 45 });
+                } else {
+                    // Fallback logo placeholder
+                    doc.rect(60, 60, 45, 45)
+                       .fill('#ff9500');
+                    
+                    doc.fontSize(8)
+                       .font('Helvetica-Bold')
+                       .fillColor('white')
+                       .text('LOGO', 60, 78, {
+                           width: 45,
+                           align: 'center'
+                       });
+                }
+            } catch (error) {
+                console.log('Logo image not found, using fallback');
+                // Fallback logo placeholder
+                doc.rect(60, 60, 45, 45)
+                   .fill('#ff9500');
+                
+                doc.fontSize(8)
+                   .font('Helvetica-Bold')
+                   .fillColor('white')
+                   .text('LOGO', 60, 78, {
+                       width: 45,
+                       align: 'center'
+                   });
+            }
 
             // Header - Certificate of Completion
             doc.fontSize(36)
                .font('Helvetica-Bold')
                .fillColor('#2c3e50')
-               .text('CERTIFICATE OF COMPLETION', 0, 100, {
+               .text('CERTIFICATE OF COMPLETION', 0, 130, {
                    align: 'center',
                    width: pageWidth
                });
 
-            // Decorative line
-            doc.moveTo(centerX - 150, 150)
-               .lineTo(centerX + 150, 150)
-               .stroke('#3498db')
-               .lineWidth(2);
+            // Decorative line with orange gradient effect
+            doc.moveTo(centerX - 100, 180)
+               .lineTo(centerX - 20, 180)
+               .stroke('#ff9500')
+               .lineWidth(3);
+            
+            doc.moveTo(centerX - 20, 180)
+               .lineTo(centerX + 20, 180)
+               .stroke('#2c3e50')
+               .lineWidth(3);
+               
+            doc.moveTo(centerX + 20, 180)
+               .lineTo(centerX + 100, 180)
+               .stroke('#ff9500')
+               .lineWidth(3);
 
             // "This is to certify that" text
             doc.fontSize(16)
                .font('Helvetica')
                .fillColor('#34495e')
-               .text('This is to certify that', 0, 200, {
+               .text('This is to certify that', 0, 220, {
                    align: 'center',
                    width: pageWidth
                });
@@ -78,7 +153,7 @@ export const generateCertificate = (certificateData) => {
             doc.fontSize(32)
                .font('Helvetica-Bold')
                .fillColor('#2c3e50')
-               .text(userName, 0, 240, {
+               .text(userName.toUpperCase(), 0, 250, {
                    align: 'center',
                    width: pageWidth
                });
@@ -87,16 +162,16 @@ export const generateCertificate = (certificateData) => {
             doc.fontSize(16)
                .font('Helvetica')
                .fillColor('#34495e')
-               .text('has successfully completed the learning workstream', 0, 290, {
+               .text('has successfully completed the learning workstream', 0, 300, {
                    align: 'center',
                    width: pageWidth
                });
 
-            // Workstream title (prominent)
+            // Workstream title (prominent) - using orange color
             doc.fontSize(24)
                .font('Helvetica-Bold')
-               .fillColor('#3498db')
-               .text(workstreamTitle, 0, 330, {
+               .fillColor('#ff9500')
+               .text(workstreamTitle, 0, 340, {
                    align: 'center',
                    width: pageWidth
                });
@@ -110,7 +185,7 @@ export const generateCertificate = (certificateData) => {
 
             doc.fontSize(14)
                .font('Helvetica')
-               .fillColor('#34495e')
+               .fillColor('#7f8c8d')
                .text(`Completed on ${formattedDate}`, 0, 390, {
                    align: 'center',
                    width: pageWidth
@@ -119,11 +194,11 @@ export const generateCertificate = (certificateData) => {
             // Footer section
             const footerY = pageHeight - 120;
             
-            // Arkanghel logo/text
+            // Project Arkanghel logo/text
             doc.fontSize(18)
                .font('Helvetica-Bold')
                .fillColor('#2c3e50')
-               .text('ARKANGHEL', 80, footerY, {
+               .text('PROJECT ARKANGHEL', 80, footerY, {
                    align: 'left'
                });
 
@@ -144,14 +219,7 @@ export const generateCertificate = (certificateData) => {
                    align: 'right'
                });
 
-            // Decorative elements
-            // Top corners
-            doc.circle(80, 80, 3).fill('#3498db');
-            doc.circle(pageWidth - 80, 80, 3).fill('#3498db');
-            
-            // Bottom corners
-            doc.circle(80, pageHeight - 80, 3).fill('#3498db');
-            doc.circle(pageWidth - 80, pageHeight - 80, 3).fill('#3498db');
+            // Decorative elements removed as requested
 
             // Finalize the PDF
             doc.end();

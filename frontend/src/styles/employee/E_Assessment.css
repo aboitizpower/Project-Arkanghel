@@ -1042,3 +1042,318 @@
   border-color: #cbd5e1;
   transform: translateY(-1px);
 }
+
+/* Certificate Modal Styles */
+.certificate-modal-overlay {
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+}
+
+.certificate-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.certificate-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid #f8f9fa;
+    background: linear-gradient(135deg, #ff9500 0%, #ffb347 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+.certificate-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Certificate Display */
+.certificate-display {
+    padding: 2rem;
+    background: #f8f9fa;
+}
+
+.certificate-border {
+    border: 4px solid #2c3e50;
+    border-radius: 8px;
+    padding: 2rem;
+    background: white;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.certificate-border::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    bottom: 15px;
+    border: 2px solid #3498db;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.certificate-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+.certificate-bg-pattern {
+    position: absolute;
+    right: -50px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 120%;
+    width: auto;
+    opacity: 0.3;
+    z-index: 1;
+    background: linear-gradient(45deg, #3498db 25%, transparent 25%), 
+                linear-gradient(-45deg, #3498db 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #3498db 75%), 
+                linear-gradient(-45deg, transparent 75%, #3498db 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.certificate-logo-section {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 3;
+}
+
+.certificate-logo-placeholder {
+    width: 45px;
+    height: 45px;
+    background: #ff9500;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.certificate-content {
+    text-align: center;
+    position: relative;
+    z-index: 3;
+    padding-top: 5rem;
+}
+
+.certificate-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0 0 1rem 0;
+    letter-spacing: 2px;
+}
+
+.certificate-decoration {
+    width: 200px;
+    height: 3px;
+    background: linear-gradient(90deg, #ff9500 0%, #2c3e50 50%, #ff9500 100%);
+    margin: 0 auto 2rem auto;
+    border-radius: 2px;
+}
+
+.certificate-body {
+    margin: 2rem 0;
+}
+
+.certificate-text {
+    font-size: 1.1rem;
+    color: #34495e;
+    margin: 0.5rem 0;
+}
+
+.certificate-name {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.certificate-workstream {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #ff9500;
+    margin: 1rem 0;
+    font-style: italic;
+}
+
+.certificate-date {
+    font-size: 1rem;
+    color: #7f8c8d;
+    margin: 1.5rem 0;
+}
+
+.certificate-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #ecf0f1;
+    position: relative;
+    z-index: 3;
+}
+
+.certificate-logo strong {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.certificate-logo span {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.certificate-id {
+    font-size: 0.8rem;
+    color: #95a5a6;
+    text-align: right;
+}
+
+/* Certificate Modal Actions */
+.certificate-modal-actions {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+}
+
+.btn-download-certificate {
+    flex: 1;
+    background: linear-gradient(135deg, #ff9500 0%, #ffb347 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.btn-download-certificate:hover {
+    background: linear-gradient(135deg, #e6850e 0%, #ff9500 100%);
+    transform: translateY(-1px);
+}
+
+.btn-back-to-modules {
+    flex: 1;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-back-to-modules:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* Responsive Design for Certificate Modal */
+@media (max-width: 768px) {
+    .certificate-modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .certificate-display {
+        padding: 1rem;
+    }
+    
+    .certificate-border {
+        padding: 1rem;
+    }
+    
+    .certificate-logo-placeholder {
+        width: 35px;
+        height: 35px;
+        font-size: 0.6rem;
+    }
+    
+    .certificate-content {
+        padding-top: 4rem;
+    }
+    
+    .certificate-header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .certificate-name {
+        font-size: 1.6rem;
+    }
+    
+    .certificate-workstream {
+        font-size: 1.2rem;
+    }
+    
+    .certificate-footer {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .certificate-modal-actions {
+        flex-direction: column;
+    }
+}
