@@ -24,6 +24,7 @@ import assessmentCreateRoutes from './routes/admin/AssessmentCreate.js';
 import assessmentEditRoutes from './routes/admin/AssessmentEdit.js';
 import aAnalyticsRoutes from './routes/admin/A_Analytics.js';
 import aLeaderboardRoutes from './routes/admin/A_Leaderboard.js';
+import aFeedbackRoutes from './routes/admin/A_Feedback.js';
 
 import eModulesRoutes from './routes/employee/E_Modules.js';
 import viewModulesRoutes from './routes/employee/ViewModules.js';
@@ -33,6 +34,7 @@ import eDashboardRoutes from './routes/employee/E_Dashboard.js';
 import eLeaderboardRoutes from './routes/employee/E_Leaderboard.js';
 import eTasksRoutes from './routes/employee/E_Tasks.js';
 import certificatesRoutes from './routes/employee/Certificates.js';
+import eFeedbackRoutes from './routes/employee/E_Feedback.js';
 
 const app = express();
 
@@ -71,6 +73,7 @@ app.use('/', assessmentCreateRoutes) // AssessmentCreate.jsx
 app.use('/', assessmentEditRoutes)  // AssessmentEdit.jsx
 app.use('/', aAnalyticsRoutes)      // A_Analytics.jsx
 app.use('/', aLeaderboardRoutes)    // A_Leaderboard.jsx
+app.use('/', aFeedbackRoutes);
 
 app.use('/', eModulesRoutes)        // E_Modules.jsx
 app.use('/', viewModulesRoutes)     // ViewModules.jsx
@@ -80,6 +83,7 @@ app.use('/employee', eDashboardRoutes)      // E_Dashboard.jsx
 app.use('/', eLeaderboardRoutes)    // E_Leaderboard.jsx
 app.use('/employee', eTasksRoutes)  // TaskSidebar.jsx
 app.use('/employee/certificates', certificatesRoutes)  // Certificate generation
+app.use('/employee', eFeedbackRoutes);
 
 // Start server
 const PORT = process.env.PORT || 8081

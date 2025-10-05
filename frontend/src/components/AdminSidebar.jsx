@@ -1,8 +1,8 @@
-import React, { useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
-import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle, FaUserTie, FaArrowLeft } from 'react-icons/fa';
+import { FaChartBar, FaLayerGroup, FaTasks, FaUserFriends, FaTrophy, FaSignOutAlt, FaUserCircle, FaUserTie, FaArrowLeft, FaComment } from 'react-icons/fa';
 import '../styles/admin/AdminSidebar.css';
 
 const AdminSidebar = () => {
@@ -84,6 +84,9 @@ const AdminSidebar = () => {
           >
             {isOnEmployeePage ? <><FaArrowLeft className="sidebar-icon" style={{ fontSize: '1em' }} /> Back to Admin Pages</> : <><FaUserTie className="sidebar-icon" style={{ fontSize: '1em' }} /> View Employee Pages</>}
           </button>
+          <NavLink to="/admin/feedback" className="sidebar-logout-btn sidebar-footer-btn" style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FaComment className="sidebar-icon" style={{ fontSize: '1.1em' }} /> Feedback
+          </NavLink>
           <button
             className="sidebar-logout-btn sidebar-footer-btn"
             style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -93,7 +96,7 @@ const AdminSidebar = () => {
           </button>
         </div>
       </div>
-    </nav>
+          </nav>
   );
 };
 

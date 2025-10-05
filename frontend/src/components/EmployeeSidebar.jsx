@@ -1,11 +1,13 @@
-import React, { useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import loginLogo from '../assets/loginlogoo.png';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
-import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle, FaArrowLeft, FaComment } from 'react-icons/fa';
 import '../styles/EmployeeSidebar.css';
+import FeedbackModal from './FeedbackModal';
 
 const EmployeeSidebar = () => {
+  const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   let firstName = user && user.first_name ? user.first_name : '';
@@ -70,12 +72,19 @@ const EmployeeSidebar = () => {
           {isAdmin && (
             <button
               className="sidebar-logout-btn sidebar-footer-btn"
-              style={{ fontSize: '0.93rem', padding: '0.5em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               onClick={handleBackToAdmin}
             >
               <FaArrowLeft className="sidebar-icon" style={{ fontSize: '1em' }} /> Back to Admin Pages
             </button>
           )}
+          <button
+            className="sidebar-logout-btn sidebar-footer-btn"
+            style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setFeedbackModalOpen(true)}
+          >
+            <FaComment className="sidebar-icon" style={{ fontSize: '1.1em' }} /> Feedback
+          </button>
           <button
             className="sidebar-logout-btn sidebar-footer-btn"
             style={{ fontSize: '0.98rem', padding: '0.6em 0.7em', marginTop: 0, marginBottom: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -86,6 +95,7 @@ const EmployeeSidebar = () => {
         </div>
       </div>
       
+      {isFeedbackModalOpen && <FeedbackModal closeModal={() => setFeedbackModalOpen(false)} />}
     </nav>
   );
 };

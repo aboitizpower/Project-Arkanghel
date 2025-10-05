@@ -19,6 +19,7 @@ import A_Modules from './pages/admin/A_Modules';
 import A_Assessment from './pages/admin/A_Assessment';
 import A_Users from './pages/admin/A_Users';
 import A_Leaderboard from './pages/admin/A_Leaderboard';
+import A_Feedback from './pages/admin/A_Feedback';
 
 import WorkstreamCreate from './pages/admin/WorkstreamCreate';
 import WorkstreamEdit from './pages/admin/WorkstreamEdit';
@@ -130,6 +131,13 @@ export default function App() {
                             <ProtectedRoute adminOnly>
                                 <AuthWrapper>
                                     <A_Users />
+                                </AuthWrapper>
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/admin/feedback" element={
+                            <ProtectedRoute adminOnly>
+                                <AuthWrapper>
+                                    <A_Feedback />
                                 </AuthWrapper>
                             </ProtectedRoute>
                         } />
