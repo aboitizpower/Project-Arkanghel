@@ -1,6 +1,14 @@
 import express from 'express';
 import multer from 'multer';
 
+// Import notification service with error handling
+let notificationService;
+try {
+    notificationService = (await import('../../services/notificationService.js')).default;
+} catch (error) {
+    console.log('⚠️ Notification service not available in A_Modules routes');
+}
+
 const router = express.Router();
 
 // Multer configuration for handling image uploads
@@ -453,7 +461,43 @@ router.put('/workstreams/:workstreamId/publish', (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Workstream not found.' });
         }
-        res.json({ success: true, message: `Workstream publish status updated to ${is_published}.` });
+        
+        console.log(`Successfully updated publish status for workstream ${workstreamId} to: ${is_published}`);
+        
+        // Send notification if workstream is being published
+        if (is_published) {
+            console.log(`🔔 Attempting to send notifications for workstream ${workstreamId}...`);
+            
+            if (notificationService) {
+                notificationService.notifyNewWorkstream(workstreamId)
+                    .then(() => {
+                        console.log(`✅ Email notifications sent successfully for workstream ${workstreamId}`);
+                        res.json({
+                            success: true,
+                            message: `Workstream published successfully! Email notifications are being sent to all users. Please allow 2-5 minutes for delivery to all email accounts.`
+                        });
+                    })
+                    .catch(err => {
+                        console.error(`❌ Failed to send new workstream notifications for ${workstreamId}:`, err);
+                        res.json({
+                            success: true,
+                            message: `Workstream published successfully! Note: Email notifications could not be sent at this time. Please try again later or contact support.`
+                        });
+                    });
+            } else {
+                console.log(`⚠️ Notification service not available - skipping email notifications`);
+                res.json({
+                    success: true,
+                    message: `Workstream published successfully! Note: Email notification service is currently unavailable.`
+                });
+            }
+        } else {
+            console.log(`📝 Workstream ${workstreamId} unpublished - no notifications sent`);
+            res.json({
+                success: true,
+                message: `Workstream unpublished successfully!`
+            });
+        }
     });
 });
 

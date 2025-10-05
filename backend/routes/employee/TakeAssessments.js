@@ -1,4 +1,5 @@
 import express from 'express';
+import notificationService from '../../services/notificationService.js';
 
 const router = express.Router();
 
@@ -251,6 +252,9 @@ router.post('/assessments/:id/submit', async (req, res) => {
                     `;
                     await req.db.promise().query(insertProgressSql, [user_id, chapter_id]);
                     console.log('Successfully marked chapter as complete in user_progress');
+                    
+                    // Check if this completes the entire workstream
+                    await checkWorkstreamCompletion(user_id, chapter_id, req.db);
                 } else {
                     // If failed, ensure progress is not marked as complete
                     const updateProgressSql = `
@@ -292,5 +296,40 @@ router.post('/assessments/:id/submit', async (req, res) => {
         });
     }
 });
+
+// Helper function to check if workstream is completed
+async function checkWorkstreamCompletion(userId, chapterId, db) {
+    try {
+        // Get the workstream for this chapter
+        const [workstreamResult] = await db.promise().query(
+            'SELECT workstream_id FROM module_chapters WHERE chapter_id = ?',
+            [chapterId]
+        );
+        
+        if (workstreamResult.length === 0) return;
+        
+        const workstreamId = workstreamResult[0].workstream_id;
+        
+        // Check if all chapters in this workstream are completed by this user
+        const [completionCheck] = await db.promise().query(`
+            SELECT 
+                COUNT(*) as total_chapters,
+                SUM(CASE WHEN up.is_completed = 1 THEN 1 ELSE 0 END) as completed_chapters
+            FROM module_chapters mc
+            LEFT JOIN user_progress up ON mc.chapter_id = up.chapter_id AND up.user_id = ?
+            WHERE mc.workstream_id = ? AND mc.is_published = 1
+        `, [userId, workstreamId]);
+        
+        const { total_chapters, completed_chapters } = completionCheck[0];
+        
+        // If all chapters are completed, send completion notification
+        if (total_chapters > 0 && completed_chapters === total_chapters) {
+            console.log(`User ${userId} completed workstream ${workstreamId}`);
+            await notificationService.notifyCompletion(userId, workstreamId);
+        }
+    } catch (error) {
+        console.error('Error checking workstream completion:', error);
+    }
+}
 
 export default router;

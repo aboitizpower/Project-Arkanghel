@@ -104,7 +104,7 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
       
       // Show notification
       setNotification({
-        message: `Chapter "${chapter.title}" has been ${newPublishStatus ? 'published' : 'unpublished'} successfully!`,
+        message: response.data.message || `Chapter "${chapter.title}" has been ${newPublishStatus ? 'published' : 'unpublished'} successfully!`,
         type: 'success',
         isVisible: true
       });

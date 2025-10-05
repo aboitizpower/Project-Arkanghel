@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import notificationService from '../../services/notificationService.js';
 
 const router = express.Router();
 
@@ -283,11 +284,33 @@ router.put('/chapters/:id/publish', (req, res) => {
             }
             
             const updatedChapter = updatedResults[0];
-            res.json({
-                success: true,
-                message: 'Chapter publish state updated successfully.',
-                ...updatedChapter
-            });
+            
+            // Send notification if chapter is being published
+            if (is_published) {
+                notificationService.notifyNewChapter(id)
+                    .then(() => {
+                        console.log(`✅ Email notifications sent for chapter ${id}`);
+                        res.json({
+                            success: true,
+                            message: 'Chapter published successfully! Email notifications are being sent to all users. Please allow 2-5 minutes for delivery to all email accounts.',
+                            ...updatedChapter
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Failed to send new chapter notifications:', err);
+                        res.json({
+                            success: true,
+                            message: 'Chapter published successfully! Note: Email notifications could not be sent at this time.',
+                            ...updatedChapter
+                        });
+                    });
+            } else {
+                res.json({
+                    success: true,
+                    message: 'Chapter unpublished successfully.',
+                    ...updatedChapter
+                });
+            }
         });
     });
 });

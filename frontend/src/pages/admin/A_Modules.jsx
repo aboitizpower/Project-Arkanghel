@@ -73,15 +73,39 @@ const A_Modules = () => {
     );
 
     const handleTogglePublish = async (workstream) => {
+        // Prevent multiple clicks
+        if (isPublishing === workstream.workstream_id) {
+            return;
+        }
+        
         setIsPublishing(workstream.workstream_id);
+        
         try {
             const response = await axios.put(`${API_URL}/workstreams/${workstream.workstream_id}/publish`, {
                 is_published: !workstream.is_published
             });
+            
             if (response.status === 200) {
-                fetchWorkstreams();
+                const newPublishStatus = !workstream.is_published;
+                
+                // Update the workstream state immediately for better UX
+                setWorkstreams(prevWorkstreams => 
+                    prevWorkstreams.map(ws => 
+                        ws.workstream_id === workstream.workstream_id 
+                            ? { ...ws, is_published: newPublishStatus }
+                            : ws
+                    )
+                );
+                
+                // Reset publishing state FIRST to re-enable button
+                setIsPublishing(null);
+                
+                // Then show notification
+                const notificationMessage = response.data.message || 
+                    `Workstream "${workstream.title}" has been ${newPublishStatus ? 'published' : 'unpublished'} successfully!`;
+                
                 setNotification({
-                    message: `Workstream "${workstream.title}" has been ${!workstream.is_published ? 'published' : 'unpublished'} successfully!`,
+                    message: notificationMessage,
                     type: 'success',
                     isVisible: true
                 });
@@ -94,7 +118,7 @@ const A_Modules = () => {
                 type: 'error',
                 isVisible: true
             });
-        } finally {
+            // Reset publishing state on error
             setIsPublishing(null);
         }
     };

@@ -1,6 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+// Import notification service with error handling
+let notificationService;
+try {
+    notificationService = (await import('../../services/notificationService.js')).default;
+} catch (error) {
+    console.log('⚠️ Notification service not available in workstream routes');
+}
 
 const router = express.Router();
 
@@ -380,7 +387,7 @@ router.post('/workstreams', upload.single('image'), (req, res) => {
                         console.log(`Successfully created workstream with ID: ${workstreamId}`);
                         res.status(201).json({
                             success: true,
-                            message: 'Workstream created successfully!',
+                            message: 'Workstream created successfully! Remember to publish it to send email notifications to all users about this new training workstream.',
                             workstream: {
                                 id: workstreamId,
                                 title,
@@ -718,12 +725,49 @@ router.put('/workstreams/:id/publish', (req, res) => {
             }
             
             console.log(`Successfully updated publish status for workstream ${id} to: ${is_published}`);
-            res.json({
-                success: true,
-                message: `Workstream ${is_published ? 'published' : 'unpublished'} successfully!`,
-                workstream_id: id,
-                is_published: is_published ? 1 : 0
-            });
+            
+            // Send notification if workstream is being published
+            if (is_published) {
+                console.log(`🔔 Attempting to send notifications for workstream ${id}...`);
+                
+                if (notificationService) {
+                    notificationService.notifyNewWorkstream(id)
+                        .then(() => {
+                            console.log(`✅ Email notifications sent successfully for workstream ${id}`);
+                            res.json({
+                                success: true,
+                                message: `Workstream published successfully! Email notifications are being sent to all users. Please allow 2-5 minutes for delivery to all email accounts.`,
+                                workstream_id: id,
+                                is_published: 1
+                            });
+                        })
+                        .catch(err => {
+                            console.error(`❌ Failed to send new workstream notifications for ${id}:`, err);
+                            res.json({
+                                success: true,
+                                message: `Workstream published successfully! Note: Email notifications could not be sent at this time. Please try again later or contact support.`,
+                                workstream_id: id,
+                                is_published: 1
+                            });
+                        });
+                } else {
+                    console.log(`⚠️ Notification service not available - skipping email notifications`);
+                    res.json({
+                        success: true,
+                        message: `Workstream published successfully! Note: Email notification service is currently unavailable.`,
+                        workstream_id: id,
+                        is_published: 1
+                    });
+                }
+            } else {
+                console.log(`📝 Workstream ${id} unpublished - no notifications sent`);
+                res.json({
+                    success: true,
+                    message: `Workstream unpublished successfully!`,
+                    workstream_id: id,
+                    is_published: 0
+                });
+            }
         });
     }
 });
