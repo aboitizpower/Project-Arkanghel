@@ -57,7 +57,7 @@ const A_Assessment = () => {
 
   // Fetch workstreams on mount
   useEffect(() => {
-    fetch(`${API_BASE}/workstreams`)
+    fetch(`${API_BASE}/workstreams?published_only=true`)
       .then(res => res.json())
       .then(data => {
         // The new endpoint returns an array directly, not an object with a 'workstreams' property.

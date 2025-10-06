@@ -65,8 +65,11 @@ router.post('/workstreams', upload.single('image'), (req, res) => {
 
 // Read all workstreams (for admin) - Used by A_Modules.jsx
 router.get('/workstreams', (req, res) => {
+    const { published_only } = req.query;
     console.log('=== A_MODULES GET /workstreams ROUTE HIT ==='); // Debug log
-    const sql = `
+    console.log('A_Modules published_only:', published_only);
+    
+    let sql = `
         SELECT 
             w.workstream_id, 
             w.title, 
@@ -86,6 +89,11 @@ router.get('/workstreams', (req, res) => {
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id AND mc.is_published = TRUE AND mc.title LIKE '%Final Assessment%') > 0 as has_final_assessment
         FROM workstreams w
     `;
+    
+    // Add WHERE clause if published_only is requested
+    if (published_only === 'true') {
+        sql += ' WHERE w.is_published = TRUE';
+    }
     req.db.query(sql, (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });

@@ -97,7 +97,7 @@ const A_Users = () => {
         // Keep isAdmin as an integer (1/0) for consistency
         setUsers(data.users || []);
       });
-    fetch("http://localhost:8081/workstreams")
+    fetch("http://localhost:8081/workstreams?published_only=true")
       .then(res => res.json())
       .then(data => setWorkstreams(data || []));
   }, []);

@@ -137,7 +137,7 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
 
   return (
     <div className="module-chapter-creation">
-      <div className="page-header">
+      <div className="ch-edit-page-header">
         <button className="back-button" onClick={onCancel}>&larr; Back to Workstream Setup</button>
         <div className="header-center">
   

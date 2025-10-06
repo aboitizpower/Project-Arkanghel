@@ -1,15 +1,16 @@
 .module-chapter-creation {
-  background-color: #f9f9f9;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.page-header {
+.ch-edit-page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2.2rem;
 }
 
-.page-header .back-button {
+.ch-edit-page-header .back-button {
   background: none;
   border: none;
   font-size: 1rem;
@@ -17,17 +18,17 @@
   cursor: pointer;
 }
 
-.page-header .header-center {
+.ch-edit-page-header .header-center {
   text-align: center;
 }
 
-.page-header h1 {
+.ch-edit-page-header h1 {
   font-size: 1.75rem;
   margin: 0;
   color: #222;
 }
 
-.page-header span {
+.ch-edit-page-header span {
   font-size: 0.9rem;
   color: #666;
 }

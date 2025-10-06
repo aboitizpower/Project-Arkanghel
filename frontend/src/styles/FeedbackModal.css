@@ -117,7 +117,7 @@
   font-weight: 700;
 }
 
-.back-button {
+.feedback-modal .back-button {
   position: absolute;
   top: 20px;
   left: 20px;

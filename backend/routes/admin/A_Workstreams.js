@@ -35,9 +35,10 @@ const upload = multer({
  * @returns {Object} List of workstreams with metadata
  */
 router.get('/workstreams', (req, res) => {
-    console.log('Fetching all workstreams');
+    const { published_only } = req.query;
+    console.log('Fetching workstreams, published_only:', published_only);
     
-    const sql = `
+    let sql = `
         SELECT 
             w.workstream_id as id,
             w.title, 
@@ -49,8 +50,14 @@ router.get('/workstreams', (req, res) => {
             (SELECT COUNT(*) FROM module_chapters mc WHERE mc.workstream_id = w.workstream_id) as chapters_count,
             (SELECT COUNT(*) FROM assessments a JOIN module_chapters mc ON a.chapter_id = mc.chapter_id WHERE mc.workstream_id = w.workstream_id) as assessments_count
         FROM workstreams w
-        ORDER BY w.created_at DESC
     `;
+    
+    // Add WHERE clause if published_only is requested
+    if (published_only === 'true') {
+        sql += ' WHERE w.is_published = TRUE';
+    }
+    
+    sql += ' ORDER BY w.created_at DESC';
     
     req.db.query(sql, (err, results) => {
         if (err) {

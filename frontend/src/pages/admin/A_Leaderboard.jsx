@@ -42,7 +42,7 @@ const A_Leaderboard = () => {
         };
         const fetchWorkstreams = async () => {
             try {
-                const res = await axios.get(`${API_URL}/workstreams`);
+                const res = await axios.get(`${API_URL}/workstreams?published_only=true`);
                 setWorkstreams(res.data);
             } catch {}
         };

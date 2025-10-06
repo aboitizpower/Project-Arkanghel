@@ -56,11 +56,10 @@ export const generateCertificate = (certificateData) => {
                 if (fs.existsSync(backgroundPath)) {
                     doc.save();
                     doc.opacity(0.3);
-                    // Position the background pattern spanning from top to bottom, wider for better visual impact
-                    const bgWidth = 900; // Increased width for wider appearance
-                    const bgHeight = pageHeight - 100; // Full height minus margins
-                    const bgX = pageWidth - bgWidth - 60; // Adjusted position to accommodate wider background
-                    const bgY = 50; // Start from top margin
+                    const bgWidth = 900;
+                    const bgHeight = pageHeight - 100;
+                    const bgX = pageWidth - bgWidth - 60; 
+                    const bgY = 50; 
                     doc.image(backgroundPath, bgX, bgY, { width: bgWidth, height: bgHeight });
                     doc.restore();
                 }
@@ -167,7 +166,7 @@ export const generateCertificate = (certificateData) => {
                    width: pageWidth
                });
 
-            // Workstream title (prominent) - using orange color
+            // Workstream title (prominent)
             doc.fontSize(24)
                .font('Helvetica-Bold')
                .fillColor('#ff9500')
@@ -219,7 +218,6 @@ export const generateCertificate = (certificateData) => {
                    align: 'right'
                });
 
-            // Decorative elements removed as requested
 
             // Finalize the PDF
             doc.end();

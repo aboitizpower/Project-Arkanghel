@@ -112,7 +112,7 @@ const A_Analytics = () => {
                     axios.get(`${API_URL}/admin/leaderboard`),
                     axios.get(`${API_URL}/admin/analytics/assessment-tracker`),
                     axios.get(`${API_URL}/admin/analytics/critical-areas`),
-                    axios.get(`${API_URL}/workstreams`)
+                    axios.get(`${API_URL}/workstreams?published_only=true`)
                 ]);
 
                 setKpis(kpisRes.data);

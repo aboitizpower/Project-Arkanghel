@@ -220,9 +220,9 @@ router.get('/assessment-results', (req, res) => {
     }
 });
 
-// Endpoint to get all workstreams for filter dropdowns
+// Endpoint to get all published workstreams for filter dropdowns
 router.get('/workstreams', (req, res) => {
-    const sql = 'SELECT workstream_id, title FROM workstreams ORDER BY title';
+    const sql = 'SELECT workstream_id, title FROM workstreams WHERE is_published = TRUE ORDER BY title';
     req.db.query(sql, (err, results) => {
         if (err) {
             console.error('Error fetching workstreams for filters:', err);

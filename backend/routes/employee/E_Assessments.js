@@ -73,7 +73,7 @@ router.get('/employee/assessment-attempts/:userId/:assessmentId', (req, res) => 
             (SELECT COUNT(*) FROM questions q WHERE q.assessment_id = ?) as total_questions,
             a.total_points,
             a.passing_score,
-            (SUM(ans.score) = (SELECT COUNT(*) FROM questions q WHERE q.assessment_id = ?)) AS passed
+            ((SUM(ans.score) / (SELECT COUNT(*) FROM questions q WHERE q.assessment_id = ?)) * 100 >= a.passing_score) AS passed
         FROM answers AS ans
         JOIN questions AS q ON ans.question_id = q.question_id
         JOIN assessments AS a ON q.assessment_id = a.assessment_id
