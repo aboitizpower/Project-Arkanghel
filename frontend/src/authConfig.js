@@ -4,11 +4,11 @@ export const msalConfig = {
     auth: {
         clientId: "2d56816e-f773-4690-a001-778840e29b02",
         authority: "https://login.microsoftonline.com/388d2366-e92c-4531-819d-550b229132fc",
-        redirectUri: "http://localhost:5173", // This should match the redirect URI in your Azure AD app registration
+        redirectUri: "http://localhost:5173",
     },
     cache: {
-        cacheLocation: "sessionStorage", // This configures where your cache will be stored
-        storeAuthStateInCookie: false, // Set this to "true" if you are having issues on IE11 or Edge
+        cacheLocation: "sessionStorage", 
+        storeAuthStateInCookie: false, 
     },
     system: {
         loggerOptions: {
