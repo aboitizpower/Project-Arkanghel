@@ -123,7 +123,12 @@ const A_Analytics = () => {
                 setTopUsers(leaderboardRes.data.slice(0, 3));
                 setAssessmentTracker(trackerRes.data);
                 setCriticalAreas(criticalAreasRes.data);
-                setWorkstreams(workstreamsRes.data || []);
+                
+                // Handle both old and new response formats for workstreams
+                const workstreamsData = workstreamsRes.data?.workstreams || workstreamsRes.data || [];
+                console.log('Workstreams response:', workstreamsRes.data);
+                console.log('Processed workstreams data:', workstreamsData);
+                setWorkstreams(Array.isArray(workstreamsData) ? workstreamsData : []);
 
             } catch (error) {
                 console.error("Failed to fetch analytics data:", error);
@@ -184,7 +189,7 @@ const A_Analytics = () => {
                                 <Filter size={14} className="filter-icon" />
                                 <select value={selectedWorkstream} onChange={(e) => setSelectedWorkstream(e.target.value)} className="workstream-filter-enhanced">
                                     <option value="all">All Workstreams</option>
-                                    {workstreams.map((ws) => <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>)}
+                                    {workstreams.map((ws) => <option key={ws.id} value={ws.id}>{ws.title}</option>)}
                                 </select>
                             </div>
                         </div>

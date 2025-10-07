@@ -34,8 +34,10 @@ const A_Modules = () => {
         setError(null);
         try {
             const response = await axios.get(`${API_URL}/workstreams`);
-            setWorkstreams(response.data);
-            setFilteredWorkstreams(response.data);
+            // Handle both old and new response formats
+            const workstreamsData = response.data.workstreams || response.data;
+            setWorkstreams(workstreamsData);
+            setFilteredWorkstreams(workstreamsData);
         } catch (err) {
             setError('Failed to fetch workstreams');
             console.error('Error fetching workstreams:', err);
@@ -74,24 +76,31 @@ const A_Modules = () => {
 
     const handleTogglePublish = async (workstream) => {
         // Prevent multiple clicks
-        if (isPublishing === workstream.workstream_id) {
+        if (isPublishing === workstream.id) {
             return;
         }
         
-        setIsPublishing(workstream.workstream_id);
+        const newPublishStatus = !workstream.is_published;
+        console.log(`Attempting to ${newPublishStatus ? 'publish' : 'unpublish'} workstream:`, workstream.id);
+        
+        setIsPublishing(workstream.id);
         
         try {
-            const response = await axios.put(`${API_URL}/workstreams/${workstream.workstream_id}/publish`, {
-                is_published: !workstream.is_published
+            const response = await axios.put(`${API_URL}/workstreams/${workstream.id}/publish`, {
+                is_published: newPublishStatus
             });
             
-            if (response.status === 200) {
-                const newPublishStatus = !workstream.is_published;
-                
+            console.log('API Response:', {
+                status: response.status,
+                data: response.data
+            });
+            
+            // Check for successful response (200 or 201) and handle both old and new response formats
+            if (response.status === 200 || response.status === 201) {
                 // Update the workstream state immediately for better UX
                 setWorkstreams(prevWorkstreams => 
                     prevWorkstreams.map(ws => 
-                        ws.workstream_id === workstream.workstream_id 
+                        ws.id === workstream.id 
                             ? { ...ws, is_published: newPublishStatus }
                             : ws
                     )
@@ -100,24 +109,45 @@ const A_Modules = () => {
                 // Reset publishing state FIRST to re-enable button
                 setIsPublishing(null);
                 
-                // Then show notification
-                const notificationMessage = response.data.message || 
+                // Handle both old and new response formats for the message
+                const notificationMessage = response.data?.message || 
                     `Workstream "${workstream.title}" has been ${newPublishStatus ? 'published' : 'unpublished'} successfully!`;
+                
+                console.log('Setting notification:', notificationMessage);
                 
                 setNotification({
                     message: notificationMessage,
                     type: 'success',
                     isVisible: true
                 });
+                
+                console.log('Publish toggle successful - notification set');
+            } else {
+                console.warn('Unexpected response status:', response.status);
+                setIsPublishing(null);
+                setNotification({
+                    message: 'Unexpected response from server. Please refresh to see current status.',
+                    type: 'warning',
+                    isVisible: true
+                });
             }
         } catch (err) {
             console.error('Failed to toggle publish:', err);
+            console.error('Error response:', err.response?.data);
+            console.error('Error status:', err.response?.status);
+            
+            // Handle structured error responses
+            const errorMessage = err.response?.data?.error || 
+                                err.response?.data?.message || 
+                                'Failed to update publish status. Please try again.';
+            
             setError('Failed to update publish status');
             setNotification({
-                message: 'Failed to update publish status. Please try again.',
+                message: errorMessage,
                 type: 'error',
                 isVisible: true
             });
+            
             // Reset publishing state on error
             setIsPublishing(null);
         }
@@ -126,7 +156,7 @@ const A_Modules = () => {
     const handleDeleteWorkstream = (workstream) => {
         setConfirmModal({
             isVisible: true,
-            workstreamId: workstream.workstream_id,
+            workstreamId: workstream.id,
             workstreamTitle: workstream.title
         });
     };
@@ -137,21 +167,32 @@ const A_Modules = () => {
         
         setIsDeleting(workstreamId);
         try {
-            await axios.delete(`${API_URL}/workstreams/${workstreamId}`);
+            const response = await axios.delete(`${API_URL}/workstreams/${workstreamId}`);
             fetchWorkstreams();
+            
+            // Handle both old and new response formats for the message
+            const successMessage = response.data?.message || 'Workstream deleted successfully!';
+            
             setNotification({
-                message: 'Workstream deleted successfully!',
+                message: successMessage,
                 type: 'success',
                 isVisible: true
             });
         } catch (err) {
+            console.error('Error deleting workstream:', err);
+            console.error('Error response:', err.response?.data);
+            
+            // Handle structured error responses
+            const errorMessage = err.response?.data?.error || 
+                               err.response?.data?.message || 
+                               'Failed to delete workstream. Please try again.';
+            
             setError('Failed to delete workstream');
             setNotification({
-                message: 'Failed to delete workstream. Please try again.',
+                message: errorMessage,
                 type: 'error',
                 isVisible: true
             });
-            console.error('Error deleting workstream:', err);
         } finally {
             setIsDeleting(null);
         }
@@ -243,7 +284,7 @@ const A_Modules = () => {
                             </thead>
                             <tbody>
                                 {paginatedWorkstreams.map(ws => (
-                                    <tr key={ws.workstream_id}>
+                                    <tr key={ws.id}>
                                         <td className="workstream-title">{ws.title}</td>
                                         <td className="workstream-description">
                                             {ws.description?.length > 100 
@@ -264,7 +305,7 @@ const A_Modules = () => {
                                         <td className="actions-cell">
                                             <button 
                                                 className="btn-icon" 
-                                                onClick={() => navigate(`/admin/workstream/${ws.workstream_id}/edit`)} 
+                                                onClick={() => navigate(`/admin/workstream/${ws.id}/edit`)} 
                                                 title="Manage/Edit Workstream"
                                             >
                                                 <FaCog />
@@ -273,9 +314,9 @@ const A_Modules = () => {
                                                 className="btn-icon" 
                                                 onClick={() => handleTogglePublish(ws)} 
                                                 title={ws.is_published ? 'Unpublish' : 'Publish'}
-                                                disabled={isPublishing === ws.workstream_id}
+                                                disabled={isPublishing === ws.id}
                                             >
-                                                {isPublishing === ws.workstream_id ? (
+                                                {isPublishing === ws.id ? (
                                                     <div className="spinner-small"></div>
                                                 ) : (
                                                     ws.is_published ? <FaEyeSlash /> : <FaEye />
@@ -285,9 +326,9 @@ const A_Modules = () => {
                                                 className="btn-icon btn-delete" 
                                                 onClick={() => handleDeleteWorkstream(ws)} 
                                                 title="Delete Workstream"
-                                                disabled={isDeleting === ws.workstream_id}
+                                                disabled={isDeleting === ws.id}
                                             >
-                                                {isDeleting === ws.workstream_id ? (
+                                                {isDeleting === ws.id ? (
                                                     <div className="spinner-small"></div>
                                                 ) : (
                                                     <FaTrash />

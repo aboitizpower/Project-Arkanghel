@@ -46,17 +46,24 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
     const fetchData = async () => {
       try {
         const targetWorkstreamId = propWorkstream?.workstream_id || stateWorkstream?.workstream_id || workstreamId;
+        console.log('AssessmentCreate - Fetching data for workstream ID:', targetWorkstreamId);
         const [workstreamRes, assessmentsRes] = await Promise.all([
           axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/complete`),
           axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`)
         ]);
+        console.log('AssessmentCreate - Workstream response:', workstreamRes.data);
+        console.log('AssessmentCreate - Assessments response:', assessmentsRes.data);
         setWorkstream(workstreamRes.data);
         const assessments = assessmentsRes.data || [];
+        console.log('AssessmentCreate - Processed assessments:', assessments);
         const used = assessments.filter(a => a.chapter_id).map(a => a.chapter_id);
         setUsedChapterIds(used);
         setHasFinalAssessment(assessments.some(a => a.is_final));
         setIsLoading(false);
       } catch (err) {
+        console.error('AssessmentCreate - Error loading workstream data:', err);
+        console.error('AssessmentCreate - Error response:', err.response?.data);
+        console.error('AssessmentCreate - Error status:', err.response?.status);
         setError('Failed to load workstream data. Please check your connection or try again.');
         setIsLoading(false);
       }
@@ -190,6 +197,10 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       if (selectedChapterId === 'final') {
         generatedTitle = `Final Assessment for: ${workstream?.title || ''}`;
         isFinalToSend = true;
+        // For final assessments, we need to create a final assessment chapter first
+        // or use the last chapter as the final assessment chapter
+        const lastChapter = workstream?.chapters?.[workstream.chapters.length - 1];
+        chapterIdToSend = lastChapter ? lastChapter.chapter_id : null;
       } else {
         const chapter = workstream?.chapters?.find(ch => ch.chapter_id == selectedChapterId);
         generatedTitle = chapter ? `Assessment: ${chapter.title}` : '';
@@ -198,20 +209,20 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
 
       const assessmentData = {
         title: generatedTitle,
-        description: description || '',
+        description: `Assessment for ${workstream?.title || ''}`,
         questions: questions.map(q => ({
-          question: q.question,
-          options: q.options.filter(opt => opt.trim() !== ''),
-          correct_answer: q.correctAnswer,
-          question_type: q.type === 'multiple' ? 'multiple_choice' :
+          ...q,
+          type: q.type === 'multiple' ? 'multiple_choice' :
                         q.type === 'truefalse' ? 'true_false' :
                         'identification'
         })),
-        chapter_id: chapterIdToSend,
+        chapterId: chapterIdToSend,
         is_final: isFinalToSend,
         deadline: deadline || null
       };
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
+      console.log('AssessmentCreate - Sending assessment data:', assessmentData);
+      console.log('AssessmentCreate - Target workstream ID:', targetWorkstreamId);
       await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       
       setNotification({

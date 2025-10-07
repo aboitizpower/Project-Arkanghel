@@ -146,7 +146,7 @@ const TakeAssessments = () => {
         return () => {
             abortController.abort();
         };
-    }, [assessmentId, chapterId, workstreamId, user, navigate, location.pathname]);
+    }, [assessmentId, location.pathname, location.state, user]);
 
     const handleAnswerChange = (questionId, answer) => {
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -156,8 +156,13 @@ const TakeAssessments = () => {
         // Use both 'answers' and 'options' arrays with fallback logic
         let optionsToRender = [];
         
-        // Try to get options from multiple sources
-        if (Array.isArray(q.answers) && q.answers.length > 0) {
+        // Special handling for True/False questions - always generate True/False options
+        if (q.question_type === 'true_false') {
+            optionsToRender = [
+                { answer_id: 1, answer_text: 'True' },
+                { answer_id: 2, answer_text: 'False' }
+            ];
+        } else if (Array.isArray(q.answers) && q.answers.length > 0) {
             optionsToRender = q.answers;
         } else if (Array.isArray(q.options) && q.options.length > 0) {
             // Convert options array to answers format

@@ -21,14 +21,31 @@ const WorkstreamCreate = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!title) {
+        
+        // Frontend validation to match backend requirements
+        if (!title || title.trim().length === 0) {
             setError('Title is required.');
+            return;
+        }
+        
+        if (title.length < 3 || title.length > 100) {
+            setError('Title must be between 3 and 100 characters.');
+            return;
+        }
+        
+        if (!description || description.trim().length === 0) {
+            setError('Description is required.');
+            return;
+        }
+        
+        if (description.length < 10 || description.length > 1000) {
+            setError('Description must be between 10 and 1000 characters.');
             return;
         }
 
         const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
+        formData.append('title', title.trim());
+        formData.append('description', description.trim());
         
         // Convert deadline to MySQL format (same as edit functionality)
         if (deadline && deadline.trim() !== '') {
@@ -56,13 +73,21 @@ const WorkstreamCreate = () => {
                 navigate('/admin/modules');
             }, 1500);
         } catch (err) {
-            setError('Failed to create workstream.');
+            console.error('Error creating workstream:', err);
+            
+            // Extract specific error message from backend response
+            const errorMessage = err.response?.data?.error || 
+                               err.response?.data?.message || 
+                               'Failed to create workstream. Please try again.';
+            
+            setError(errorMessage);
             setNotification({
-                message: 'Failed to create workstream. Please try again.',
+                message: errorMessage,
                 type: 'error',
                 isVisible: true
             });
-            console.error(err);
+            
+            console.error('Backend error response:', err.response?.data);
         } finally {
             setIsLoading(false);
         }
@@ -105,8 +130,10 @@ const WorkstreamCreate = () => {
                                 onChange={(e) => setDescription(e.target.value)}
                                 className="form-control"
                                 rows="5"
-                                placeholder="Enter a description"
+                                placeholder="Enter a description (minimum 10 characters)"
+                                required
                             />
+                            <small className="form-text">Description must be between 10 and 1000 characters.</small>
                         </div>
 
                         <div className="form-group">

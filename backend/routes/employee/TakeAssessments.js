@@ -30,8 +30,15 @@ router.get('/assessments/:id/questions', (req, res) => {
             let answers = [];
             let optionsArray = [];
 
-            // Handle options parsing with robust error handling
-            if (row.options) {
+            // Handle True/False questions specially - they should always have True/False options
+            if (row.question_type === 'true_false') {
+                optionsArray = ['True', 'False'];
+                answers = [
+                    { answer_id: 1, answer_text: 'True' },
+                    { answer_id: 2, answer_text: 'False' }
+                ];
+            } else if (row.options) {
+                // Handle options parsing for other question types
                 if (typeof row.options === 'string' && row.options.trim() !== '') {
                     try {
                         // First try to parse as JSON

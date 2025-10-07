@@ -99,7 +99,13 @@ const A_Users = () => {
       });
     fetch("http://localhost:8081/workstreams?published_only=true")
       .then(res => res.json())
-      .then(data => setWorkstreams(data || []));
+      .then(data => {
+        // Handle both old and new response formats
+        const workstreamsData = data?.workstreams || data || [];
+        console.log('A_Users workstreams response:', data);
+        console.log('A_Users processed workstreams:', workstreamsData);
+        setWorkstreams(Array.isArray(workstreamsData) ? workstreamsData : []);
+      });
   }, []);
 
   const handleRoleChange = async (userId, currentIsAdmin) => {
@@ -145,9 +151,9 @@ const A_Users = () => {
       const res = await fetch(`http://localhost:8081/users/${user.id}/workstreams`);
       const data = await res.json();
       // If empty, all are selected
-      setWsModalChecked(data.workstream_ids.length === 0 ? workstreams.map(w => w.workstream_id) : data.workstream_ids);
+      setWsModalChecked(data.workstream_ids.length === 0 ? workstreams.map(w => w.id) : data.workstream_ids);
     } catch {
-      setWsModalChecked(workstreams.map(w => w.workstream_id));
+      setWsModalChecked(workstreams.map(w => w.id));
     }
     setWsModalLoading(false);
   };
@@ -204,7 +210,7 @@ const A_Users = () => {
   const getUserWsSummary = (user) => {
     // If user has specific workstream permissions set
     if (user.workstream_ids && user.workstream_ids.length > 0) {
-      const userWorkstreams = workstreams.filter(w => user.workstream_ids.includes(w.workstream_id));
+      const userWorkstreams = workstreams.filter(w => user.workstream_ids.includes(w.id));
       if (userWorkstreams.length > 2) return `${userWorkstreams.length} Workstreams`;
       return userWorkstreams.map(w => w.title).join(', ');
     }
@@ -521,7 +527,7 @@ const A_Users = () => {
                         type="checkbox"
                         checked={wsModalChecked.length === workstreams.length}
                         indeterminate={wsModalChecked.length > 0 && wsModalChecked.length < workstreams.length ? 'true' : undefined}
-                        onChange={e => setWsModalChecked(e.target.checked ? workstreams.map(w => w.workstream_id) : [])}
+                        onChange={e => setWsModalChecked(e.target.checked ? workstreams.map(w => w.id) : [])}
                       />
                       Select All
                     </label>
@@ -530,11 +536,11 @@ const A_Users = () => {
                   <div className="ws-modal-checklist-area">
                     <form className="ws-checkbox-list">
                       {workstreams.map(ws => (
-                        <label key={ws.workstream_id} className="ws-checkbox-item">
+                        <label key={ws.id} className="ws-checkbox-item">
                           <input
                             type="checkbox"
-                            checked={wsModalChecked.includes(ws.workstream_id)}
-                            onChange={() => handleWsCheckbox(ws.workstream_id)}
+                            checked={wsModalChecked.includes(ws.id)}
+                            onChange={() => handleWsCheckbox(ws.id)}
                           />
                           {ws.title}
                         </label>

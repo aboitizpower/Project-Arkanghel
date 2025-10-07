@@ -8,11 +8,12 @@
 
 .employee-dashboard-page .main-content {
   flex: 1;
-  padding: .5rem;
+  padding: 2.5rem 6vw; /* Match admin pages padding */
   display: flex; /* Make main-content a flex container */
   flex-direction: column; /* Arrange children in a column */
   overflow-y: auto; /* Add this to enable internal scrolling if content exceeds height */
   margin-right: 0; /* Remove any margin to accommodate sidebar */
+  box-sizing: border-box;
 }
 
 /* Ensure the content within main-content can grow */

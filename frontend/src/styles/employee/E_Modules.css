@@ -86,6 +86,13 @@ body.module-view-active {
     background-color: #f4f7f6; /* Match background */
 }
 
+.e-modules-main-content {
+    padding: 2.5rem 6vw; /* Match admin pages padding */
+    overflow-y: auto;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
 .error-message {
     color: #d9534f;
     background-color: #f2dede;

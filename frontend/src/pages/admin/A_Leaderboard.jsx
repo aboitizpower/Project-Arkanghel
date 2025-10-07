@@ -34,7 +34,6 @@ const A_Leaderboard = () => {
                 console.log('Fetched leaderboardData:', response.data); // DEBUG
             } catch (err) {
                 console.error('Leaderboard fetch error:', err);
-                console.error('Error response:', err.response?.data);
                 console.error('Error status:', err.response?.status);
             } finally {
                 setIsLoading(false);
@@ -43,8 +42,13 @@ const A_Leaderboard = () => {
         const fetchWorkstreams = async () => {
             try {
                 const res = await axios.get(`${API_URL}/workstreams?published_only=true`);
-                setWorkstreams(res.data);
-            } catch {}
+                console.log('Workstreams response:', res.data); // DEBUG
+                const workstreamsData = res.data?.workstreams || res.data || [];
+                setWorkstreams(Array.isArray(workstreamsData) ? workstreamsData : []);
+            } catch (err) {
+                console.error('Workstreams fetch error:', err);
+                setWorkstreams([]);
+            }
         };
         fetchLeaderboard();
         fetchWorkstreams();
@@ -65,7 +69,7 @@ const A_Leaderboard = () => {
     console.log('Current users for table:', currentUsers); // DEBUG
 
     // Get selected workstream name
-    const selectedWorkstreamObj = workstreams.find(ws => ws.workstream_id == selectedWorkstream);
+    const selectedWorkstreamObj = workstreams.find(ws => ws.id == selectedWorkstream);
 
     return (
         <div className="admin-layout">
@@ -97,7 +101,7 @@ const A_Leaderboard = () => {
                             >
                                 <option value="">All Workstreams</option>
                                 {workstreams.map(ws => (
-                                    <option key={ws.workstream_id} value={ws.workstream_id}>{ws.title}</option>
+                                    <option key={ws.id} value={ws.id}>{ws.title}</option>
                                 ))}
                             </select>
                         </div>

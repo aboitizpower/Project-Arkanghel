@@ -14,7 +14,6 @@ const { corsMiddleware, preflightMiddleware } = corsModule;
 import authRoutes from './routes/auth/authRoutes.js';
 import aUsersRoutes from './routes/admin/A_Users.js';
 import aModulesRoutes from './routes/admin/A_Modules.js';
-import aWorkstreamsRoutes from './routes/admin/A_Workstreams.js';
 import workstreamCreateRoutes from './routes/admin/WorkstreamCreate.js';
 import workstreamEditRoutes from './routes/admin/WorkstreamEdit.js';
 import chapterCreateRoutes from './routes/admin/ChapterCreate.js';
@@ -74,7 +73,6 @@ app.use((req, res, next) => {
 app.use('/', authRoutes);
 app.use('/', aUsersRoutes)          // A_Users.jsx
 app.use('/', aModulesRoutes)        // A_Modules.jsx
-app.use('/', aWorkstreamsRoutes)    // A_Workstreams.jsx
 app.use('/', workstreamCreateRoutes) // WorkstreamCreate.jsx
 app.use('/', chapterCreateRoutes)   // ChapterCreate.jsx
 app.use('/', chapterEditRoutes)     // ChapterEdit.jsx

@@ -49,7 +49,6 @@ const A_Assessment = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Table controls
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('completed_at');
   const [sortDir, setSortDir] = useState('desc');
@@ -60,8 +59,12 @@ const A_Assessment = () => {
     fetch(`${API_BASE}/workstreams?published_only=true`)
       .then(res => res.json())
       .then(data => {
-        // The new endpoint returns an array directly, not an object with a 'workstreams' property.
-        setWorkstreams(Array.isArray(data) ? data : []);
+        console.log('A_Assessment - Workstreams response:', data);
+        // Handle both response formats: structured response or direct array
+        const workstreamsData = data?.workstreams || data || [];
+        const finalWorkstreams = Array.isArray(workstreamsData) ? workstreamsData : [];
+        console.log('A_Assessment - Processed workstreams:', finalWorkstreams);
+        setWorkstreams(finalWorkstreams);
       })
       .catch(err => {
         console.error('Failed to fetch workstreams:', err);
@@ -114,6 +117,9 @@ const A_Assessment = () => {
     const url = new URL(`${API_BASE}/assessment-results`);
     if (selectedWorkstream) url.searchParams.append('workstream_id', selectedWorkstream);
     if (selectedChapter) url.searchParams.append('chapter_id', selectedChapter);
+
+    console.log('A_Assessment - Fetching results with URL:', url.toString());
+    console.log('A_Assessment - Filters:', { selectedWorkstream, selectedChapter });
 
     fetch(url)
       .then(async res => {
@@ -244,10 +250,14 @@ const A_Assessment = () => {
           <div className="assessment-filters-row">
             <label className="assessment-filter-label">
               Workstream:{' '}
-              <select value={selectedWorkstream} onChange={e => { setSelectedWorkstream(e.target.value); setPage(1); }} className="assessment-filter-select">
+              <select value={selectedWorkstream} onChange={e => { 
+                console.log('A_Assessment - Workstream selected:', e.target.value);
+                setSelectedWorkstream(e.target.value); 
+                setPage(1); 
+              }} className="assessment-filter-select">
                 <option value="">All</option>
                 {workstreams.map(ws => (
-                  <option key={ws.workstream_id} value={ws.workstream_id} title={ws.title}>{ws.title}</option>
+                  <option key={ws.id} value={ws.id} title={ws.title}>{ws.title}</option>
                 ))}
               </select>
             </label>
