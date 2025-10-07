@@ -148,6 +148,7 @@
 }
 
 .sidebar-logout-btn {
+  text-decoration: none;
   width: 100%;
   background: #fff;
   color: #254EDB;
