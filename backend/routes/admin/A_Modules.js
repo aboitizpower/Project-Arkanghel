@@ -997,8 +997,8 @@ router.post('/workstreams/:id/assessments', (req, res) => {
     const { id: workstreamId } = req.params;
     console.log('Creating assessment for workstream:', workstreamId);
     console.log('Request body:', req.body);
-    const { title, description, chapterId, totalPoints, passingScore, deadline } = req.body;
-    console.log('Extracted fields:', { title, description, chapterId, totalPoints, passingScore, deadline });
+    const { title, description, chapterId, totalPoints, passingScore, deadline, questions } = req.body;
+    console.log('Extracted fields:', { title, description, chapterId, totalPoints, passingScore, deadline, questionsCount: questions?.length || 0 });
     
     // Validation
     if (!title || title.trim().length === 0) {
@@ -1074,33 +1074,113 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                     });
                 }
                 
-                // Commit transaction
-                req.db.commit(err => {
-                    if (err) {
-                        console.error('Error committing assessment creation:', err);
-                        return req.db.rollback(() => {
-                            res.status(500).json({
-                                success: false,
-                                error: 'Failed to complete assessment creation. Please try again.'
-                            });
-                        });
-                    }
+                // Process questions if provided
+                if (questions && Array.isArray(questions) && questions.length > 0) {
+                    console.log(`Processing ${questions.length} questions for assessment ${assessmentId}`);
                     
-                    console.log(`Successfully created assessment with ID: ${assessmentId}`);
-                    res.status(201).json({
-                        success: true,
-                        message: 'Assessment created successfully!',
-                        assessment: {
-                            id: assessmentId,
-                            title,
-                            description,
-                            chapter_id: chapterId,
-                            total_points: totalPoints || 100,
-                            passing_score: passingScore || 70,
-                            deadline
+                    const processQuestions = async () => {
+                        try {
+                            for (const question of questions) {
+                                const { question: questionText, type, correctAnswer, options } = question;
+                                
+                                // Map frontend types to database types
+                                const questionType = type === 'multiple' ? 'multiple_choice' :
+                                                   type === 'truefalse' ? 'true_false' :
+                                                   'identification';
+                                
+                                // Handle options based on question type
+                                let optionsString = null;
+                                if (questionType === 'multiple_choice') {
+                                    // Multiple choice needs options array
+                                    if (options && Array.isArray(options) && options.length > 0) {
+                                        const cleanOptions = options.filter(opt => opt && opt.toString().trim() !== '');
+                                        optionsString = JSON.stringify(cleanOptions);
+                                    } else {
+                                        optionsString = '[]'; // Fallback empty array
+                                    }
+                                } else if (questionType === 'true_false') {
+                                    // True/False questions don't need options stored (handled by frontend)
+                                    optionsString = null;
+                                } else if (questionType === 'identification') {
+                                    // Identification questions don't need options
+                                    optionsString = null;
+                                }
+                                
+                                // Insert question - database trigger will handle True/False normalization
+                                const questionSql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
+                                await req.db.promise().query(questionSql, [assessmentId, questionText, questionType, correctAnswer, optionsString]);
+                            }
+                            
+                            // Commit transaction after all questions are processed
+                            req.db.commit(err => {
+                                if (err) {
+                                    console.error('Error committing assessment creation:', err);
+                                    return req.db.rollback(() => {
+                                        res.status(500).json({
+                                            success: false,
+                                            error: 'Failed to complete assessment creation. Please try again.'
+                                        });
+                                    });
+                                }
+                                
+                                console.log(`Successfully created assessment with ID: ${assessmentId} and ${questions.length} questions`);
+                                res.status(201).json({
+                                    success: true,
+                                    message: 'Assessment created successfully!',
+                                    assessment: {
+                                        id: assessmentId,
+                                        title,
+                                        description,
+                                        chapter_id: chapterId,
+                                        total_points: totalPoints || 100,
+                                        passing_score: passingScore || 70,
+                                        deadline,
+                                        questions_count: questions.length
+                                    }
+                                });
+                            });
+                        } catch (error) {
+                            console.error('Error processing questions:', error);
+                            req.db.rollback(() => {
+                                res.status(500).json({
+                                    success: false,
+                                    error: 'Failed to create assessment questions. Please try again.',
+                                    details: error.message
+                                });
+                            });
                         }
+                    };
+                    
+                    processQuestions();
+                } else {
+                    // No questions provided, just commit the assessment
+                    req.db.commit(err => {
+                        if (err) {
+                            console.error('Error committing assessment creation:', err);
+                            return req.db.rollback(() => {
+                                res.status(500).json({
+                                    success: false,
+                                    error: 'Failed to complete assessment creation. Please try again.'
+                                });
+                            });
+                        }
+                        
+                        console.log(`Successfully created assessment with ID: ${assessmentId} (no questions)`);
+                        res.status(201).json({
+                            success: true,
+                            message: 'Assessment created successfully!',
+                            assessment: {
+                                id: assessmentId,
+                                title,
+                                description,
+                                chapter_id: chapterId,
+                                total_points: totalPoints || 100,
+                                passing_score: passingScore || 70,
+                                deadline
+                            }
+                        });
                     });
-                });
+                }
             });
         });
     });

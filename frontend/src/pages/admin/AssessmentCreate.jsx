@@ -71,12 +71,23 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
     fetchData();
   }, [propWorkstream, stateWorkstream, workstreamId]);
 
+  // Handle correct answer initialization when modal type changes
+  useEffect(() => {
+    if (modalType === 'truefalse') {
+      setModalCorrectAnswer(true); // Always default to true for True/False
+    } else if (modalType === 'multiple') {
+      setModalCorrectAnswer(0); // First option for Multiple Choice
+    } else if (modalType === 'identification') {
+      setModalCorrectAnswer(''); // Empty string for Identification
+    }
+  }, [modalType]);
+
   const openModal = () => {
     setShowModal(true);
     setModalType('multiple');
     setModalQuestion('');
     setModalOptions(['', '', '', '']);
-    setModalCorrectAnswer('');
+    setModalCorrectAnswer(0); // Default for multiple choice (first option)
   };
   const closeModal = () => {
     setShowModal(false);
@@ -109,16 +120,14 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         type: 'multiple'
       };
     } else if (modalType === 'truefalse') {
-      // Default to True (index 0) if no selection made
-      let correctAnswerTF = modalCorrectAnswer;
-      if (correctAnswerTF === '' || correctAnswerTF === undefined) {
-        correctAnswerTF = 'true';
-      }
+      // Simple True/False handling
+      const correctAnswerValue = modalCorrectAnswer === true ? 'True' : 'False';
+      
       newQuestion = {
         id: Date.now(),
         question: modalQuestion,
         options: ['True', 'False'],
-        correctAnswer: correctAnswerTF === true || correctAnswerTF === 'true' ? 0 : 1,
+        correctAnswer: correctAnswerValue,
         type: 'truefalse'
       };
     } else if (modalType === 'identification') {
@@ -221,8 +230,6 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         deadline: deadline || null
       };
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
-      console.log('AssessmentCreate - Sending assessment data:', assessmentData);
-      console.log('AssessmentCreate - Target workstream ID:', targetWorkstreamId);
       await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
       
       setNotification({
@@ -574,7 +581,9 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                     {modalType === 'truefalse' && (
                       <>
                         <label>Correct Answer</label>
-                        <select value={modalCorrectAnswer} onChange={e => setModalCorrectAnswer(e.target.value === 'true' ? true : false)} className="form-control">
+                        <select value={modalCorrectAnswer === true ? 'true' : 'false'} onChange={e => {
+                          setModalCorrectAnswer(e.target.value === 'true');
+                        }} className="form-control">
                           <option value="true">True</option>
                           <option value="false">False</option>
                         </select>

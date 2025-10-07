@@ -92,7 +92,9 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         setModalOptions(options.length > 0 ? options : ['', '', '', '']);
       } else if (modalQuestionType === 'truefalse') {
         setModalOptions(['True', 'False']);
-        setModalCorrectAnswer(question.correct_answer === 0 ? 'true' : 'false');
+        // Handle both string and numeric formats for backward compatibility
+        const isTrue = question.correct_answer === 'True' || question.correct_answer === true || question.correct_answer === 0;
+        setModalCorrectAnswer(isTrue);
       } else {
         // For identification questions
         setModalOptions([]); // No options needed
@@ -402,10 +404,10 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         );
 
       case 'true_false':
-        // Show True or False based on the 0/1 index
+        // Show True or False based on the stored value (handle both string and numeric formats)
         return (
           <div className="answer-display">
-            {question.correct_answer === 0 ? 'True' : 'False'}
+            {(question.correct_answer === 'True' || question.correct_answer === true || question.correct_answer === 0) ? 'True' : 'False'}
           </div>
         );
 
@@ -670,7 +672,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
                   {modalType === 'truefalse' && (
                     <>
                       <label>Correct Answer</label>
-                      <select value={modalCorrectAnswer} onChange={e => setModalCorrectAnswer(e.target.value === 'true' ? true : false)} className="form-control">
+                      <select value={modalCorrectAnswer === true ? 'true' : 'false'} onChange={e => setModalCorrectAnswer(e.target.value === 'true')} className="form-control">
                         <option value="true">True</option>
                         <option value="false">False</option>
                       </select>

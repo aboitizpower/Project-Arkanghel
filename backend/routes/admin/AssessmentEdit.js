@@ -204,8 +204,24 @@ router.post('/questions', (req, res) => {
     if (assessment_id == null || !question_text || !question_type || correct_answer == null) {
         return res.status(400).json({ error: 'Missing required fields for question.' });
     }
+    
+    // Handle options based on question type
+    let optionsString = null;
+    if (question_type === 'multiple_choice') {
+        // Multiple choice needs options array
+        if (options && Array.isArray(options) && options.length > 0) {
+            const cleanOptions = options.filter(opt => opt && opt.toString().trim() !== '');
+            optionsString = JSON.stringify(cleanOptions);
+        } else {
+            optionsString = '[]'; // Fallback empty array
+        }
+    } else if (question_type === 'true_false' || question_type === 'identification') {
+        // True/False and Identification questions don't need options
+        optionsString = null;
+    }
+    
     const sql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
-    const params = [assessment_id, question_text, question_type, correct_answer, JSON.stringify(options || [])];
+    const params = [assessment_id, question_text, question_type, correct_answer, optionsString];
     req.db.query(sql, params, (err, result) => {
         if (err) {
             return res.status(500).json({ error: `Failed to create question: ${err.message}` });
@@ -222,12 +238,11 @@ router.put('/questions/:id', (req, res) => {
         return res.status(400).json({ error: 'Missing required fields for question update.' });
     }
 
-    // Ensure options are properly formatted as JSON string
-    let optionsString = '[]'; // Default to empty array
-    
-    if (options) {
-        if (Array.isArray(options) && options.length > 0) {
-            // Clean and validate options array
+    // Handle options based on question type
+    let optionsString = null;
+    if (question_type === 'multiple_choice') {
+        // Multiple choice needs options array
+        if (options && Array.isArray(options) && options.length > 0) {
             const cleanOptions = options.filter(opt => opt && opt.toString().trim() !== '');
             optionsString = JSON.stringify(cleanOptions);
         } else if (typeof options === 'string' && options.trim() !== '') {
@@ -240,7 +255,12 @@ router.put('/questions/:id', (req, res) => {
                 const splitOptions = options.split(',').map(s => s.trim()).filter(s => s);
                 optionsString = JSON.stringify(splitOptions);
             }
+        } else {
+            optionsString = '[]'; // Fallback empty array for multiple choice
         }
+    } else if (question_type === 'true_false' || question_type === 'identification') {
+        // True/False and Identification questions don't need options
+        optionsString = null;
     }
 
     console.log(`Updating question ${id} with options:`, optionsString);
