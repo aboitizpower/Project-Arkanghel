@@ -4,6 +4,7 @@ import { FaStream, FaBookOpen, FaClipboardList, FaTasks } from 'react-icons/fa';
 import '../../styles/admin/A_Assessment.css';
 import '../../styles/admin/AdminCommon.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8081';
 
@@ -28,6 +29,7 @@ const getAvatarColor = (first, last) => {
 };
 
 const A_Assessment = () => {
+  const { user } = useAuth(); // Get user from auth context
   // Filters
   const [workstreams, setWorkstreams] = useState([]);
   const [chapters, setChapters] = useState([]);
@@ -56,7 +58,11 @@ const A_Assessment = () => {
 
   // Fetch workstreams on mount
   useEffect(() => {
-    fetch(`${API_BASE}/workstreams?published_only=true`)
+    fetch(`${API_BASE}/workstreams?published_only=true`, {
+      headers: {
+        'Authorization': `Bearer ${user.token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
         console.log('A_Assessment - Workstreams response:', data);
@@ -75,7 +81,11 @@ const A_Assessment = () => {
   // Fetch chapters when workstream changes
   useEffect(() => {
     if (selectedWorkstream) {
-      fetch(`${API_BASE}/workstreams/${selectedWorkstream}/chapters`)
+      fetch(`${API_BASE}/workstreams/${selectedWorkstream}/chapters`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        }
+      })
         .then(res => res.json())
         .then(data => setChapters(data));
     } else {
@@ -86,7 +96,11 @@ const A_Assessment = () => {
 
   // Fetch KPIs from consolidated backend endpoint
   useEffect(() => {
-    fetch(`${API_BASE}/kpi`)
+    fetch(`${API_BASE}/kpi`, {
+      headers: {
+        'Authorization': `Bearer ${user.token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
         // Ensure all keys exist to prevent errors, providing default 0
@@ -121,7 +135,11 @@ const A_Assessment = () => {
     console.log('A_Assessment - Fetching results with URL:', url.toString());
     console.log('A_Assessment - Filters:', { selectedWorkstream, selectedChapter });
 
-    fetch(url)
+    fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${user.token}`
+      }
+    })
       .then(async res => {
         if (!res.ok) {
           // Get more detailed error from backend
