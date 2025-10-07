@@ -37,11 +37,15 @@
   margin-right: auto;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
 .admin-title {
   font-size: 2.2rem;
   font-weight: 700;
   color: #22223b;
-  letter-spacing: 1px;
   margin: 0;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
 }

@@ -45,15 +45,15 @@ const A_Feedback = () => {
   }, []);
 
   return (
-    <div className="a-feedback-container">
+    <div className="admin-layout">
       <AdminSidebar />
-      <main className="a-feedback-main">
-        <div className="a-feedback-main-content">
-          <div className="a-feedback-header">
-            <h1>Employee's Feedback</h1>
+      <main className="admin-main">
+        <div className="admin-main-content">
+          <div className="admin-header">
+            <h1 className="admin-title">Employee's Feedback</h1>
           </div>
-          <div className="table-container">
-            <table className="feedback-table">
+          <div className="admin-table-container">
+            <table className="admin-table">
               <thead>
                 <tr>
                   <th>Employee</th>
