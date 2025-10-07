@@ -5,9 +5,11 @@ import { useAuth } from '../auth/AuthProvider.jsx';
 import { FaGraduationCap, FaBook, FaClipboardCheck, FaMedal, FaSignOutAlt, FaUserCircle, FaArrowLeft, FaComment } from 'react-icons/fa';
 import '../styles/EmployeeSidebar.css';
 import FeedbackModal from './FeedbackModal';
+import NotificationDialog from './NotificationDialog';
 
 const EmployeeSidebar = () => {
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   let firstName = user && user.first_name ? user.first_name : '';
@@ -95,7 +97,14 @@ const EmployeeSidebar = () => {
         </div>
       </div>
       
-      {isFeedbackModalOpen && <FeedbackModal closeModal={() => setFeedbackModalOpen(false)} />}
+      {isFeedbackModalOpen && <FeedbackModal closeModal={() => setFeedbackModalOpen(false)} showNotification={() => setShowNotification(true)} />}
+      <NotificationDialog
+        message="Thank you for your feedback"
+        type="success"
+        isVisible={showNotification}
+        onClose={() => setShowNotification(false)}
+        duration={3000}
+      />
     </nav>
   );
 };

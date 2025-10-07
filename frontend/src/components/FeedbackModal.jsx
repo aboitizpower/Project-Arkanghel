@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import '../styles/FeedbackModal.css';
-import NotificationDialog from './NotificationDialog';
 import { Bug, Lightbulb } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 
-const FeedbackModal = ({ closeModal }) => {
+const FeedbackModal = ({ closeModal, showNotification }) => {
   const { user } = useAuth();
   const [view, setView] = useState('selection'); // 'selection', 'bug', 'suggestion'
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
-
+  
   const handleSubmit = async () => {
     const subject = view === 'bug' ? 'Bug Report' : 'Suggestion';
     if (!feedbackText || isSubmitting || !user) return;
@@ -38,10 +36,8 @@ const FeedbackModal = ({ closeModal }) => {
       }
 
       setSubmitted(true);
-      setShowNotification(true);
-      setTimeout(() => {
-        closeModal();
-      }, 2000); // Close modal after 2 seconds
+      showNotification();
+      closeModal();
 
     } catch (error) {
       console.error('Feedback submission error:', error);
@@ -53,11 +49,6 @@ const FeedbackModal = ({ closeModal }) => {
   return (
     <div className="modal-overlay" onClick={closeModal}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-{submitted ? (
-          <div className="thank-you-message">
-            <h3>Thank you for your feedback!</h3>
-          </div>
-        ) : (
           <>
             <button className="close-button" onClick={closeModal}>&times;</button>
             {view !== 'selection' && <button className="back-button" onClick={() => setView('selection')}>&larr; Back</button>}
@@ -103,15 +94,7 @@ const FeedbackModal = ({ closeModal }) => {
               </>
             )}
           </>
-        )}
-        <NotificationDialog
-          message="Thank you for your feedback"
-          type="success"
-          isVisible={showNotification}
-          onClose={() => setShowNotification(false)}
-          duration={3000}
-        />
-      </div>
+              </div>
     </div>
   );
 };
