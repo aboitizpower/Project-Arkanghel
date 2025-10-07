@@ -6,6 +6,8 @@ import '../../styles/admin/AdminCommon.css';
 import { useLocation } from 'react-router-dom';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import NotificationDialog from '../../components/NotificationDialog';
+import { useAuth } from '../../auth/AuthProvider';
+import axios from 'axios';
 
 const getInitials = (first, last) => {
   if (!first && !last) return '?';
@@ -26,6 +28,7 @@ const getAvatarColor = (first, last) => {
 };
 
 const A_Users = () => {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 5;
@@ -91,48 +94,57 @@ const A_Users = () => {
   }, [search, sortOrder]);
 
   useEffect(() => {
-    fetch("http://localhost:8081/users")
-      .then(res => res.json())
-      .then(data => {
-        // Keep isAdmin as an integer (1/0) for consistency
-        setUsers(data.users || []);
-      });
-    fetch("http://localhost:8081/workstreams?published_only=true")
-      .then(res => res.json())
-      .then(data => {
+    const fetchData = async () => {
+      if (!user?.token) return;
+      
+      try {
+        // Fetch users
+        const usersResponse = await axios.get("http://localhost:8081/users", {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        });
+        setUsers(usersResponse.data.users || []);
+
+        // Fetch workstreams
+        const workstreamsResponse = await axios.get("http://localhost:8081/workstreams?published_only=true", {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        });
         // Handle both old and new response formats
-        const workstreamsData = data?.workstreams || data || [];
-        console.log('A_Users workstreams response:', data);
+        const workstreamsData = workstreamsResponse.data?.workstreams || workstreamsResponse.data || [];
+        console.log('A_Users workstreams response:', workstreamsResponse.data);
         console.log('A_Users processed workstreams:', workstreamsData);
         setWorkstreams(Array.isArray(workstreamsData) ? workstreamsData : []);
-      });
-  }, []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [user?.token]);
 
   const handleRoleChange = async (userId, currentIsAdmin) => {
     setUpdatingId(userId);
     const newIsAdmin = currentIsAdmin === 1 ? 0 : 1; // Toggle 1 and 0
     try {
-      const res = await fetch(`http://localhost:8081/users/${userId}/role`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isAdmin: newIsAdmin }), // Send integer
-      });
-      if (res.ok) {
-        // Update the local state with the new integer value
-        setUsers(currentUsers =>
-          currentUsers.map(u =>
-            u.id === userId ? { ...u, isAdmin: newIsAdmin } : u
-          )
-        );
-      } else {
-        // If the API call fails, show an error and don't change the UI
-        const errorData = await res.json().catch(() => ({ error: 'An unknown error occurred.' }));
-        setNotification({
-          isVisible: true,
-          message: `Failed to update role: ${errorData.error}`,
-          type: 'error'
-        });
-      }
+      const res = await axios.put(`http://localhost:8081/users/${userId}/role`, 
+        { isAdmin: newIsAdmin }, // Send integer
+        {
+          headers: { 
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${user?.token}`
+          }
+        }
+      );
+      // Axios automatically throws for error status codes, so if we reach here, it was successful
+      // Update the local state with the new integer value
+      setUsers(currentUsers =>
+        currentUsers.map(u =>
+          u.id === userId ? { ...u, isAdmin: newIsAdmin } : u
+        )
+      );
     } catch (err) {
       setNotification({
         isVisible: true,
@@ -144,14 +156,17 @@ const A_Users = () => {
   };
 
   // Workstream permission modal logic
-  const openWsModal = async (user) => {
-    setWsModalUser(user);
+  const openWsModal = async (selectedUser) => {
+    setWsModalUser(selectedUser);
     setWsModalLoading(true);
     try {
-      const res = await fetch(`http://localhost:8081/users/${user.id}/workstreams`);
-      const data = await res.json();
+      const res = await axios.get(`http://localhost:8081/users/${selectedUser.id}/workstreams`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       // If empty, all are selected
-      setWsModalChecked(data.workstream_ids.length === 0 ? workstreams.map(w => w.id) : data.workstream_ids);
+      setWsModalChecked(res.data.workstream_ids.length === 0 ? workstreams.map(w => w.id) : res.data.workstream_ids);
     } catch {
       setWsModalChecked(workstreams.map(w => w.id));
     }
@@ -171,31 +186,28 @@ const A_Users = () => {
   const saveWsModal = async () => {
     setWsModalSaving(true);
     try {
-      const res = await fetch(`http://localhost:8081/users/${wsModalUser.id}/workstreams`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workstream_ids: wsModalChecked })
-      });
+      const res = await axios.put(`http://localhost:8081/users/${wsModalUser.id}/workstreams`, 
+        { workstream_ids: wsModalChecked },
+        {
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user?.token}`
+          }
+        }
+      );
 
-      if (res.ok) {
-        setUsers(currentUsers =>
-          currentUsers.map(u =>
-            u.id === wsModalUser.id ? { ...u, workstream_ids: wsModalChecked } : u
-          )
-        );
-        closeWsModal();
-        setNotification({
-          isVisible: true,
-          message: 'Workstream permissions updated successfully!',
-          type: 'success'
-        });
-      } else {
-        setNotification({
-          isVisible: true,
-          message: 'Failed to save workstream permissions.',
-          type: 'error'
-        });
-      }
+      // Axios automatically throws for error status codes, so if we reach here, it was successful
+      setUsers(currentUsers =>
+        currentUsers.map(u =>
+          u.id === wsModalUser.id ? { ...u, workstream_ids: wsModalChecked } : u
+        )
+      );
+      closeWsModal();
+      setNotification({
+        isVisible: true,
+        message: 'Workstream permissions updated successfully!',
+        type: 'success'
+      });
     } catch (err) {
       setNotification({
         isVisible: true,
@@ -219,22 +231,25 @@ const A_Users = () => {
   };
 
   // Clear progress functionality
-  const openClearProgressModal = async (user) => {
-    setClearProgressUser(user);
+  const openClearProgressModal = async (selectedUser) => {
+    setClearProgressUser(selectedUser);
     setClearType('all');
     setSelectedWorkstream('');
     setSelectedAssessment('');
     setLoadingOptions(true);
     
     try {
-      const res = await fetch(`http://localhost:8081/users/${user.id}/progress-options`);
-      const data = await res.json();
+      const res = await axios.get(`http://localhost:8081/users/${selectedUser.id}/progress-options`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       
-      if (res.ok && data.success) {
-        setAvailableWorkstreams(data.workstreams || []);
-        setAvailableAssessments(data.assessments || []);
+      if (res.data.success) {
+        setAvailableWorkstreams(res.data.workstreams || []);
+        setAvailableAssessments(res.data.assessments || []);
       } else {
-        console.error('Failed to fetch progress options:', data.error);
+        console.error('Failed to fetch progress options:', res.data.error);
         setAvailableWorkstreams([]);
         setAvailableAssessments([]);
       }
@@ -288,31 +303,32 @@ const A_Users = () => {
         ...(clearType === 'assessment' && { assessmentId: parseInt(selectedAssessment) })
       };
       
-      const res = await fetch(`http://localhost:8081/users/${clearProgressUser.id}/progress`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+      const res = await axios.delete(`http://localhost:8081/users/${clearProgressUser.id}/progress`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}`
+        },
+        data: requestBody
       });
       
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        let detailsMessage = `Details:\n- Assessment scores deleted: ${data.details.answersDeleted}`;
-        if (data.details.progressDeleted > 0) {
-          detailsMessage += `\n- Chapter progress deleted: ${data.details.progressDeleted}`;
+      // Axios automatically throws for error status codes, so if we reach here, it was successful
+      if (res.data.success) {
+        let detailsMessage = `Details:\n- Assessment scores deleted: ${res.data.details.answersDeleted}`;
+        if (res.data.details.progressDeleted > 0) {
+          detailsMessage += `\n- Chapter progress deleted: ${res.data.details.progressDeleted}`;
         }
-        detailsMessage += `\n- Total records deleted: ${data.details.totalDeleted}`;
+        detailsMessage += `\n- Total records deleted: ${res.data.details.totalDeleted}`;
         
         setNotification({
           isVisible: true,
-          message: `${data.message}\n\n${detailsMessage}`,
+          message: `${res.data.message}\n\n${detailsMessage}`,
           type: 'success'
         });
         closeClearProgressModal();
       } else {
         setNotification({
           isVisible: true,
-          message: `Failed to clear progress: ${data.error || 'Unknown error occurred'}`,
+          message: `Failed to clear progress: ${res.data?.error?.message || 'Unknown error occurred'}`,
           type: 'error'
         });
       }
