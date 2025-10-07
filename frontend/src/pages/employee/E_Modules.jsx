@@ -37,7 +37,7 @@ const E_Modules = () => {
             setIsLoading(false);
             return;
         }
-        
+
         // Reset error when user is available
         setError('');
     }, [user]);
@@ -54,7 +54,7 @@ const E_Modules = () => {
                         }
                     });
                     setWorkstreams(response.data);
-                    
+
                     const workstreamToSelect = response.data.find(ws => ws.workstream_id === parseInt(workstreamId));
                     if (workstreamToSelect) {
                         handleSelectWorkstream(workstreamToSelect, chapterId);
@@ -88,9 +88,9 @@ const E_Modules = () => {
             setIsLoading(false);
             return;
         }
-        
+
         setIsLoading(true);
-        
+
         try {
             // Create axios instance with default config
             const api = axios.create({
@@ -104,30 +104,30 @@ const E_Modules = () => {
                 xsrfCookieName: 'XSRF-TOKEN',
                 xsrfHeaderName: 'X-XSRF-TOKEN'
             });
-            
+
             // First make an OPTIONS request to handle preflight
             await api.options('/employee/workstreams');
-            
+
             // Then make the actual GET request
             const response = await api.get('/employee/workstreams', {
                 params: { userId: user.id },
                 withCredentials: true
             });
-            
+
             console.log('Workstreams API Response:', {
                 status: response.status,
                 statusText: response.statusText,
                 data: response.data
             });
-            
+
             if (!response.data) {
                 throw new Error('Empty response from server');
             }
-            
+
             if (Array.isArray(response.data) && response.data.length > 0) {
                 // Show all workstreams, even those without content
                 const allWorkstreams = response.data.filter(ws => ws.is_published !== false);
-                
+
                 if (allWorkstreams.length > 0) {
                     setWorkstreams(allWorkstreams);
                     setError('');
@@ -139,10 +139,10 @@ const E_Modules = () => {
                 setError('No workstreams assigned to your account. Please contact your administrator.');
                 setWorkstreams([]);
             }
-            
+
         } catch (error) {
             console.error('Error fetching workstreams:', error);
-            
+
             if (error.response) {
                 // The request was made and the server responded with a status code
                 // that falls out of the range of 2xx
@@ -165,7 +165,7 @@ const E_Modules = () => {
                 // Something happened in setting up the request
                 setError(`Error: ${error.message}`);
             }
-            
+
             setWorkstreams([]);
         } finally {
             setIsLoading(false);
@@ -187,7 +187,7 @@ const E_Modules = () => {
                     'Authorization': `Bearer ${user.token}`
                 }
             });
-            
+
             const fetchedChapters = response.data.chapters || [];
             setChapters(fetchedChapters);
 
@@ -227,7 +227,7 @@ const E_Modules = () => {
     const handleSelectWorkstream = async (workstream) => {
         const hasContent = workstream.regular_chapters_count > 0 || workstream.assessments_count > 0;
         const isExpired = workstream.is_expired || false;
-        
+
         if (!userId || !hasContent || isExpired) {
             if (isExpired) {
                 alert('This workstream has expired and is no longer accessible.');
@@ -242,8 +242,8 @@ const E_Modules = () => {
             const { chapterId } = response.data;
 
             // Navigate to the module view, passing the chapterId to start on
-            navigate(`/employee/modules/${workstream.workstream_id}`, { 
-                state: { chapterId: chapterId } 
+            navigate(`/employee/modules/${workstream.workstream_id}`, {
+                state: { chapterId: chapterId }
             });
 
         } catch (err) {
@@ -257,7 +257,7 @@ const E_Modules = () => {
 
     const _selectChapterForView = async (chapter) => {
         setSelectedChapter(chapter);
-        
+
         if (chapter.video_filename) {
             setCurrentContentView('video');
         } else if (chapter.pdf_filename) {
@@ -358,7 +358,7 @@ const E_Modules = () => {
             _selectChapterForView(chapter);
         }
     };
-    
+
     const handleBackToWorkstreams = () => {
         setSelectedWorkstream(null);
         setSelectedChapter(null);
@@ -377,11 +377,11 @@ const E_Modules = () => {
                     userId: userId,
                     chapterId: selectedChapter.chapter_id,
                 });
-                
+
                 // Optimistically update the local state
                 const updatedCompleted = new Set(completedChapters).add(selectedChapter.chapter_id);
                 setCompletedChapters(updatedCompleted);
-                
+
                 // Check if this was the last regular chapter
                 const regularChapters = chapters.filter(c => !c.title.toLowerCase().includes('final assessment'));
                 const finalAssessmentChapter = chapters.find(c => c.title.toLowerCase().includes('final assessment'));
@@ -462,14 +462,14 @@ const E_Modules = () => {
                         }
 
                         return (
-                            <div 
-                              key={ws.workstream_id} 
-                              className={`card-ws ${!hasContent || isExpired ? 'inactive' : 'clickable'} ${isExpired ? 'expired' : ''}`}
-                              onClick={() => hasContent && !isExpired && navigate(`/employee/modules/${ws.workstream_id}`)}
-                          >
+                            <div
+                                key={ws.workstream_id}
+                                className={`card-ws ${!hasContent || isExpired ? 'inactive' : 'clickable'} ${isExpired ? 'expired' : ''}`}
+                                onClick={() => hasContent && !isExpired && navigate(`/employee/modules/${ws.workstream_id}`)}
+                            >
                                 <div className="card-ws-image-container">
-                                    {ws.image_type ? 
-                                        <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image"/> :
+                                    {ws.image_type ?
+                                        <img src={`${API_URL}/workstreams/${ws.workstream_id}/image`} alt={ws.title} className="card-ws-image" /> :
                                         <div className="card-ws-image-placeholder"></div>
                                     }
                                 </div>
@@ -484,7 +484,7 @@ const E_Modules = () => {
                                         <div className={`card-ws-deadline ${isExpired ? 'expired' : ''}`}>
                                             <span className="deadline-label">Deadline:</span>
                                             <span className="deadline-date">
-                                                {deadline.toLocaleDateString()} {deadline.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                {deadline.toLocaleDateString()} {deadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                             {isExpired && <span className="expired-badge">EXPIRED</span>}
                                         </div>
@@ -549,7 +549,7 @@ const E_Modules = () => {
 
     const renderModuleView = () => {
         if (!selectedWorkstream || !selectedChapter) {
-            return <div>Loading module...</div>; 
+            return <div>Loading module...</div>;
         }
 
         const isNextButtonDisabled = !!assessmentForCurrentChapter && !isAssessmentPassed;
@@ -579,8 +579,8 @@ const E_Modules = () => {
                             {regularChapters.map((ch, index) => {
                                 const isLocked = index > 0 && !completedChapters.has(regularChapters[index - 1].chapter_id);
                                 return (
-                                    <li 
-                                        key={ch.chapter_id} 
+                                    <li
+                                        key={ch.chapter_id}
                                         className={`chapter-list-item ${selectedChapter.chapter_id === ch.chapter_id ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
                                         onClick={() => !isLocked && handleSelectChapter(ch)}
                                     >
@@ -594,12 +594,12 @@ const E_Modules = () => {
 
                     {finalAssessmentChapter && (
                         <div className="final-assessment-nav-section">
-                             <ul className="chapter-list">
+                            <ul className="chapter-list">
                                 {(() => {
                                     const isLocked = !areAllChaptersComplete;
                                     return (
-                                        <li 
-                                            key={finalAssessmentChapter.chapter_id} 
+                                        <li
+                                            key={finalAssessmentChapter.chapter_id}
                                             className={`chapter-list-item ${isLocked ? 'locked' : ''}`}
                                             onClick={() => !isLocked && handleSelectChapter(finalAssessmentChapter)}
                                         >
@@ -615,10 +615,10 @@ const E_Modules = () => {
 
                 <div className="module-view-content">
                     <div className="chapter-media-container">
-                         {hasVideo && currentContentView === 'video' ? (
-                            <video 
+                        {hasVideo && currentContentView === 'video' ? (
+                            <video
                                 src={`${API_URL}/chapters/${selectedChapter.chapter_id}/video`}
-                                controls 
+                                controls
                                 autoPlay
                                 muted
                                 width="100%"
@@ -627,7 +627,7 @@ const E_Modules = () => {
                                 Your browser does not support the video tag.
                             </video>
                         ) : hasPdf && currentContentView === 'pdf' ? (
-                            <iframe 
+                            <iframe
                                 src={`${API_URL}/chapters/${selectedChapter.chapter_id}/pdf`}
                                 title={selectedChapter.title}
                                 width="100%"
@@ -690,5 +690,7 @@ const E_Modules = () => {
         </div>
     );
 };
+
+// ally delete mo tong comment na to
 
 export default E_Modules;

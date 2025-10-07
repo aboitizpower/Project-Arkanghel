@@ -17,9 +17,9 @@ router.get('/employee/workstreams', (req, res) => {
     const { userId } = req.query;
 
     if (!userId) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'User ID is required to fetch workstream progress.' 
+        return res.status(400).json({
+            success: false,
+            error: 'User ID is required to fetch workstream progress.'
         });
     }
 
@@ -103,25 +103,25 @@ router.get('/employee/workstreams', (req, res) => {
     req.db.query(sql, [userId, userId, userId, userId], (err, results) => {
         if (err) {
             console.error('Error fetching workstreams:', err);
-            return res.status(500).json({ 
+            return res.status(500).json({
                 success: false,
-                error: 'Failed to fetch workstreams. Please try again later.' 
+                error: 'Failed to fetch workstreams. Please try again later.'
             });
         }
-        
+
         // Add deadline status to each workstream
         const now = new Date();
         const workstreamsWithDeadlineStatus = results.map(workstream => {
             const deadline = workstream.deadline ? new Date(workstream.deadline) : null;
             const isExpired = deadline && now > deadline;
-            
+
             return {
                 ...workstream,
                 deadline: deadline ? deadline.toISOString() : null,
                 is_expired: isExpired
             };
         });
-        
+
         res.json(workstreamsWithDeadlineStatus);
     });
 });
@@ -177,12 +177,12 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
         }
 
         const workstream = workstreamResults[0];
-        
+
         // Check if workstream has expired
         const now = new Date();
         const deadline = workstream.deadline ? new Date(workstream.deadline) : null;
         const isExpired = deadline && now > deadline;
-        
+
         if (isExpired) {
             return res.status(403).json({
                 success: false,
@@ -192,7 +192,7 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
                 current_time: now.toISOString()
             });
         }
-        
+
         const chaptersSql = `
             SELECT 
                 mc.chapter_id,
@@ -494,18 +494,18 @@ router.get('/chapters/:id/pdf', (req, res) => {
             console.error('PDF query error:', err);
             return res.status(500).json({ error: err.message });
         }
-        
+
         console.log(`PDF request for chapter ${id}:`, {
             found: results.length > 0,
             pdf_filename: results[0]?.pdf_filename,
             has_pdf_file: !!results[0]?.pdf_file,
             pdf_mime_type: results[0]?.pdf_mime_type
         });
-        
+
         if (results.length === 0) {
             return res.status(404).json({ error: 'Chapter not found.' });
         }
-        
+
         if (!results[0].pdf_file) {
             // If no binary data but filename exists, return a placeholder message
             if (results[0].pdf_filename) {
@@ -551,7 +551,7 @@ router.get('/chapters/:id/pdf', (req, res) => {
             }
             return res.status(404).json({ error: 'PDF file data not found in database.' });
         }
-        
+
         const { pdf_file, pdf_mime_type } = results[0];
         res.setHeader('Content-Type', pdf_mime_type || 'application/pdf');
         res.send(pdf_file);
@@ -571,9 +571,9 @@ router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
     const { userId } = req.query;
 
     if (!assessmentId || !userId) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Assessment ID and User ID are required.' 
+        return res.status(400).json({
+            success: false,
+            error: 'Assessment ID and User ID are required.'
         });
     }
 
@@ -594,16 +594,16 @@ router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
     req.db.query(sql, [userId, assessmentId], (err, results) => {
         if (err) {
             console.error('Error checking assessment pass status:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to check assessment status.' 
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to check assessment status.'
             });
         }
 
         if (results.length === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Assessment not found.' 
+            return res.status(404).json({
+                success: false,
+                error: 'Assessment not found.'
             });
         }
 
@@ -631,9 +631,9 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
     const { userId } = req.query;
 
     if (!assessmentId || !userId) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Assessment ID and User ID are required.' 
+        return res.status(400).json({
+            success: false,
+            error: 'Assessment ID and User ID are required.'
         });
     }
 
@@ -643,7 +643,7 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
         FROM questions 
         WHERE assessment_id = ?
     `;
-    
+
     // Check if user has ever achieved a perfect score on any attempt
     const perfectScoreCheckSql = `
         SELECT 
@@ -679,20 +679,20 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
     req.db.query(totalQuestionsSql, [assessmentId], (err, totalResults) => {
         if (err) {
             console.error('Error getting total questions:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to check assessment status.' 
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to check assessment status.'
             });
         }
 
         const totalQuestions = totalResults[0]?.total_questions || 0;
-        
+
         req.db.query(perfectScoreCheckSql, [assessmentId, userId, assessmentId], (err, perfectResults) => {
             if (err) {
                 console.error('Error checking perfect score:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Failed to check perfect score.' 
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to check perfect score.'
                 });
             }
 
@@ -712,7 +712,7 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
 
             const result = perfectResults[0];
             const hasPerfectScore = result.has_perfect_attempt === 1;
-            
+
             console.log(`Perfect score check for user ${userId}, assessment ${assessmentId}:`, {
                 total_questions: totalQuestions,
                 has_perfect_attempt: result.has_perfect_attempt,
@@ -720,7 +720,7 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
                 chapter_title: result.chapter_title,
                 assessment_title: result.assessment_title
             });
-            
+
             res.json({
                 success: true,
                 is_final_assessment: result.is_final_assessment === 1,
@@ -791,5 +791,7 @@ router.get('/employee/workstreams/:workstreamId/last-viewed-chapter', (req, res)
         }
     });
 });
+
+// ally delete mo tong comment na to
 
 export default router;
