@@ -89,7 +89,6 @@ const A_Analytics = () => {
                 }
                 break;
             default:
-                return data;
         }
         return result;
     }
@@ -98,6 +97,11 @@ const A_Analytics = () => {
         const fetchAllData = async () => {
             setLoading(true);
             try {
+                // Create headers with authorization
+                const headers = {
+                    'Authorization': `Bearer ${user?.token}`
+                };
+
                 // Fetch all data in parallel
                 const [
                     kpisRes, 
@@ -107,14 +111,27 @@ const A_Analytics = () => {
                     criticalAreasRes,
                     workstreamsRes
                 ] = await Promise.all([
-                    axios.get(`${API_URL}/admin/analytics/kpis`, { params: { workstreamId: selectedWorkstream === 'all' ? null : selectedWorkstream } }),
-                    axios.get(`${API_URL}/admin/analytics/engagement`, { params: { range: selectedTimeRange } }),
-                    axios.get(`${API_URL}/admin/leaderboard`),
-                    axios.get(`${API_URL}/admin/analytics/assessment-tracker`),
-                    axios.get(`${API_URL}/admin/analytics/critical-areas`),
-                    axios.get(`${API_URL}/workstreams?published_only=true`)
+                    axios.get(`${API_URL}/admin/analytics/kpis`, { 
+                        params: { workstreamId: selectedWorkstream === 'all' ? null : selectedWorkstream },
+                        headers 
+                    }),
+                    axios.get(`${API_URL}/admin/analytics/engagement`, { 
+                        params: { range: selectedTimeRange },
+                        headers 
+                    }),
+                    axios.get(`${API_URL}/admin/leaderboard`, { headers }),
+                    axios.get(`${API_URL}/admin/analytics/assessment-tracker`, { headers }),
+                    axios.get(`${API_URL}/admin/analytics/critical-areas`, { headers }),
+                    axios.get(`${API_URL}/workstreams?published_only=true`, { headers })
                 ]);
 
+                console.log('🔍 KPIs API Response:', kpisRes.data);
+                console.log('🔍 Engagement API Response:', engagementRes.data);
+                console.log('🔍 Leaderboard API Response:', leaderboardRes.data);
+                console.log('🔍 Assessment Tracker API Response:', trackerRes.data);
+                console.log('🔍 Critical Areas API Response:', criticalAreasRes.data);
+                console.log('🔍 Workstreams API Response:', workstreamsRes.data);
+                
                 setKpis(kpisRes.data);
                 const processedEngagement = processEngagementData(engagementRes.data, selectedTimeRange);
                 console.log('Raw engagement data from API:', engagementRes.data);
@@ -137,8 +154,10 @@ const A_Analytics = () => {
             }
         };
 
-        fetchAllData();
-    }, [selectedWorkstream, selectedTimeRange]);
+        if (user?.token) {
+            fetchAllData();
+        }
+    }, [selectedWorkstream, selectedTimeRange, user]);
 
 
     return (

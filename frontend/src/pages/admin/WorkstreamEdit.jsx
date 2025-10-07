@@ -12,6 +12,7 @@ import '../../styles/admin/WorkstreamEdit.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import NotificationDialog from '../../components/NotificationDialog';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
@@ -19,6 +20,7 @@ const WorkstreamEdit = () => {
   const { workstreamId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [workstream, setWorkstream] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,11 +39,15 @@ const WorkstreamEdit = () => {
 
   // Fetch workstream data
   const fetchWorkstream = useCallback(async () => {
-    if (!workstreamId) return;
+    if (!workstreamId || !user?.token) return;
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`);
+      const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        }
+      });
       const data = response.data;
       console.log('Fetched workstream data:', data);
       console.log('Fetched workstream deadline:', data.deadline); // Debug log
@@ -79,7 +85,7 @@ const WorkstreamEdit = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [workstreamId]);
+  }, [workstreamId, user]);
 
   useEffect(() => {
     if (workstreamId) {
@@ -106,7 +112,11 @@ const WorkstreamEdit = () => {
     setConfirmModal({ isVisible: false, type: '', id: null, title: '' });
     
     try {
-      await axios.delete(`${API_URL}/chapters/${id}`);
+      await axios.delete(`${API_URL}/chapters/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       fetchWorkstream();
       setNotification({
         message: 'Chapter deleted successfully!',
@@ -137,7 +147,11 @@ const WorkstreamEdit = () => {
     setConfirmModal({ isVisible: false, type: '', id: null, title: '' });
     
     try {
-      await axios.delete(`${API_URL}/assessments/${id}`);
+      await axios.delete(`${API_URL}/assessments/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       fetchWorkstream();
       setNotification({
         message: 'Assessment deleted successfully!',
@@ -166,7 +180,10 @@ const WorkstreamEdit = () => {
 
     try {
       let payload;
-      const headers = { 'Content-Type': 'application/json' };
+      const headers = { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user?.token}`
+      };
 
       if (field === 'image') {
         if (!newImage) {
@@ -304,7 +321,11 @@ const WorkstreamEdit = () => {
     console.log('Sending reorder payload:', payload);
 
     try {
-      const response = await axios.put(`${API_URL}/chapters/reorder`, payload);
+      const response = await axios.put(`${API_URL}/chapters/reorder`, payload, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
 
       console.log('Reorder response:', response.data);
 

@@ -14,12 +14,13 @@ const upload = multer({ storage: storage });
  * @returns {Array} List of published workstreams with metadata
  */
 router.get('/employee/workstreams', (req, res) => {
-    const { userId } = req.query;
+    // Get user ID from authenticated user (set by auth middleware)
+    const userId = req.user?.id;
 
     if (!userId) {
         return res.status(400).json({
             success: false,
-            error: 'User ID is required to fetch workstream progress.'
+            error: 'User authentication required to fetch workstream progress.'
         });
     }
 
@@ -135,7 +136,7 @@ router.get('/employee/workstreams', (req, res) => {
  */
 router.get('/employee/workstreams/:workstreamId', (req, res) => {
     const { workstreamId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     if (!workstreamId || isNaN(parseInt(workstreamId))) {
         return res.status(400).json({
@@ -270,7 +271,7 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
 
 router.get('/employee/chapters/:chapterId', (req, res) => {
     const { chapterId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     if (!chapterId || isNaN(parseInt(chapterId))) {
         return res.status(400).json({
@@ -351,7 +352,7 @@ router.get('/employee/chapters/:chapterId', (req, res) => {
 
 router.get('/employee/chapters/:chapterId/assessment', (req, res) => {
     const { chapterId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     const sql = `
         SELECT 
@@ -568,7 +569,7 @@ router.get('/chapters/:id/pdf', (req, res) => {
  */
 router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
     const { assessmentId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     if (!assessmentId || !userId) {
         return res.status(400).json({
@@ -628,7 +629,7 @@ router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
  */
 router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
     const { assessmentId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     if (!assessmentId || !userId) {
         return res.status(400).json({
@@ -743,7 +744,7 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
  */
 router.get('/employee/workstreams/:workstreamId/last-viewed-chapter', (req, res) => {
     const { workstreamId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user?.id;
 
     if (!userId) {
         return res.status(400).json({ error: 'User ID is required.' });

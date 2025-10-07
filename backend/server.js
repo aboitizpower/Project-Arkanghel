@@ -11,6 +11,9 @@ const __dirname = dirname(__filename);
 const corsModule = await import('./middleware/cors.js');
 const { corsMiddleware, preflightMiddleware } = corsModule;
 
+// Import authentication middleware
+import { authenticateToken, requireAdmin, requireEmployee } from './middleware/auth.js';
+
 // Import modular route files
 import authRoutes from './routes/auth/authRoutes.js';
 import aUsersRoutes from './routes/admin/A_Users.js';
@@ -137,27 +140,30 @@ app.use((req, res, next) => {
 
 // Route registration - Each route file corresponds to frontend pages/components
 app.use('/', authRoutes);
-app.use('/', aUsersRoutes)          // A_Users.jsx
-app.use('/', aModulesRoutes)        // A_Modules.jsx
-app.use('/', workstreamCreateRoutes) // WorkstreamCreate.jsx
-app.use('/', chapterCreateRoutes)   // ChapterCreate.jsx
-app.use('/', chapterEditRoutes)     // ChapterEdit.jsx
-app.use('/', aAssessmentRoutes)     // A_Assessment.jsx
-app.use('/', assessmentCreateRoutes) // AssessmentCreate.jsx
-app.use('/', assessmentEditRoutes)  // AssessmentEdit.jsx
-app.use('/', aAnalyticsRoutes)     // A_Analytics.jsx
-app.use('/', aLeaderboardRoutes)   // A_Leaderboard.jsx
-app.use('/', aFeedbackRoutes);
 
-app.use('/', eModulesRoutes)        // E_Modules.jsx
-app.use('/', viewModulesRoutes)     // ViewModules.jsx
-app.use('/', takeAssessmentsRoutes) // TakeAssessments.jsx
-app.use('/', eAssessmentsRoutes)    // E_Assessments.jsx
-app.use('/employee', eDashboardRoutes)  // E_Dashboard.jsx
-app.use('/', eLeaderboardRoutes)    // E_Leaderboard.jsx
-app.use('/employee', eTasksRoutes)  // TaskSidebar.jsx
-app.use('/employee/certificates', certificatesRoutes)  // Certificate generation
-app.use('/employee', eFeedbackRoutes);
+// Admin routes (require authentication and admin privileges)
+app.use('/', authenticateToken, requireAdmin, aUsersRoutes)          // A_Users.jsx
+app.use('/', authenticateToken, requireAdmin, aModulesRoutes)        // A_Modules.jsx
+app.use('/', authenticateToken, requireAdmin, workstreamCreateRoutes) // WorkstreamCreate.jsx
+app.use('/', authenticateToken, requireAdmin, chapterCreateRoutes)   // ChapterCreate.jsx
+app.use('/', authenticateToken, requireAdmin, chapterEditRoutes)     // ChapterEdit.jsx
+app.use('/', authenticateToken, requireAdmin, aAssessmentRoutes)     // A_Assessment.jsx
+app.use('/', authenticateToken, requireAdmin, assessmentCreateRoutes) // AssessmentCreate.jsx
+app.use('/', authenticateToken, requireAdmin, assessmentEditRoutes)  // AssessmentEdit.jsx
+app.use('/', authenticateToken, requireAdmin, aAnalyticsRoutes)     // A_Analytics.jsx
+app.use('/', authenticateToken, requireAdmin, aLeaderboardRoutes)   // A_Leaderboard.jsx
+app.use('/', authenticateToken, requireAdmin, aFeedbackRoutes);
+
+// Employee routes (require authentication)
+app.use('/', authenticateToken, eModulesRoutes)        // E_Modules.jsx
+app.use('/', authenticateToken, viewModulesRoutes)     // ViewModules.jsx
+app.use('/', authenticateToken, takeAssessmentsRoutes) // TakeAssessments.jsx
+app.use('/', authenticateToken, eAssessmentsRoutes)    // E_Assessments.jsx
+app.use('/employee', authenticateToken, eDashboardRoutes)  // E_Dashboard.jsx
+app.use('/', authenticateToken, eLeaderboardRoutes)    // E_Leaderboard.jsx
+app.use('/employee', authenticateToken, eTasksRoutes)  // TaskSidebar.jsx
+app.use('/employee/certificates', authenticateToken, certificatesRoutes)  // Certificate generation
+app.use('/employee', authenticateToken, eFeedbackRoutes);
 
 // Notification routes (only if loaded successfully)
 if (notificationRoutes) {

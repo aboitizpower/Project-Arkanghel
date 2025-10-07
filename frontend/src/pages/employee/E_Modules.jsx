@@ -110,7 +110,6 @@ const E_Modules = () => {
 
             // Then make the actual GET request
             const response = await api.get('/employee/workstreams', {
-                params: { userId: user.id },
                 withCredentials: true
             });
 
@@ -203,15 +202,20 @@ const E_Modules = () => {
             const errorMessage = err.response?.data?.message || 'Failed to fetch chapters. Please try again later.';
             setError(errorMessage);
             console.error('Error fetching chapters:', err);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const fetchUserProgress = async (workstreamId) => {
         if (!user) return;
         try {
             // Corrected API endpoint
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/progress?userId=${userId}`);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/progress`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
             const progressData = response.data.chapters.reduce((acc, chapter) => {
                 if (chapter.is_completed) {
                     acc.add(chapter.chapter_id);
@@ -221,6 +225,8 @@ const E_Modules = () => {
             setCompletedChapters(progressData);
         } catch (err) {
             console.error('Failed to fetch user progress:', err);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -228,7 +234,7 @@ const E_Modules = () => {
         const hasContent = workstream.regular_chapters_count > 0 || workstream.assessments_count > 0;
         const isExpired = workstream.is_expired || false;
 
-        if (!userId || !hasContent || isExpired) {
+        if (!user.id || !hasContent || isExpired) {
             if (isExpired) {
                 alert('This workstream has expired and is no longer accessible.');
             }
@@ -238,7 +244,11 @@ const E_Modules = () => {
         setIsLoading(true);
         try {
             // Fetch the last-viewed chapter ID from the new endpoint
-            const response = await axios.get(`${API_URL}/employee/workstreams/${workstream.workstream_id}/last-viewed-chapter?userId=${userId}`);
+            const response = await axios.get(`${API_URL}/employee/workstreams/${workstream.workstream_id}/last-viewed-chapter`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
             const { chapterId } = response.data;
 
             // Navigate to the module view, passing the chapterId to start on
@@ -267,14 +277,22 @@ const E_Modules = () => {
         // Fetch assessment and user progress for it
         setIsLoading(true);
         try {
-            const assessmentRes = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`);
+            const assessmentRes = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
             if (assessmentRes.data && assessmentRes.data.length > 0) {
                 const assessment = assessmentRes.data[0];
                 setAssessmentForCurrentChapter(assessment);
 
                 // Check if user has passed this assessment
                 try {
-                    const passRes = await axios.get(`${API_URL}/user-assessment-progress/${userId}/${assessment.assessment_id}`);
+                    const passRes = await axios.get(`${API_URL}/user-assessment-progress/${user.id}/${assessment.assessment_id}`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
+                    });
                     setIsAssessmentPassed(passRes.data && passRes.data.is_passed);
                     setAssessmentAttempts(passRes.data ? passRes.data.attempts : 0);
                 } catch (progressError) {
@@ -291,10 +309,14 @@ const E_Modules = () => {
                 setIsAssessmentPassed(true); // Can always proceed if no assessment
 
                 // Since there's no assessment, we can mark the chapter as complete right away.
-                if (userId && chapter.chapter_id) {
+                if (user.id && chapter.chapter_id) {
                     await axios.post(`${API_URL}/employee/progress`, {
-                        userId: userId,
+                        userId: user.id,
                         chapterId: chapter.chapter_id,
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
                     });
                     setCompletedChapters(prev => new Set(prev).add(chapter.chapter_id));
                 }
@@ -335,7 +357,11 @@ const E_Modules = () => {
             const fetchAndNavigate = async () => {
                 setIsLoading(true);
                 try {
-                    const response = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`);
+                    const response = await axios.get(`${API_URL}/chapters/${chapter.chapter_id}/assessments`, {
+                        headers: {
+                            'Authorization': `Bearer ${user.token}`
+                        }
+                    });
                     if (response.data && response.data.length > 0) {
                         navigate(`/employee/assessment/${response.data[0].assessment_id}`, {
                             state: {
@@ -374,8 +400,12 @@ const E_Modules = () => {
             try {
                 // Mark current chapter as complete
                 await axios.post(`${API_URL}/user-progress`, {
-                    userId: userId,
+                    userId: user.id,
                     chapterId: selectedChapter.chapter_id,
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
                 });
 
                 // Optimistically update the local state

@@ -46,11 +46,13 @@ router.post('/api/auth/verify', async (req, res) => {
         }
 
         // Create our own application session token
+        console.log('🔐 Creating JWT token with secret length:', process.env.JWT_SECRET?.length);
         const appToken = jwt.sign(
             { id: user.user_id, email: user.email, isAdmin: user.isAdmin, first_name: user.first_name, last_name: user.last_name },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
+        console.log('🔐 Generated token:', appToken.substring(0, 30) + '...');
 
         res.json({ token: appToken });
 
@@ -63,6 +65,55 @@ router.post('/api/auth/verify', async (req, res) => {
 // Route to handle logout
 router.get('/auth/logout', (req, res) => {
     res.redirect(process.env.POST_LOGOUT_REDIRECT_URI);
+});
+
+// Debug endpoint to test token validation
+router.get('/api/auth/test', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    console.log('🔍 Test endpoint - Auth header:', authHeader);
+    console.log('🔍 Test endpoint - Token:', token ? `${token.substring(0, 20)}...` : 'null');
+    console.log('🔍 Test endpoint - JWT_SECRET available:', !!process.env.JWT_SECRET);
+    
+    if (!token) {
+        return res.json({
+            success: false,
+            message: 'No token provided',
+            headers: req.headers
+        });
+    }
+    
+    try {
+        const decoded = jwt.decode(token);
+        console.log('🔍 Decoded token (without verification):', decoded);
+        
+        jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+            if (err) {
+                console.log('🔍 Token verification error:', err.message);
+                return res.json({
+                    success: false,
+                    message: 'Token verification failed',
+                    error: err.message,
+                    decoded: decoded
+                });
+            }
+            
+            console.log('🔍 Token verified successfully:', user);
+            res.json({
+                success: true,
+                message: 'Token is valid',
+                user: user
+            });
+        });
+    } catch (decodeError) {
+        console.log('🔍 Token decode error:', decodeError.message);
+        res.json({
+            success: false,
+            message: 'Token decode failed',
+            error: decodeError.message
+        });
+    }
 });
 
 export default router;

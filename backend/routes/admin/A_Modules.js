@@ -21,8 +21,8 @@ const upload = multer({
         files: 1
     },
     fileFilter: (req, file, cb) => {
-        // Accept images only
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+        // Accept images only if a file is provided
+        if (file && !file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
             return cb(new Error('Only image files are allowed!'), false);
         }
         cb(null, true);
@@ -574,7 +574,22 @@ router.get('/workstreams/:id/complete', (req, res) => {
  * @param {string} deadline - Optional updated deadline
  * @returns {Object} Updated workstream data
  */
-router.put('/workstreams/:id', upload.single('image'), (req, res) => {
+router.put('/workstreams/:id', (req, res) => {
+    // Handle file upload conditionally
+    const handleUpload = upload.single('image');
+    
+    handleUpload(req, res, (err) => {
+        // If there's an error and it's about file type, but no file was actually sent, ignore it
+        if (err && err.message === 'Only image files are allowed!' && !req.file) {
+            // Continue processing without file
+        } else if (err) {
+            return res.status(400).json({
+                success: false,
+                error: err.message
+            });
+        }
+        
+        // Continue with the actual route logic
     console.log('=== PUT /workstreams/:id ROUTE HIT ===');
     const { id } = req.params;
     const { title, description, deadline } = req.body;
@@ -668,8 +683,8 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
         updateParams.push(req.file.buffer, req.file.mimetype);
     }
     
-    // Add updated_at timestamp and complete the WHERE clause
-    updateSql += ', updated_at = NOW() WHERE workstream_id = ?';
+    // Complete the WHERE clause
+    updateSql += ' WHERE workstream_id = ?';
     updateParams.push(id);
     
     // Start a transaction to ensure data consistency
@@ -704,49 +719,10 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
                 });
             }
             
-            // Fetch the updated workstream with its chapters and assessments
-            const fetchSql = `
-                SELECT 
-                    w.*,
-                    (SELECT JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                            'id', mc.chapter_id,
-                            'workstream_id', mc.workstream_id,
-                            'title', mc.title,
-                            'description', mc.description,
-                            'order_index', mc.order_index,
-                            'is_published', mc.is_published,
-                            'is_assessment', mc.is_assessment,
-                            'created_at', mc.created_at,
-                            'assessments', IFNULL((
-                                SELECT JSON_ARRAYAGG(
-                                    JSON_OBJECT(
-                                        'id', a.assessment_id,
-                                        'chapter_id', a.chapter_id,
-                                        'title', a.title,
-                                        'description', a.description,
-                                        'passing_score', a.passing_score,
-                                        'total_points', a.total_points,
-                                        'time_limit_minutes', a.time_limit_minutes,
-                                        'is_published', a.is_published,
-                                        'created_at', a.created_at
-                                    )
-                                )
-                                FROM assessments a
-                                WHERE a.chapter_id = mc.chapter_id
-                                ORDER BY a.created_at ASC
-                            ), JSON_ARRAY())
-                        )
-                    )
-                    FROM module_chapters mc
-                    WHERE mc.workstream_id = w.workstream_id
-                    ORDER BY mc.order_index ASC
-                ) as chapters
-                FROM workstreams w
-                WHERE w.workstream_id = ?
-            `;
+            // Fetch the updated workstream first
+            const fetchWorkstreamSql = 'SELECT workstream_id, title, description, image_type, created_at, is_published, deadline FROM workstreams WHERE workstream_id = ?';
             
-            req.db.query(fetchSql, [id], (err, results) => {
+            req.db.query(fetchWorkstreamSql, [id], (err, workstreamResults) => {
                 if (err) {
                     console.error(`Error fetching updated workstream ${id}:`, err);
                     return req.db.rollback(() => {
@@ -757,7 +733,7 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
                     });
                 }
                 
-                if (results.length === 0) {
+                if (workstreamResults.length === 0) {
                     return req.db.rollback(() => {
                         res.status(404).json({
                             success: false,
@@ -766,45 +742,57 @@ router.put('/workstreams/:id', upload.single('image'), (req, res) => {
                     });
                 }
                 
-                const updatedWorkstream = results[0];
+                const updatedWorkstream = workstreamResults[0];
                 console.log('Fetched updated workstream:', updatedWorkstream);
                 console.log('Deadline in fetched workstream:', updatedWorkstream.deadline);
                 
-                // Parse the JSON string for chapters if it exists
-                if (updatedWorkstream.chapters) {
-                    updatedWorkstream.chapters = JSON.parse(updatedWorkstream.chapters);
-                } else {
-                    updatedWorkstream.chapters = [];
-                }
-                
-                // Commit the transaction
-                req.db.commit(err => {
+                // Fetch chapters separately to avoid JSON parsing issues
+                const chaptersSql = 'SELECT * FROM module_chapters WHERE workstream_id = ? ORDER BY order_index ASC';
+                req.db.query(chaptersSql, [id], (err, chapters) => {
                     if (err) {
-                        console.error('Error committing transaction:', err);
+                        console.error('Error fetching chapters:', err);
                         return req.db.rollback(() => {
                             res.status(500).json({
                                 success: false,
-                                error: 'Failed to complete workstream update. Please try again.'
+                                error: 'Failed to fetch chapters. Please refresh the page.'
                             });
                         });
                     }
                     
-                    console.log(`Successfully updated workstream with ID: ${id}`);
-                    const responseWorkstream = {
-                        ...updatedWorkstream,
-                        image_url: updatedWorkstream.image_type ? `/workstreams/${id}/image` : null
-                    };
-                    console.log('Sending response workstream:', responseWorkstream);
-                    console.log('Response workstream deadline:', responseWorkstream.deadline);
-                    res.json({
-                        success: true,
-                        message: 'Workstream updated successfully!',
-                        workstream: responseWorkstream
+                    // Add chapters to workstream
+                    updatedWorkstream.chapters = chapters || [];
+                    updatedWorkstream.image_url = updatedWorkstream.image_type ? `/workstreams/${id}/image` : null;
+                    
+                    // Commit the transaction
+                    req.db.commit(err => {
+                        if (err) {
+                            console.error('Error committing transaction:', err);
+                            return req.db.rollback(() => {
+                                res.status(500).json({
+                                    success: false,
+                                    error: 'Failed to complete workstream update. Please try again.'
+                                });
+                            });
+                        }
+                        
+                        console.log(`Successfully updated workstream with ID: ${id}`);
+                        const responseWorkstream = {
+                            ...updatedWorkstream,
+                            image_url: updatedWorkstream.image_type ? `/workstreams/${id}/image` : null
+                        };
+                        console.log('Sending response workstream:', responseWorkstream);
+                        console.log('Response workstream deadline:', responseWorkstream.deadline);
+                        res.json({
+                            success: true,
+                            message: 'Workstream updated successfully!',
+                            workstream: responseWorkstream
+                        });
                     });
                 });
             });
         });
     });
+    }); // Close handleUpload callback
 });
 
 /**

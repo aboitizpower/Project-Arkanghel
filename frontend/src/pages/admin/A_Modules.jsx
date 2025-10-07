@@ -10,6 +10,7 @@ import NotificationDialog from '../../components/NotificationDialog';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
@@ -28,12 +29,17 @@ const A_Modules = () => {
     const [notification, setNotification] = useState({ message: '', type: 'success', isVisible: false });
     const [confirmModal, setConfirmModal] = useState({ isVisible: false, workstreamId: null, workstreamTitle: '' });
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const fetchWorkstreams = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${API_URL}/workstreams`);
+            const response = await axios.get(`${API_URL}/workstreams`, {
+                headers: {
+                    'Authorization': `Bearer ${user?.token}`
+                }
+            });
             // Handle both old and new response formats
             const workstreamsData = response.data.workstreams || response.data;
             setWorkstreams(workstreamsData);
@@ -47,8 +53,10 @@ const A_Modules = () => {
     };
 
     useEffect(() => {
-        fetchWorkstreams();
-    }, []);
+        if (user?.token) {
+            fetchWorkstreams();
+        }
+    }, [user]);
 
     // Filter workstreams based on search term
     useEffect(() => {
@@ -81,13 +89,15 @@ const A_Modules = () => {
         }
         
         const newPublishStatus = !workstream.is_published;
-        console.log(`Attempting to ${newPublishStatus ? 'publish' : 'unpublish'} workstream:`, workstream.id);
-        
         setIsPublishing(workstream.id);
         
         try {
             const response = await axios.put(`${API_URL}/workstreams/${workstream.id}/publish`, {
                 is_published: newPublishStatus
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${user?.token}`
+                }
             });
             
             console.log('API Response:', {
@@ -167,7 +177,11 @@ const A_Modules = () => {
         
         setIsDeleting(workstreamId);
         try {
-            const response = await axios.delete(`${API_URL}/workstreams/${workstreamId}`);
+            const response = await axios.delete(`${API_URL}/workstreams/${workstreamId}`, {
+            headers: {
+                'Authorization': `Bearer ${user?.token}`
+            }
+        });
             fetchWorkstreams();
             
             // Handle both old and new response formats for the message
