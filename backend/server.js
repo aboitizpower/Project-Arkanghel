@@ -322,6 +322,16 @@ app.get('/chapters/:id/pdf', (req, res) => {
         res.send(pdf_file);
     });
 });
+// Employee routes (require authentication)
+app.use('/', authenticateToken, eModulesRoutes)        // E_Modules.jsx
+app.use('/', authenticateToken, viewModulesRoutes)     // ViewModules.jsx
+app.use('/', authenticateToken, takeAssessmentsRoutes) // TakeAssessments.jsx
+app.use('/', authenticateToken, eAssessmentsRoutes)    // E_Assessments.jsx
+app.use('/employee', authenticateToken, eDashboardRoutes)  // E_Dashboard.jsx
+app.use('/', authenticateToken, eLeaderboardRoutes)    // E_Leaderboard.jsx
+app.use('/employee', authenticateToken, eTasksRoutes)  // TaskSidebar.jsx
+app.use('/employee/certificates', authenticateToken, certificatesRoutes)  // Certificate generation
+app.use('/employee', authenticateToken, eFeedbackRoutes);
 
 // Admin routes (require authentication and admin privileges)
 app.use('/', authenticateToken, requireAdmin, aUsersRoutes)          // A_Users.jsx
@@ -335,17 +345,6 @@ app.use('/', authenticateToken, requireAdmin, assessmentEditRoutes)  // Assessme
 app.use('/', authenticateToken, requireAdmin, aAnalyticsRoutes)     // A_Analytics.jsx
 app.use('/', authenticateToken, requireAdmin, aLeaderboardRoutes)   // A_Leaderboard.jsx
 app.use('/', authenticateToken, requireAdmin, aFeedbackRoutes);
-
-// Employee routes (require authentication)
-app.use('/', authenticateToken, eModulesRoutes)        // E_Modules.jsx
-app.use('/', authenticateToken, viewModulesRoutes)     // ViewModules.jsx
-app.use('/', authenticateToken, takeAssessmentsRoutes) // TakeAssessments.jsx
-app.use('/', authenticateToken, eAssessmentsRoutes)    // E_Assessments.jsx
-app.use('/employee', authenticateToken, eDashboardRoutes)  // E_Dashboard.jsx
-app.use('/', authenticateToken, eLeaderboardRoutes)    // E_Leaderboard.jsx
-app.use('/employee', authenticateToken, eTasksRoutes)  // TaskSidebar.jsx
-app.use('/employee/certificates', authenticateToken, certificatesRoutes)  // Certificate generation
-app.use('/employee', authenticateToken, eFeedbackRoutes);
 
 // Notification routes (only if loaded successfully)
 if (notificationRoutes) {
