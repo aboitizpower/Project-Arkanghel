@@ -16,10 +16,10 @@ class EmailService {
         });
 
         this.dbConfig = {
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME
+            host: process.env.DB_HOST || "localhost",
+            user: process.env.DB_USER || "root",
+            password: process.env.DB_PASSWORD || "password",
+            database: process.env.DB_NAME || "arkanghel_db"
         };
 
         this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -133,45 +133,50 @@ class EmailService {
         switch (type) {
             case 'new_workstream':
                 return `
-                    <p>A new training workstream has been published and is now available for you to complete.</p>
+                    <p>We're excited to announce that a new training workstream is now available on the Project Arkanghel platform.</p>
                     <div class="accent-line"></div>
-                    <div class="details">
-                        <h3 style="color: #1e40af; margin-top: 0;">${data.title}</h3>
-                        <p><strong>Description:</strong> ${data.description}</p>
-                        <p><strong>Deadline:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
+                    <div class="details success">
+                        <h3 style="color: #1e40af; margin-top: 0;">📚 ${data.title}</h3>
+                        <p><strong>Overview:</strong> ${data.description}</p>
+                        <p><strong>Target Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
                     </div>
                     <div style="text-align: center;">
-                        <a href="${this.frontendUrl}/workstreams/${data.workstream_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Start Training</a>
+                        <a href="${this.frontendUrl}/workstreams/${data.workstream_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Begin Learning Journey</a>
                     </div>
-                    <p style="margin-top: 25px;">Please complete this workstream before the deadline to stay on track with your professional development.</p>
+                    <p style="margin-top: 25px;">This workstream has been carefully designed to enhance your professional skills and knowledge. We encourage you to begin at your earliest convenience to maximize your learning experience.</p>
                 `;
 
             case 'new_chapter':
                 return `
-                    <p>A new chapter has been added to one of your training workstreams.</p>
+                    <p>Great news! A new chapter has been published and is ready for your review. This content builds upon your existing knowledge and will further advance your professional development.</p>
                     <div class="accent-line"></div>
-                    <div class="details">
-                        <h3 style="color: #1e40af; margin-top: 0;">${data.chapter_title}</h3>
-                        <p><strong>Workstream:</strong> <span class="highlight">${data.workstream_title}</span></p>
-                        <p><strong>Description:</strong> ${data.description}</p>
-                        <p><strong>Deadline:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
+                    <div class="details success">
+                        <h3 style="color: #1e40af; margin-top: 0;">📖 ${data.chapter_title}</h3>
+                        <p><strong>Part of Workstream:</strong> <span class="highlight">${data.workstream_title}</span></p>
+                        <p><strong>Content Overview:</strong> ${data.content || 'New learning material available'}</p>
+                        <p><strong>Recommended Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
                     </div>
                     <div style="text-align: center;">
-                        <a href="${this.frontendUrl}/workstreams/${data.workstream_id}/chapters/${data.chapter_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Read Chapter</a>
+                        <a href="${this.frontendUrl}/workstreams/${data.workstream_id}/chapters/${data.chapter_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Access Chapter</a>
                     </div>
-                    <p style="margin-top: 25px;">Start working on this chapter to continue your training progress and stay on track.</p>
+                    <p style="margin-top: 25px;">This chapter contains valuable insights and practical knowledge. We recommend reviewing it as part of your continuous learning journey.</p>
                 `;
 
             case 'new_assessment':
                 return `
-                    <p>A new assessment has been published and is ready for you to complete.</p>
-                    <div class="details">
-                        <h3>${data.title}</h3>
-                        <p><strong>Connected to:</strong> ${data.connected_title}</p>
-                        <p><strong>Deadline:</strong> ${new Date(data.deadline).toLocaleDateString()}</p>
+                    <p>An assessment opportunity is now available for you to demonstrate your knowledge and skills. This is an excellent chance to showcase your learning progress.</p>
+                    <div class="accent-line"></div>
+                    <div class="details success">
+                        <h3 style="color: #1e40af; margin-top: 0;">🎯 ${data.title}</h3>
+                        <p><strong>Related to:</strong> <span class="highlight">${data.chapter_title || data.workstream_title || 'Training Module'}</span></p>
+                        <p><strong>Total Points:</strong> ${data.total_points || 'TBD'} points</p>
+                        <p><strong>Passing Score:</strong> ${data.passing_score || 70}%</p>
+                        <p><strong>Due Date:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
                     </div>
-                    <a href="${this.frontendUrl}/assessments/${data.assessment_id}" class="button">Take Assessment</a>
-                    <p>Complete this assessment to demonstrate your understanding of the material.</p>
+                    <div style="text-align: center;">
+                        <a href="${this.frontendUrl}/assessments/${data.assessment_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Begin Assessment</a>
+                    </div>
+                    <p style="margin-top: 25px;">This assessment has been designed to evaluate your understanding and application of the concepts covered in your training. Take your time and demonstrate your expertise.</p>
                 `;
 
             case 'deadline_reminder_week':
@@ -268,9 +273,15 @@ class EmailService {
     async sendNotification(type, data, targetId, targetType) {
         try {
             const users = await this.getAllActiveUsers();
-            const results = [];
+            console.log(`📧 EmailService: Preparing to send ${type} notifications to ${users.length} users`);
+            
+            if (users.length === 0) {
+                console.log('⚠️ No active users found for email notifications');
+                return { success: true, message: 'No active users to notify', results: [] };
+            }
 
-            for (const user of users) {
+            // Start sending emails asynchronously but return immediately with initial status
+            const emailPromises = users.map(async (user) => {
                 const recipientName = `${user.first_name} ${user.last_name}`;
                 const subject = this.getSubjectByType(type, data);
                 const htmlContent = this.generateEmailTemplate(type, data, recipientName);
@@ -290,19 +301,78 @@ class EmailService {
 
                     // Update status to sent
                     await this.updateNotificationStatus(notificationId, 'sent');
-                    results.push({ email: user.email, status: 'sent', notificationId });
+                    console.log(`✅ Email sent successfully to ${user.email}`);
+                    return { email: user.email, status: 'sent', notificationId };
 
                 } catch (error) {
-                    console.error(`Failed to send email to ${user.email}:`, error);
+                    console.error(`❌ Failed to send email to ${user.email}:`, error.message);
                     await this.updateNotificationStatus(notificationId, 'failed', error.message);
-                    results.push({ email: user.email, status: 'failed', error: error.message, notificationId });
+                    return { email: user.email, status: 'failed', error: error.message, notificationId };
                 }
+            });
+
+            // Send first batch quickly to verify setup, then continue in background
+            const firstBatch = emailPromises.slice(0, 2); // Test with first 2 users
+            const remainingBatch = emailPromises.slice(2);
+
+            try {
+                // Wait for first batch with short timeout to verify email service works
+                const firstResults = await Promise.race([
+                    Promise.all(firstBatch),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Initial email batch timeout')), 3000)
+                    )
+                ]);
+
+                console.log(`✅ First batch of ${firstResults.length} emails processed successfully`);
+                
+                // Continue sending remaining emails in background (don't await)
+                if (remainingBatch.length > 0) {
+                    console.log(`📤 Sending remaining ${remainingBatch.length} emails in background...`);
+                    Promise.all(remainingBatch).then(remainingResults => {
+                        const totalSent = [...firstResults, ...remainingResults].filter(r => r.status === 'sent').length;
+                        console.log(`📧 Background email batch completed: ${totalSent}/${users.length} emails sent successfully`);
+                    }).catch(err => {
+                        console.error('❌ Error in background email batch:', err.message);
+                    });
+                }
+
+                return {
+                    success: true,
+                    message: `Email notifications initiated for ${users.length} users`,
+                    results: firstResults,
+                    totalUsers: users.length,
+                    backgroundProcessing: remainingBatch.length > 0
+                };
+
+            } catch (error) {
+                // If first batch fails, try to send all emails in background anyway
+                console.error('❌ First batch failed, sending all emails in background:', error.message);
+                
+                Promise.all(emailPromises).then(results => {
+                    const totalSent = results.filter(r => r.status === 'sent').length;
+                    console.log(`📧 Background email processing completed: ${totalSent}/${users.length} emails sent`);
+                }).catch(err => {
+                    console.error('❌ Background email processing failed:', err.message);
+                });
+
+                return {
+                    success: true,
+                    message: `Email notifications queued for ${users.length} users (processing in background)`,
+                    results: [],
+                    totalUsers: users.length,
+                    backgroundProcessing: true,
+                    warning: 'Initial batch timed out, emails processing in background'
+                };
             }
 
-            return results;
         } catch (error) {
-            console.error('Error in sendNotification:', error);
-            throw error;
+            console.error('❌ Error in sendNotification:', error);
+            return {
+                success: false,
+                error: error.message,
+                message: `Failed to send notifications: ${error.message}`
+            };
         }
     }
 

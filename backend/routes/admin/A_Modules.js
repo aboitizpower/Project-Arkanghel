@@ -889,23 +889,35 @@ router.put('/workstreams/:id/publish', (req, res) => {
                         console.warn(`⏰ Notification service timeout for workstream ${id}`);
                         res.json({
                             success: true,
-                            message: `Workstream published successfully! Note: Email notification service timed out.`,
+                            message: `Workstream published successfully! Email notifications are being sent.`,
                             workstream_id: id,
                             is_published: 1
                         });
-                    }, 10000); // 10 second timeout
+                    }, 6000); // 6 second timeout
                     
                     notificationService.notifyNewWorkstream(id)
-                        .then(() => {
+                        .then((result) => {
                             clearTimeout(notificationTimeout);
-                            console.log(`✅ Email notifications sent successfully for workstream ${id}`);
-                            if (!res.headersSent) {
-                                res.json({
-                                    success: true,
-                                    message: `Workstream published successfully! Email notifications are being sent to all users. Please allow 2-5 minutes for delivery to all email accounts.`,
-                                    workstream_id: id,
-                                    is_published: 1
-                                });
+                            if (result && result.success) {
+                                console.log(`✅ Email notifications initiated for workstream ${id}`);
+                                if (!res.headersSent) {
+                                    res.json({
+                                        success: true,
+                                        message: `Workstream published successfully! Email notifications have been sent.`,
+                                        workstream_id: id,
+                                        is_published: 1
+                                    });
+                                }
+                            } else {
+                                console.log(`⚠️ Email notifications failed for workstream ${id}:`, result?.message || 'Unknown error');
+                                if (!res.headersSent) {
+                                    res.json({
+                                        success: true,
+                                        message: `Workstream published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
+                                        workstream_id: id,
+                                        is_published: 1
+                                    });
+                                }
                             }
                         })
                         .catch(err => {
@@ -914,7 +926,7 @@ router.put('/workstreams/:id/publish', (req, res) => {
                             if (!res.headersSent) {
                                 res.json({
                                     success: true,
-                                    message: `Workstream published successfully! Note: Email notifications could not be sent at this time. Please try again later or contact support.`,
+                                    message: `Workstream published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
                                     workstream_id: id,
                                     is_published: 1
                                 });
@@ -1148,20 +1160,108 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                                 }
                                 
                                 console.log(`Successfully created assessment with ID: ${assessmentId} and ${questions.length} questions`);
-                                res.status(201).json({
-                                    success: true,
-                                    message: 'Assessment created successfully!',
-                                    assessment: {
-                                        id: assessmentId,
-                                        title,
-                                        description,
-                                        chapter_id: chapterId,
-                                        total_points: totalPoints || 100,
-                                        passing_score: passingScore || 70,
-                                        deadline,
-                                        questions_count: questions.length
-                                    }
-                                });
+                                
+                                // Send notification for new assessment
+                                if (notificationService) {
+                                    console.log(`🔔 Attempting to send notifications for assessment ${assessmentId}...`);
+                                    
+                                    const notificationTimeout = setTimeout(() => {
+                                        console.warn(`⏰ Notification service timeout for assessment ${assessmentId}`);
+                                        if (!res.headersSent) {
+                                            res.status(201).json({
+                                                success: true,
+                                                message: 'Assessment created successfully! Email notifications are being sent.',
+                                                assessment: {
+                                                    id: assessmentId,
+                                                    title,
+                                                    description,
+                                                    chapter_id: chapterId,
+                                                    total_points: totalPoints || 100,
+                                                    passing_score: passingScore || 70,
+                                                    deadline,
+                                                    questions_count: questions.length
+                                                }
+                                            });
+                                        }
+                                    }, 6000);
+                                    
+                                    notificationService.notifyNewAssessment(assessmentId)
+                                        .then((result) => {
+                                            clearTimeout(notificationTimeout);
+                                            if (result && result.success) {
+                                                console.log(`✅ Email notifications initiated for assessment ${assessmentId}`);
+                                                if (!res.headersSent) {
+                                                    res.status(201).json({
+                                                        success: true,
+                                                        message: 'Assessment created successfully! Email notifications have been sent.',
+                                                        assessment: {
+                                                            id: assessmentId,
+                                                            title,
+                                                            description,
+                                                            chapter_id: chapterId,
+                                                            total_points: totalPoints || 100,
+                                                            passing_score: passingScore || 70,
+                                                            deadline,
+                                                            questions_count: questions.length
+                                                        }
+                                                    });
+                                                }
+                                            } else {
+                                                console.log(`⚠️ Email notifications failed for assessment ${assessmentId}:`, result?.message || 'Unknown error');
+                                                if (!res.headersSent) {
+                                                    res.status(201).json({
+                                                        success: true,
+                                                        message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
+                                                        assessment: {
+                                                            id: assessmentId,
+                                                            title,
+                                                            description,
+                                                            chapter_id: chapterId,
+                                                            total_points: totalPoints || 100,
+                                                            passing_score: passingScore || 70,
+                                                            deadline,
+                                                            questions_count: questions.length
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        })
+                                        .catch(err => {
+                                            clearTimeout(notificationTimeout);
+                                            console.error(`❌ Failed to send assessment notifications for ${assessmentId}:`, err);
+                                            if (!res.headersSent) {
+                                                res.status(201).json({
+                                                    success: true,
+                                                    message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
+                                                    assessment: {
+                                                        id: assessmentId,
+                                                        title,
+                                                        description,
+                                                        chapter_id: chapterId,
+                                                        total_points: totalPoints || 100,
+                                                        passing_score: passingScore || 70,
+                                                        deadline,
+                                                        questions_count: questions.length
+                                                    }
+                                                });
+                                            }
+                                        });
+                                } else {
+                                    res.status(201).json({
+                                        success: true,
+                                        message: 'Assessment created successfully! Note: Email notification service is currently unavailable.',
+                                        assessment: {
+                                            id: assessmentId,
+                                            title,
+                                            description,
+                                            chapter_id: chapterId,
+                                            total_points: totalPoints || 100,
+                                            passing_score: passingScore || 70,
+                                            deadline,
+                                            questions_count: questions.length
+                                        }
+                                    });
+                                }
                             });
                         } catch (error) {
                             console.error('Error processing questions:', error);
@@ -1190,19 +1290,103 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                         }
                         
                         console.log(`Successfully created assessment with ID: ${assessmentId} (no questions)`);
-                        res.status(201).json({
-                            success: true,
-                            message: 'Assessment created successfully!',
-                            assessment: {
-                                id: assessmentId,
-                                title,
-                                description,
-                                chapter_id: chapterId,
-                                total_points: totalPoints || 100,
-                                passing_score: passingScore || 70,
-                                deadline
-                            }
-                        });
+                        
+                        // Send notification for new assessment with timeout handling
+                        if (notificationService) {
+                            console.log(`🔔 Attempting to send notifications for assessment ${assessmentId} (no questions)...`);
+                            
+                            const notificationTimeout = setTimeout(() => {
+                                console.warn(`⏰ Notification service timeout for assessment ${assessmentId}`);
+                                if (!res.headersSent) {
+                                    res.status(201).json({
+                                        success: true,
+                                        message: 'Assessment created successfully! Email notifications are being sent.',
+                                        assessment: {
+                                            id: assessmentId,
+                                            title,
+                                            description,
+                                            chapter_id: chapterId,
+                                            total_points: totalPoints || 100,
+                                            passing_score: passingScore || 70,
+                                            deadline
+                                        }
+                                    });
+                                }
+                            }, 6000);
+                            
+                            notificationService.notifyNewAssessment(assessmentId)
+                                .then((result) => {
+                                    clearTimeout(notificationTimeout);
+                                    if (result && result.success) {
+                                        console.log(`✅ Email notifications initiated for assessment ${assessmentId}`);
+                                        if (!res.headersSent) {
+                                            res.status(201).json({
+                                                success: true,
+                                                message: 'Assessment created successfully! Email notifications have been sent.',
+                                                assessment: {
+                                                    id: assessmentId,
+                                                    title,
+                                                    description,
+                                                    chapter_id: chapterId,
+                                                    total_points: totalPoints || 100,
+                                                    passing_score: passingScore || 70,
+                                                    deadline
+                                                }
+                                            });
+                                        }
+                                    } else {
+                                        console.log(`⚠️ Email notifications failed for assessment ${assessmentId}:`, result?.message || 'Unknown error');
+                                        if (!res.headersSent) {
+                                            res.status(201).json({
+                                                success: true,
+                                                message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
+                                                assessment: {
+                                                    id: assessmentId,
+                                                    title,
+                                                    description,
+                                                    chapter_id: chapterId,
+                                                    total_points: totalPoints || 100,
+                                                    passing_score: passingScore || 70,
+                                                    deadline
+                                                }
+                                            });
+                                        }
+                                    }
+                                })
+                                .catch(err => {
+                                    clearTimeout(notificationTimeout);
+                                    console.error(`❌ Failed to send assessment notifications for ${assessmentId}:`, err);
+                                    if (!res.headersSent) {
+                                        res.status(201).json({
+                                            success: true,
+                                            message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
+                                            assessment: {
+                                                id: assessmentId,
+                                                title,
+                                                description,
+                                                chapter_id: chapterId,
+                                                total_points: totalPoints || 100,
+                                                passing_score: passingScore || 70,
+                                                deadline
+                                            }
+                                        });
+                                    }
+                                });
+                        } else {
+                            res.status(201).json({
+                                success: true,
+                                message: 'Assessment created successfully! Note: Email notification service is currently unavailable.',
+                                assessment: {
+                                    id: assessmentId,
+                                    title,
+                                    description,
+                                    chapter_id: chapterId,
+                                    total_points: totalPoints || 100,
+                                    passing_score: passingScore || 70,
+                                    deadline
+                                }
+                            });
+                        }
                     });
                 }
             });

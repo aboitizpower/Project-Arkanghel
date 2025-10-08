@@ -9,10 +9,10 @@ dotenv.config();
 class NotificationService {
     constructor() {
         this.dbConfig = {
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME
+            host: process.env.DB_HOST || "localhost",
+            user: process.env.DB_USER || "root",
+            password: process.env.DB_PASSWORD || "password",
+            database: process.env.DB_NAME || "arkanghel_db"
         };
         
         this.isRunning = false;
@@ -283,12 +283,25 @@ class NotificationService {
     // Trigger notifications for new items
     async notifyNewWorkstream(workstreamId) {
         console.log(`🔍 NotificationService: Looking for workstream ${workstreamId}`);
-        const connection = await this.getConnection();
+        let connection = null;
+        
         try {
-            const [workstreams] = await connection.execute(
-                'SELECT * FROM workstreams WHERE workstream_id = ?',
-                [workstreamId]
-            );
+            // Add timeout for database connection
+            connection = await Promise.race([
+                this.getConnection(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+                )
+            ]);
+            
+            console.log(`✅ Database connection established`);
+            
+            const [workstreams] = await Promise.race([
+                connection.execute('SELECT * FROM workstreams WHERE workstream_id = ?', [workstreamId]),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database query timeout')), 5000)
+                )
+            ]);
 
             console.log(`📊 Found ${workstreams.length} workstreams with ID ${workstreamId}`);
 
@@ -304,75 +317,198 @@ class NotificationService {
                 };
 
                 console.log(`📧 Calling emailService.sendNotification...`);
-                const results = await emailService.sendNotification('new_workstream', data, workstreamId, 'workstream');
+                
+                // Add timeout for email service (reduced for faster response)
+                const results = await Promise.race([
+                    emailService.sendNotification('new_workstream', data, workstreamId, 'workstream'),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Email service timeout')), 4000)
+                    )
+                ]);
+                
                 console.log(`✅ Email results:`, results);
                 console.log(`📧 Sent new workstream notifications for: ${workstream.title}`);
+                return { success: true, results };
             } else {
                 console.log(`⚠️ No workstream found with ID ${workstreamId}`);
+                return { success: false, message: 'Workstream not found' };
             }
         } catch (error) {
-            console.error(`❌ Error in notifyNewWorkstream:`, error);
-            throw error;
+            console.error(`❌ Error in notifyNewWorkstream:`, error.message);
+            // Don't throw error - return failure result instead
+            return { 
+                success: false, 
+                error: error.message,
+                message: `Failed to send notifications: ${error.message}`
+            };
         } finally {
-            await connection.end();
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (closeError) {
+                    console.error(`❌ Error closing connection:`, closeError.message);
+                }
+            }
         }
     }
 
     async notifyNewChapter(chapterId) {
-        const connection = await this.getConnection();
+        console.log(`🔍 NotificationService: Looking for chapter ${chapterId}`);
+        let connection = null;
+        
         try {
-            const [chapters] = await connection.execute(`
-                SELECT c.*, w.title as workstream_title 
-                FROM chapters c 
-                JOIN workstreams w ON c.workstream_id = w.workstream_id 
-                WHERE c.chapter_id = ?
-            `, [chapterId]);
+            // Add timeout for database connection
+            connection = await Promise.race([
+                this.getConnection(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+                )
+            ]);
+            
+            console.log(`✅ Database connection established for chapter`);
+            
+            const [chapters] = await Promise.race([
+                connection.execute(`
+                    SELECT mc.*, w.title as workstream_title 
+                    FROM module_chapters mc 
+                    JOIN workstreams w ON mc.workstream_id = w.workstream_id 
+                    WHERE mc.chapter_id = ?
+                `, [chapterId]),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database query timeout')), 5000)
+                )
+            ]);
+
+            console.log(`📊 Found ${chapters.length} chapters with ID ${chapterId}`);
 
             if (chapters.length > 0) {
                 const chapter = chapters[0];
+                console.log(`📝 Chapter details: ${chapter.title}`);
+                
                 const data = {
                     chapter_id: chapter.chapter_id,
                     workstream_id: chapter.workstream_id,
                     chapter_title: chapter.title,
                     workstream_title: chapter.workstream_title,
-                    description: chapter.description,
+                    content: chapter.content,
                     deadline: chapter.deadline
                 };
 
-                await emailService.sendNotification('new_chapter', data, chapterId, 'chapter');
+                console.log(`📧 Calling emailService.sendNotification for chapter...`);
+                
+                // Add timeout for email service (reduced for faster response)
+                const results = await Promise.race([
+                    emailService.sendNotification('new_chapter', data, chapterId, 'chapter'),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Email service timeout')), 4000)
+                    )
+                ]);
+                
+                console.log(`✅ Chapter email results:`, results);
                 console.log(`📧 Sent new chapter notifications for: ${chapter.title}`);
+                return { success: true, results };
+            } else {
+                console.log(`⚠️ No chapter found with ID ${chapterId}`);
+                return { success: false, message: 'Chapter not found' };
             }
+        } catch (error) {
+            console.error(`❌ Error in notifyNewChapter:`, error.message);
+            // Don't throw error - return failure result instead
+            return { 
+                success: false, 
+                error: error.message,
+                message: `Failed to send notifications: ${error.message}`
+            };
         } finally {
-            await connection.end();
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (closeError) {
+                    console.error(`❌ Error closing connection:`, closeError.message);
+                }
+            }
         }
     }
 
     async notifyNewAssessment(assessmentId) {
-        const connection = await this.getConnection();
+        console.log(`🔍 NotificationService: Looking for assessment ${assessmentId}`);
+        let connection = null;
+        
         try {
-            const [assessments] = await connection.execute(`
-                SELECT a.*, 
-                       COALESCE(w.title, c.title) as connected_title
-                FROM assessments a 
-                LEFT JOIN workstreams w ON a.workstream_id = w.workstream_id
-                LEFT JOIN chapters c ON a.chapter_id = c.chapter_id
-                WHERE a.assessment_id = ?
-            `, [assessmentId]);
+            // Add timeout for database connection
+            connection = await Promise.race([
+                this.getConnection(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+                )
+            ]);
+            
+            console.log(`✅ Database connection established for assessment`);
+            
+            const [assessments] = await Promise.race([
+                connection.execute(`
+                    SELECT a.*, 
+                           mc.title as chapter_title,
+                           w.title as workstream_title
+                    FROM assessments a 
+                    JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                    JOIN workstreams w ON mc.workstream_id = w.workstream_id
+                    WHERE a.assessment_id = ?
+                `, [assessmentId]),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Database query timeout')), 5000)
+                )
+            ]);
+
+            console.log(`📊 Found ${assessments.length} assessments with ID ${assessmentId}`);
 
             if (assessments.length > 0) {
                 const assessment = assessments[0];
+                console.log(`📝 Assessment details: ${assessment.title}`);
+                
                 const data = {
                     assessment_id: assessment.assessment_id,
                     title: assessment.title,
-                    connected_title: assessment.connected_title,
-                    deadline: assessment.deadline
+                    chapter_title: assessment.chapter_title,
+                    workstream_title: assessment.workstream_title,
+                    deadline: assessment.deadline,
+                    total_points: assessment.total_points,
+                    passing_score: assessment.passing_score
                 };
 
-                await emailService.sendNotification('new_assessment', data, assessmentId, 'assessment');
+                console.log(`📧 Calling emailService.sendNotification for assessment...`);
+                
+                // Add timeout for email service
+                const results = await Promise.race([
+                    emailService.sendNotification('new_assessment', data, assessmentId, 'assessment'),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Email service timeout')), 4000)
+                    )
+                ]);
+                
+                console.log(`✅ Assessment email results:`, results);
                 console.log(`📧 Sent new assessment notifications for: ${assessment.title}`);
+                return { success: true, results };
+            } else {
+                console.log(`⚠️ No assessment found with ID ${assessmentId}`);
+                return { success: false, message: 'Assessment not found' };
             }
+        } catch (error) {
+            console.error(`❌ Error in notifyNewAssessment:`, error.message);
+            // Don't throw error - return failure result instead
+            return { 
+                success: false, 
+                error: error.message,
+                message: `Failed to send notifications: ${error.message}`
+            };
         } finally {
-            await connection.end();
+            if (connection) {
+                try {
+                    await connection.end();
+                } catch (closeError) {
+                    console.error(`❌ Error closing connection:`, closeError.message);
+                }
+            }
         }
     }
 

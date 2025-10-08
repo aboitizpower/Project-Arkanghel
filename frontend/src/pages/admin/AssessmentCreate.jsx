@@ -255,15 +255,17 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       
       console.log('Complete assessment data being sent:', assessmentData);
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
-      await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData, {
+      const response = await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData, {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token}`
         }
       });
       
+      // Use the message from the backend response
+      const backendMessage = response.data?.message || 'Assessment created successfully!';
       setNotification({
-        message: 'Assessment created successfully!',
+        message: backendMessage,
         type: 'success',
         isVisible: true
       });
