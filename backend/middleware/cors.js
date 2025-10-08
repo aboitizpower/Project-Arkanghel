@@ -33,7 +33,7 @@ const corsOptions = {
         return callback(null, true);
     },
     credentials: true, // Allow credentials but with strict origin checking
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Remove OPTIONS from allowed methods
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Include OPTIONS for preflight requests
     allowedHeaders: [
         'Content-Type', 
         'Authorization', 
@@ -54,14 +54,16 @@ const corsMiddleware = cors(corsOptions);
 const preflightMiddleware = (req, res, next) => {
     if (req.method === 'OPTIONS') {
         const origin = req.headers.origin;
+        console.log(`OPTIONS preflight request from origin: ${origin}`);
         
-        // Only set CORS headers for allowed origins
-        if (origin && allowedOrigins.includes(origin)) {
-            res.header('Access-Control-Allow-Origin', origin);
+        // Allow preflight for allowed origins OR no origin (same-origin requests)
+        if (!origin || allowedOrigins.includes(origin)) {
+            res.header('Access-Control-Allow-Origin', origin || '*');
             res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
             res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token');
             res.header('Access-Control-Allow-Credentials', 'true');
             res.header('Access-Control-Max-Age', '3600');
+            console.log(`OPTIONS preflight approved for origin: ${origin}`);
         } else {
             // Reject preflight for unauthorized origins
             console.warn(`CORS preflight rejected for origin: ${origin}`);
@@ -69,7 +71,7 @@ const preflightMiddleware = (req, res, next) => {
             return;
         }
         
-        res.status(200).end();
+        res.status(204).end();
         return;
     }
     next();

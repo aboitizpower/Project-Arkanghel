@@ -18,7 +18,7 @@ const cspPlugin = () => {
           "script-src 'self' 'unsafe-inline'", // Required for React dev mode
           "img-src 'self' data: https: http://localhost:8081 blob:",
           "connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com",
-          "media-src 'self'",
+          "media-src 'self' http://localhost:8081",
           "object-src 'none'",
           "frame-src 'self' https://login.microsoftonline.com",
           "base-uri 'self'",
@@ -56,7 +56,7 @@ export default defineConfig({
     // Alternative approach: configure middleware directly
     middlewareMode: false,
     headers: {
-      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:8081 blob:; connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com; media-src 'self'; object-src 'none'; frame-src 'self' https://login.microsoftonline.com; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
+      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:8081 blob:; connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com; media-src 'self' http://localhost:8081; object-src 'none'; frame-src 'self' https://login.microsoftonline.com; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'SAMEORIGIN',
       'X-XSS-Protection': '1; mode=block',

@@ -87,7 +87,10 @@ const TakeAssessments = () => {
                     }
                 }
 
-                const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`, { signal });
+                const assessmentRes = await axios.get(`${API_URL}/assessments/${assessmentId}`, { 
+                    signal,
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
                 if (!signal.aborted) {
                     setAssessment(assessmentRes.data);
                     
@@ -100,14 +103,20 @@ const TakeAssessments = () => {
                     }
                 }
 
-                const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`, { signal });
+                const questionsRes = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`, { 
+                    signal,
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
                 if (!signal.aborted) {
                     setQuestions(questionsRes.data);
                 }
 
                 // Check if this is a final assessment and get workstream info
                 if (chapterId && workstreamId) {
-                    const chapterRes = await axios.get(`${API_URL}/employee/chapters/${chapterId}`, { signal });
+                    const chapterRes = await axios.get(`${API_URL}/employee/chapters/${chapterId}`, { 
+                        signal,
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    });
                     if (!signal.aborted) {
                         const chapter = chapterRes.data.chapter;
                         
@@ -115,7 +124,10 @@ const TakeAssessments = () => {
                             setIsFinalAssessment(true);
                             
                             // Get workstream info
-                            const workstreamRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`, { signal });
+                            const workstreamRes = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}`, { 
+                                signal,
+                                headers: { 'Authorization': `Bearer ${user.token}` }
+                            });
                             if (!signal.aborted) {
                                 setWorkstreamInfo(workstreamRes.data);
                             }

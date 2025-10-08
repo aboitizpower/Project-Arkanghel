@@ -220,7 +220,11 @@ const ViewModules = () => {
         // Fetch assessment for this chapter
         try {
             console.log(`Fetching assessment for chapter ${chapter.chapter_id}: ${chapter.title}`);
-            const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`);
+            const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
             const assessmentData = assessmentResponse.data.assessment;
             console.log(`Assessment data for chapter ${chapter.chapter_id}:`, assessmentData);
 
@@ -626,7 +630,11 @@ const ViewModules = () => {
                 const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
                 
                 // Get the latest completed chapters from the API call
-                const updatedCompletedResponse = axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`)
+                const updatedCompletedResponse = axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                })
                     .then(response => {
                         const progressData = response.data.chapters.reduce((acc, chapter) => {
                             if (chapter.is_completed) {
