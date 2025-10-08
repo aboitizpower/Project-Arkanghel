@@ -1,6 +1,6 @@
 // File: components/AssessmentEdit.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
@@ -19,7 +19,8 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [editedDescription, setEditedDescription] = useState(assessment.description || '');
   const [title, setTitle] = useState(assessment?.title || '');
   const [description, setDescription] = useState(assessment?.description || '');
-  const [questions, setQuestions] = useState(assessment?.questions || []);
+  const [questions, setQuestions] = useState([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [isFinal, setIsFinal] = useState(assessment?.is_final || false);
   const [selectedChapter, setSelectedChapter] = useState(assessment?.chapter_id || '');
   const [editingQuestionId, setEditingQuestionId] = useState(null);
@@ -60,6 +61,71 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     message: '',
     type: 'success'
   });
+
+  // Memoize assessment ID to prevent unnecessary re-renders
+  const assessmentId = useMemo(() => assessment?.assessment_id, [assessment?.assessment_id]);
+
+  // Fetch questions when component mounts
+  useEffect(() => {
+    console.log('useEffect for fetching questions triggered');
+    console.log('Assessment object:', assessment);
+    console.log('Assessment ID:', assessmentId);
+    console.log('User token:', user?.token ? 'Present' : 'Missing');
+    
+    const fetchQuestions = async () => {
+      if (!assessmentId) {
+        console.log('No assessment ID, skipping fetch');
+        setIsLoadingQuestions(false);
+        return;
+      }
+      
+      if (!user?.token) {
+        console.log('No user token, skipping fetch');
+        setIsLoadingQuestions(false);
+        return;
+      }
+      
+      setIsLoadingQuestions(true);
+      try {
+        console.log('Fetching questions for assessment:', assessmentId);
+        const response = await axios.get(`${API_URL}/assessments/${assessmentId}/questions`, {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`
+          }
+        });
+        
+        console.log('Fetched questions - full response:', response);
+        console.log('Fetched questions - response.data:', response.data);
+        console.log('Fetched questions - response.data type:', typeof response.data);
+        console.log('Fetched questions - is array?:', Array.isArray(response.data));
+        console.log('Questions array length:', response.data?.length);
+        
+        const questionsData = response.data || [];
+        console.log('Setting questions state to:', questionsData);
+        setQuestions(questionsData);
+        
+        // Immediate check after setState
+        console.log('Questions data that was set:', questionsData);
+      } catch (err) {
+        console.error('Failed to fetch questions:', err);
+        setError('Failed to load questions: ' + (err?.response?.data?.error || err.message));
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+
+    fetchQuestions();
+  }, [assessmentId, user?.token]);
+
+  // Add a separate useEffect to log when questions state changes
+  useEffect(() => {
+    console.log('🔍 Questions state changed to:', questions);
+    console.log('🔍 Questions length:', questions.length);
+    if (questions.length === 0) {
+      console.log('⚠️ Questions state was reset to empty array!');
+      console.trace('Stack trace for empty questions:');
+    }
+  }, [questions]);
 
   const openModal = (editIndex = null) => {
     if (editIndex !== null) {
@@ -347,7 +413,7 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           const data = response.data;
           // Set all relevant state from the fetched data
           setEditedDescription(data.description || '');
-          setQuestions(data.questions || []);
+          // Don't set questions here - they're handled by the dedicated questions useEffect
         } catch (err) {
           setError('Failed to fetch assessment data.');
           console.error('Error fetching assessment data:', err);
@@ -464,6 +530,10 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   };
 
   const renderQuestionDisplay = (question, index) => {
+    console.log('renderQuestionDisplay called with:', { question, index });
+    console.log('Question ID:', question.question_id || question.id);
+    console.log('Question text:', question.question_text);
+    
     return (
       <div key={question.question_id || question.id} className="question-item">
         <div className="question-header">
@@ -652,7 +722,30 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
           {/* Scrollable Questions List */}
           <div className="questions-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             <div className="questions-scroll-list" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0 }}>
-              {questions && questions.length > 0 ? questions.map((question, qIndex) => renderQuestionDisplay(question, qIndex)) : <p>No questions yet.</p>}
+              {(() => {
+                console.log('Rendering questions - current state:', questions);
+                console.log('Questions length:', questions?.length);
+                console.log('Questions array:', questions);
+                console.log('Is loading questions:', isLoadingQuestions);
+                console.log('Questions truthy check:', !!questions);
+                console.log('Questions length > 0 check:', questions?.length > 0);
+                console.log('Full render condition:', questions && questions.length > 0);
+                
+                if (isLoadingQuestions) {
+                  return <p>Loading questions...</p>;
+                }
+                
+                if (questions && questions.length > 0) {
+                  console.log('Rendering questions map...');
+                  return questions.map((question, qIndex) => {
+                    console.log(`Rendering question ${qIndex}:`, question);
+                    return renderQuestionDisplay(question, qIndex);
+                  });
+                } else {
+                  console.log('Showing no questions message');
+                  return <p>No questions yet.</p>;
+                }
+              })()}
             </div>
             {/* Modal for adding a question */}
             {showModal && (

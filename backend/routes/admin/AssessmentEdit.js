@@ -196,6 +196,34 @@ router.delete('/assessments/:id', (req, res) => {
     });
 });
 
+// Get questions for a specific assessment - Used by AssessmentEdit.jsx
+router.get('/assessments/:id/questions', (req, res) => {
+    const { id } = req.params;
+    
+    const sql = `
+        SELECT 
+            q.question_id,
+            q.assessment_id,
+            q.question_text,
+            q.question_type,
+            q.options,
+            q.correct_answer
+        FROM questions q
+        WHERE q.assessment_id = ?
+        ORDER BY q.question_id
+    `;
+
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error('Failed to fetch assessment questions:', err);
+            return res.status(500).json({ error: 'Database query failed while fetching questions.' });
+        }
+
+        console.log(`Admin - Fetched ${results.length} questions for assessment ${id}`);
+        res.json(results);
+    });
+});
+
 // === Question CRUD Routes ===
 
 // Create a new question for an assessment
