@@ -17,15 +17,10 @@ const corsOptions = {
     origin: function (origin, callback) {
         console.log(`CORS request from origin: ${origin}`); // Debug logging
         
-        // Strict origin validation - no exceptions
+        // Allow requests without origin (e.g., direct image requests, same-origin requests)
         if (!origin) {
-            // Be more restrictive - only allow no-origin in development for testing
-            if (process.env.NODE_ENV === 'development') {
-                console.log('Allowing no-origin request in development mode');
-                return callback(null, true);
-            }
-            console.warn('Rejecting request with no origin in production');
-            return callback(new Error('Origin required by CORS policy'), false);
+            console.log('Allowing request with no origin (likely same-origin or direct resource request)');
+            return callback(null, true);
         }
         
         if (allowedOrigins.indexOf(origin) === -1) {

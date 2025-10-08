@@ -9,10 +9,12 @@ import '../../styles/admin/AssessmentEdit.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import NotificationDialog from '../../components/NotificationDialog';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
+  const { user } = useAuth();
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(assessment.description || '');
   const [title, setTitle] = useState(assessment?.title || '');
@@ -153,12 +155,24 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       
       if (isEditing) {
         const questionId = questions[modalEditIndex].question_id;
-        await axios.put(`${API_URL}/questions/${questionId}`, questionPayload);
+        await axios.put(`${API_URL}/questions/${questionId}`, questionPayload, {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`
+          }
+        });
       } else {
-        await axios.post(`${API_URL}/questions`, questionPayload);
+        await axios.post(`${API_URL}/questions`, questionPayload, {
+          headers: {
+            'Authorization': `Bearer ${user?.token}`
+          }
+        });
       }
       
-      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       setQuestions(response.data.questions || []);
       closeModal();
       
@@ -205,10 +219,18 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
     
     setIsSubmitting(true);
     try {
-      await axios.delete(`${API_URL}/questions/${questionId}`);
+      await axios.delete(`${API_URL}/questions/${questionId}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       
       // Refresh the questions list after deletion
-      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       setQuestions(response.data.questions || []);
       
       setError(null); // Clear any previous errors
@@ -269,7 +291,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         // If workstreamId is not directly available, try to get it from the chapter
         if (!workstreamId && assessment.chapter_id) {
           try {
-            const chapterRes = await axios.get(`${API_URL}/chapters/${assessment.chapter_id}`);
+            const chapterRes = await axios.get(`${API_URL}/chapters/${assessment.chapter_id}`, {
+              headers: {
+                'Authorization': `Bearer ${user?.token}`
+              }
+            });
             workstreamId = chapterRes.data.workstream_id;
           } catch (err) {
             console.error('Failed to get workstream ID from chapter:', err);
@@ -278,7 +304,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
         if (workstreamId) {
           // Fetch the complete workstream data, which includes chapters and their assessments
-          const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`);
+          const response = await axios.get(`${API_URL}/workstreams/${workstreamId}/complete`, {
+            headers: {
+              'Authorization': `Bearer ${user?.token}`
+            }
+          });
           const workstreamData = response.data;
           setWorkstream(workstreamData);
 
@@ -309,7 +339,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
       // Ensure we have a valid assessment ID before fetching
       if (assessment && assessment.assessment_id) {
         try {
-          const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`);
+          const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`, {
+            headers: {
+              'Authorization': `Bearer ${user?.token}`
+            }
+          });
           const data = response.data;
           // Set all relevant state from the fetched data
           setEditedDescription(data.description || '');
@@ -339,7 +373,11 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         deadline: deadline || null
       };
 
-      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, payload);
+      await axios.put(`${API_URL}/assessments/${assessment.assessment_id}`, payload, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       
       if (onUpdated) {
         onUpdated(); // Callback to refresh the parent component's data

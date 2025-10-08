@@ -1174,21 +1174,6 @@ router.post('/workstreams/:id/assessments', (req, res) => {
     });
 });
 
-// Get a workstream's image
-router.get('/workstreams/:id/image', (req, res) => {
-    const { id } = req.params;
-    const sql = 'SELECT image, image_type FROM workstreams WHERE workstream_id = ?';
-    req.db.query(sql, [id], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (results.length === 0 || !results[0].image) {
-            return res.status(404).json({ error: 'Image not found.' });
-        }
-        const { image, image_type } = results[0];
-        res.setHeader('Content-Type', image_type);
-        res.send(image);
-    });
-});
+// Image route moved to server.js as public route (no authentication required)
 
 export default router;

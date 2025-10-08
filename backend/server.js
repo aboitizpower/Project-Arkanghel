@@ -52,51 +52,47 @@ try {
 
 const app = express();
 
-// Security middleware - Helmet with enhanced CSP configuration
+// Security middleware - Minimal Helmet configuration for development
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            scriptSrc: ["'self'"], // Remove unsafe-inline and unsafe-eval for API endpoints
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-            connectSrc: ["'self'", "https:", "wss:", "ws:"],
-            mediaSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            frameSrc: ["'none'"],
-            baseUri: ["'self'"],
-            formAction: ["'self'"]
-        },
-        reportOnly: false
-    },
+    contentSecurityPolicy: false, // Disable CSP for development
     crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: "same-origin" } // More restrictive
+    crossOriginResourcePolicy: false, // Disable for development
+    crossOriginOpenerPolicy: false
 }));
 
-// Additional explicit CSP header for any missed routes
-app.use((req, res, next) => {
-    if (!res.getHeader('Content-Security-Policy')) {
-        res.setHeader('Content-Security-Policy', 
-            "default-src 'self'; " +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-            "font-src 'self' https://fonts.gstatic.com; " +
-            "script-src 'self'; " +
-            "img-src 'self' data: https: blob:; " +
-            "connect-src 'self' https: wss: ws:; " +
-            "media-src 'self'; " +
-            "object-src 'none'; " +
-            "frame-src 'none'; " +
-            "base-uri 'self'; " +
-            "form-action 'self'"
-        );
-    }
-    next();
-});
+// CSP disabled for development - uncomment for production
+// app.use((req, res, next) => {
+//     if (!res.getHeader('Content-Security-Policy')) {
+//         res.setHeader('Content-Security-Policy', 
+//             "default-src 'self'; " +
+//             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+//             "font-src 'self' https://fonts.gstatic.com; " +
+//             "script-src 'self'; " +
+//             "img-src 'self' data: https: http://localhost:8081 blob:; " +
+//             "connect-src 'self' https: wss: ws:; " +
+//             "media-src 'self'; " +
+//             "object-src 'none'; " +
+//             "frame-src 'none'; " +
+//             "base-uri 'self'; " +
+//             "form-action 'self'"
+//         );
+//     }
+//     next();
+// });
 
 // Apply CORS middleware after security middleware
 app.use(corsMiddleware);
 app.use(preflightMiddleware);
+
+// Additional CORS headers for image requests
+app.use('/workstreams/:id/image', (req, res, next) => {
+    console.log(`🔧 Setting CORS headers for image request: ${req.url}`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+});
 
 // Additional security headers to prevent cross-domain issues
 app.use((req, res, next) => {
@@ -140,6 +136,57 @@ app.use((req, res, next) => {
 
 // Route registration - Each route file corresponds to frontend pages/components
 app.use('/', authRoutes);
+
+// Public image routes (no authentication required for images)
+app.get('/workstreams/:id/image', (req, res) => {
+    const { id } = req.params;
+    console.log(`🖼️ Image request for workstream ID: ${id}`);
+    
+    // Check if database connection exists
+    if (!req.db) {
+        console.error(`❌ No database connection available`);
+        return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const sql = 'SELECT image, image_type FROM workstreams WHERE workstream_id = ?';
+    console.log(`📝 Executing SQL: ${sql} with ID: ${id}`);
+    
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error(`❌ Database error for workstream ${id}:`, err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`📊 Query results for workstream ${id}:`, {
+            resultCount: results.length,
+            hasImage: results.length > 0 && !!results[0].image,
+            imageType: results.length > 0 ? results[0].image_type : null,
+            imageSize: results.length > 0 && results[0].image ? results[0].image.length : 0
+        });
+        
+        if (results.length === 0) {
+            console.log(`❌ No workstream found with ID: ${id}`);
+            return res.status(404).json({ error: 'Workstream not found.' });
+        }
+        
+        if (!results[0].image) {
+            console.log(`❌ No image data for workstream ID: ${id}`);
+            return res.status(404).json({ error: 'Image not found.' });
+        }
+        
+        const { image, image_type } = results[0];
+        console.log(`✅ Serving image for workstream ${id}, type: ${image_type}, size: ${image.length} bytes`);
+        
+        // Set CORS headers for image requests
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        
+        res.setHeader('Content-Type', image_type);
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        res.send(image);
+    });
+});
 
 // Admin routes (require authentication and admin privileges)
 app.use('/', authenticateToken, requireAdmin, aUsersRoutes)          // A_Users.jsx
