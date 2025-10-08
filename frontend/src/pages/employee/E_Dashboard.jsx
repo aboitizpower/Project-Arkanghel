@@ -29,7 +29,11 @@ const E_Dashboard = () => {
       const fetchDashboardData = async () => {
         try {
           // Use user.id from the auth context for the API call
-          const response = await axios.get(`${API_URL}/employee/dashboard/${user.id}`);
+          const response = await axios.get(`${API_URL}/employee/dashboard/${user.id}`, {
+            headers: {
+              'Authorization': `Bearer ${user.token}`
+            }
+          });
           const workstreamsData = response.data.workstreams;
           setWorkstreams(workstreamsData);
           

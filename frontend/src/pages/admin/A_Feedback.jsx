@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { FaCalendarAlt, FaClock, FaBug, FaLightbulb } from 'react-icons/fa';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Feedback.css';
+import { useAuth } from '../../auth/AuthProvider';
 
 const A_Feedback = () => {
+  const { user } = useAuth(); // Get user from auth context
   const [feedback, setFeedback] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -30,7 +32,11 @@ const A_Feedback = () => {
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
-        const response = await fetch('http://localhost:8081/admin/feedback');
+        const response = await fetch('http://localhost:8081/admin/feedback', {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch feedback');
         }

@@ -3,8 +3,10 @@ import axios from 'axios';
 import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Leaderboard.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAuth } from '../../auth/AuthProvider';
 
 const E_Leaderboard = () => {
+    const { user } = useAuth(); // Get user from auth context
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -16,7 +18,7 @@ const E_Leaderboard = () => {
     useEffect(() => {
         const fetchLeaderboard = async () => {
             try {
-                const response = await axios.get('http://localhost:8081/employee/leaderboard');
+                const response = await axios.get('http://localhost:8081/employee/leaderboard', { headers: { 'Authorization': `Bearer ${user.token}` } });
                 setLeaderboardData(response.data);
             } catch (err) {
                 setError('Failed to fetch leaderboard data. Please try again later.');
