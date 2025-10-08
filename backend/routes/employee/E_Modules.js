@@ -152,7 +152,58 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
             w.description, 
             w.image_type,
             w.created_at,
-            w.deadline
+            w.deadline,
+            COALESCE((
+                SELECT 
+                    CASE 
+                        WHEN total_items = 0 THEN 0
+                        ELSE (completed_items * 100.0) / total_items
+                    END
+                FROM (
+                    SELECT 
+                        -- Count completed chapters
+                        COALESCE((
+                            SELECT COUNT(DISTINCT up.chapter_id)
+                            FROM user_progress up
+                            JOIN module_chapters mc ON up.chapter_id = mc.chapter_id
+                            WHERE up.user_id = ? 
+                              AND mc.workstream_id = w.workstream_id 
+                              AND up.is_completed = TRUE
+                              AND mc.is_published = TRUE
+                        ), 0) +
+                        -- Count passed assessments (75% passing threshold)
+                        COALESCE((
+                            SELECT COUNT(DISTINCT a.assessment_id)
+                            FROM assessments a
+                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                              AND EXISTS (
+                                  SELECT 1
+                                  FROM answers ans
+                                  JOIN questions q ON ans.question_id = q.question_id
+                                  WHERE q.assessment_id = a.assessment_id 
+                                    AND ans.user_id = ?
+                                  GROUP BY q.assessment_id
+                                  HAVING (SUM(ans.score) * 100.0 / COUNT(q.question_id)) >= 75
+                              )
+                        ), 0) as completed_items,
+                        -- Total chapters + assessments
+                        COALESCE((
+                            SELECT COUNT(*) 
+                            FROM module_chapters mc 
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                        ), 0) +
+                        COALESCE((
+                            SELECT COUNT(DISTINCT a.assessment_id) 
+                            FROM assessments a 
+                            JOIN module_chapters mc ON a.chapter_id = mc.chapter_id 
+                            WHERE mc.workstream_id = w.workstream_id 
+                              AND mc.is_published = TRUE
+                        ), 0) as total_items
+                ) as progress_calc
+            ), 0) as progress
         FROM workstreams w
         WHERE w.workstream_id = ? AND w.is_published = TRUE
           AND (
@@ -161,7 +212,7 @@ router.get('/employee/workstreams/:workstreamId', (req, res) => {
           )
     `;
 
-    req.db.query(workstreamSql, [workstreamId, userId, userId], (err, workstreamResults) => {
+    req.db.query(workstreamSql, [userId, userId, workstreamId, userId, userId], (err, workstreamResults) => {
         if (err) {
             console.error('Error fetching workstream:', err);
             return res.status(500).json({

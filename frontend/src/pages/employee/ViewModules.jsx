@@ -96,6 +96,11 @@ const ViewModules = () => {
             const workstream = response.data.workstream;
             setSelectedWorkstream(workstream);
             
+            // Set progress from backend API (includes chapters + assessment scores)
+            if (workstream.progress !== undefined) {
+                setWorkstreamProgress(Math.round(workstream.progress));
+            }
+            
             // Fetch chapters and user progress in parallel
             const [chaptersData] = await Promise.all([
                 fetchChapters(workstreamId),
@@ -174,20 +179,8 @@ const ViewModules = () => {
             
             setCompletedChapters(progressData);
             
-            // Calculate overall workstream progress
-            if (chapters.length > 0) {
-                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
-                const finalAssessmentChapters = chapters.filter(ch => ch.title.toLowerCase().includes('final assessment'));
-                const totalItems = regularChapters.length + finalAssessmentChapters.length;
-                const completedItems = progressData.size;
-                const progress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-                setWorkstreamProgress(progress);
-                
-                // Clear last viewed chapter when workstream is completed
-                if (progress === 100) {
-                    clearLastViewedChapter(selectedWorkstream.workstream_id);
-                }
-            }
+            // Note: Progress is now set from the backend API in fetchWorkstreamById
+            // This ensures it includes both chapter completion and assessment scores
             
             return progressData;
         } catch (err) {
