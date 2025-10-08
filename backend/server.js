@@ -219,57 +219,16 @@ app.get('/workstreams/:id/image', (req, res) => {
     });
 });
 
-// Public video route (no authentication required for videos)
-app.get('/chapters/:id/video', (req, res) => {
-    const { id } = req.params;
-    console.log(`🎥 Video request for chapter ID: ${id}`);
-    
-    // Check if database connection exists
-    if (!req.db) {
-        console.error(`❌ No database connection available`);
-        return res.status(500).json({ error: 'Database connection not available' });
-    }
-    
-    const sql = 'SELECT video_file, video_mime_type FROM module_chapters WHERE chapter_id = ?';
-    console.log(`📝 Executing SQL: ${sql} with ID: ${id}`);
-    
-    req.db.query(sql, [id], (err, results) => {
-        if (err) {
-            console.error(`❌ Database error for chapter ${id}:`, err.message);
-            return res.status(500).json({ error: err.message });
-        }
-        
-        console.log(`📊 Query results for chapter ${id}:`, {
-            resultCount: results.length,
-            hasVideo: results.length > 0 && !!results[0].video_file,
-            videoType: results.length > 0 ? results[0].video_mime_type : null,
-            videoSize: results.length > 0 && results[0].video_file ? results[0].video_file.length : 0
-        });
-        
-        if (results.length === 0) {
-            console.log(`❌ No chapter found with ID: ${id}`);
-            return res.status(404).json({ error: 'Chapter not found.' });
-        }
-        
-        if (!results[0].video_file) {
-            console.log(`❌ No video data for chapter ID: ${id}`);
-            return res.status(404).json({ error: 'Video not found.' });
-        }
-        
-        const { video_file, video_mime_type } = results[0];
-        console.log(`✅ Serving video for chapter ${id}, type: ${video_mime_type}, size: ${video_file.length} bytes`);
-        
-        // Set CORS headers for video requests
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        
-        res.setHeader('Content-Type', video_mime_type);
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-        res.setHeader('Accept-Ranges', 'bytes'); // Enable video seeking
-        res.send(video_file);
-    });
-});
+// Employee routes (require authentication) - Register BEFORE admin routes to avoid conflicts
+app.use('/employee', authenticateToken, eDashboardRoutes)  // E_Dashboard.jsx
+app.use('/employee', authenticateToken, eTasksRoutes)  // TaskSidebar.jsx
+app.use('/employee/certificates', authenticateToken, certificatesRoutes)  // Certificate generation
+app.use('/employee', authenticateToken, eFeedbackRoutes);
+app.use('/', authenticateToken, eModulesRoutes)        // E_Modules.jsx
+app.use('/', authenticateToken, viewModulesRoutes)     // ViewModules.jsx
+app.use('/', authenticateToken, takeAssessmentsRoutes) // TakeAssessments.jsx
+app.use('/', authenticateToken, eAssessmentsRoutes)    // E_Assessments.jsx
+app.use('/', authenticateToken, eLeaderboardRoutes)    // E_Leaderboard.jsx
 
 // Public PDF route (no authentication required for PDFs)
 app.get('/chapters/:id/pdf', (req, res) => {
@@ -335,17 +294,6 @@ app.use('/', authenticateToken, requireAdmin, assessmentEditRoutes)  // Assessme
 app.use('/', authenticateToken, requireAdmin, aAnalyticsRoutes)     // A_Analytics.jsx
 app.use('/', authenticateToken, requireAdmin, aLeaderboardRoutes)   // A_Leaderboard.jsx
 app.use('/', authenticateToken, requireAdmin, aFeedbackRoutes);
-
-// Employee routes (require authentication)
-app.use('/', authenticateToken, eModulesRoutes)        // E_Modules.jsx
-app.use('/', authenticateToken, viewModulesRoutes)     // ViewModules.jsx
-app.use('/', authenticateToken, takeAssessmentsRoutes) // TakeAssessments.jsx
-app.use('/', authenticateToken, eAssessmentsRoutes)    // E_Assessments.jsx
-app.use('/employee', authenticateToken, eDashboardRoutes)  // E_Dashboard.jsx
-app.use('/', authenticateToken, eLeaderboardRoutes)    // E_Leaderboard.jsx
-app.use('/employee', authenticateToken, eTasksRoutes)  // TaskSidebar.jsx
-app.use('/employee/certificates', authenticateToken, certificatesRoutes)  // Certificate generation
-app.use('/employee', authenticateToken, eFeedbackRoutes);
 
 // Notification routes (only if loaded successfully)
 if (notificationRoutes) {
