@@ -629,43 +629,90 @@ router.get('/employee/assessment/:assessmentId/passed', (req, res) => {
         });
     }
 
-    const sql = `
+    // First get the total questions and passing score for this assessment
+    const assessmentInfoSql = `
         SELECT 
-            COUNT(q.question_id) as total_questions,
-            COALESCE(SUM(ans.score), 0) as total_score,
-            CASE 
-                WHEN COUNT(q.question_id) > 0 THEN 
-                    (COALESCE(SUM(ans.score), 0) * 100.0 / COUNT(q.question_id)) >= 75
-                ELSE FALSE 
-            END as passed
-        FROM questions q
-        LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
-        WHERE q.assessment_id = ?
+            a.passing_score,
+            COUNT(q.question_id) as total_questions
+        FROM assessments a
+        JOIN questions q ON a.assessment_id = q.assessment_id
+        WHERE a.assessment_id = ?
+        GROUP BY a.assessment_id, a.passing_score
     `;
 
-    req.db.query(sql, [userId, assessmentId], (err, results) => {
+    // Check user's best attempt by grouping answers by timestamp (to the second)
+    // This separates each assessment submission properly
+    const bestAttemptSql = `
+        SELECT 
+            MAX(attempt_score) as best_score,
+            MAX(attempt_percentage) as best_percentage
+        FROM (
+            SELECT 
+                UNIX_TIMESTAMP(ans.answered_at) DIV 60 as attempt_minute,
+                SUM(ans.score) as attempt_score,
+                (SUM(ans.score) * 100.0 / ?) as attempt_percentage
+            FROM answers ans
+            WHERE ans.user_id = ? AND ans.question_id IN (
+                SELECT question_id FROM questions WHERE assessment_id = ?
+            )
+            GROUP BY UNIX_TIMESTAMP(ans.answered_at) DIV 60
+            HAVING COUNT(*) = ?
+        ) attempts
+    `;
+
+    // First, get assessment info
+    req.db.query(assessmentInfoSql, [assessmentId], (err, assessmentResults) => {
         if (err) {
-            console.error('Error checking assessment pass status:', err);
+            console.error('Error getting assessment info:', err);
             return res.status(500).json({
                 success: false,
                 error: 'Failed to check assessment status.'
             });
         }
 
-        if (results.length === 0) {
+        if (assessmentResults.length === 0) {
             return res.status(404).json({
                 success: false,
                 error: 'Assessment not found.'
             });
         }
 
-        const result = results[0];
-        res.json({
-            success: true,
-            passed: result.passed === 1,
-            total_questions: result.total_questions,
-            total_score: result.total_score,
-            percentage: result.total_questions > 0 ? Math.round((result.total_score / result.total_questions) * 100) : 0
+        const assessmentInfo = assessmentResults[0];
+        const totalQuestions = assessmentInfo.total_questions;
+        const passingScore = assessmentInfo.passing_score;
+
+        // Now check user's best attempt
+        req.db.query(bestAttemptSql, [totalQuestions, userId, assessmentId, totalQuestions], (err, attemptResults) => {
+            if (err) {
+                console.error('Error checking user attempts:', err);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to check assessment status.'
+                });
+            }
+
+            const bestAttempt = attemptResults[0];
+            const bestScore = bestAttempt?.best_score || 0;
+            const bestPercentage = bestAttempt?.best_percentage || 0;
+            const passed = bestPercentage >= passingScore;
+
+            console.log(`Assessment ${assessmentId} for user ${userId}:`, {
+                totalQuestions,
+                passingScore,
+                bestScore,
+                bestPercentage,
+                passed,
+                rawAttemptResults: attemptResults
+            });
+
+            res.json({
+                success: true,
+                passed: passed,
+                total_questions: totalQuestions,
+                total_score: bestScore,
+                percentage: Math.round(bestPercentage),
+                passing_score: passingScore
+            });
         });
     });
 });
@@ -710,21 +757,20 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
                     SELECT 1 
                     FROM (
                         SELECT 
-                            DATE(ans2.answered_at) as attempt_date,
-                            COUNT(DISTINCT q2.question_id) as total_questions,
-                            COUNT(DISTINCT CASE WHEN ans2.score = 1 THEN q2.question_id END) as correct_answers
+                            UNIX_TIMESTAMP(ans2.answered_at) DIV 60 as attempt_minute,
+                            COUNT(q2.question_id) as total_questions,
+                            SUM(ans2.score) as correct_answers
                         FROM questions q2
                         INNER JOIN answers ans2 ON q2.question_id = ans2.question_id 
                         WHERE q2.assessment_id = ? AND ans2.user_id = ?
-                        GROUP BY DATE(ans2.answered_at)
-                        HAVING correct_answers = total_questions AND total_questions > 0
+                        GROUP BY UNIX_TIMESTAMP(ans2.answered_at) DIV 60
+                        HAVING correct_answers = total_questions AND total_questions > 0 AND COUNT(*) = total_questions
                     ) perfect_attempts
                 ) THEN 1
                 ELSE 0
             END as has_perfect_attempt
         FROM assessments a
         JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-        WHERE a.assessment_id = ?
     `;
 
     // Execute both queries

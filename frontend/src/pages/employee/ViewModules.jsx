@@ -29,6 +29,7 @@ const ViewModules = () => {
     const [workstreamProgress, setWorkstreamProgress] = useState(0);
     const [showCertificateModal, setShowCertificateModal] = useState(false);
     const [certificateData, setCertificateData] = useState(null);
+    const [chapterAssessmentStatus, setChapterAssessmentStatus] = useState(new Map()); // Map of chapterId -> {hasAssessment: boolean, passed: boolean}
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -43,6 +44,45 @@ const ViewModules = () => {
             document.body.classList.remove('module-view-active');
         };
     }, []);
+
+    // Function to refresh assessment status for a specific chapter
+    const refreshChapterAssessmentStatus = async (chapterId) => {
+        if (!user?.id) return;
+        
+        try {
+            const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapterId}/assessment`, {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            
+            const assessmentData = assessmentResponse.data.assessment;
+            
+            if (assessmentData && assessmentData.assessment_id) {
+                try {
+                    const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed`, {
+                        params: { userId: user.id },
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    });
+                    
+                    const passed = passCheckResponse.data.passed || false;
+                    console.log(`Refreshed assessment status for chapter ${chapterId}:`, { passed });
+                    
+                    // Update the status map
+                    setChapterAssessmentStatus(prev => new Map(prev).set(chapterId, {
+                        hasAssessment: true,
+                        passed: passed
+                    }));
+                    
+                    return passed;
+                } catch (passErr) {
+                    console.error('Error checking pass status:', passErr);
+                    return false;
+                }
+            }
+        } catch (err) {
+            console.error('Error refreshing assessment status:', err);
+            return false;
+        }
+    };
 
     // Handle authentication state and data fetching
     useEffect(() => {
@@ -72,6 +112,78 @@ const ViewModules = () => {
             fetchData();
         }
     }, [moduleId, user, authLoading, navigate, location]);
+
+    // Listen for when user returns from assessment page
+    useEffect(() => {
+        const handleFocus = async () => {
+            // If we have a selected chapter with an assessment, refresh its status
+            if (selectedChapter && assessmentForCurrentChapter) {
+                console.log('Window focused - refreshing assessment status');
+                const passed = await refreshChapterAssessmentStatus(selectedChapter.chapter_id);
+                if (passed) {
+                    setIsAssessmentPassed(true);
+                }
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [selectedChapter, assessmentForCurrentChapter, user]);
+
+    // Fetch assessment status for all chapters in the workstream
+    const fetchAllChapterAssessmentStatus = async (chapters) => {
+        if (!user?.id || !chapters?.length) return;
+        
+        const statusMap = new Map();
+        
+        for (const chapter of chapters) {
+            try {
+                // Check if chapter has assessment
+                const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`, {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
+                
+                const assessmentData = assessmentResponse.data.assessment;
+                
+                if (assessmentData && assessmentData.assessment_id) {
+                    // Chapter has assessment, check if passed
+                    try {
+                        const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed`, {
+                            params: { userId: user.id },
+                            headers: { 'Authorization': `Bearer ${user.token}` }
+                        });
+                        
+                        console.log(`Chapter ${chapter.chapter_id} (${chapter.title}) assessment status:`, passCheckResponse.data);
+                        
+                        statusMap.set(chapter.chapter_id, {
+                            hasAssessment: true,
+                            passed: passCheckResponse.data.passed || false
+                        });
+                    } catch (passErr) {
+                        statusMap.set(chapter.chapter_id, {
+                            hasAssessment: true,
+                            passed: false
+                        });
+                    }
+                } else {
+                    // No assessment for this chapter
+                    statusMap.set(chapter.chapter_id, {
+                        hasAssessment: false,
+                        passed: true // No assessment means it's automatically "passed"
+                    });
+                }
+            } catch (err) {
+                console.error(`Error fetching assessment for chapter ${chapter.chapter_id}:`, err);
+                // Default to no assessment on error
+                statusMap.set(chapter.chapter_id, {
+                    hasAssessment: false,
+                    passed: true
+                });
+            }
+        }
+        
+        setChapterAssessmentStatus(statusMap);
+    };
 
     // Fetch specific workstream based on moduleId
     const fetchWorkstreamById = async (workstreamId) => {
@@ -107,9 +219,25 @@ const ViewModules = () => {
                 fetchUserProgress(workstreamId)
             ]);
             
-            // If there are chapters, select the first one by default
-            if (chaptersData?.length > 0 && !selectedChapter) {
-                setSelectedChapter(chaptersData[0]);
+            // After loading chapters, trigger the chapter selection logic
+            if (chaptersData?.length > 0) {
+                // Check if there's a last viewed chapter stored
+                const lastViewedChapterId = getLastViewedChapter(workstreamId);
+                const lastViewedChapter = lastViewedChapterId ? chaptersData.find(ch => ch.chapter_id === lastViewedChapterId) : null;
+                
+                console.log('Initial workstream load - Last viewed chapter check:', {
+                    workstreamId,
+                    lastViewedChapterId,
+                    lastViewedChapter: lastViewedChapter?.title
+                });
+                
+                if (lastViewedChapter) {
+                    console.log('Selecting last viewed chapter on workstream load:', lastViewedChapter.title);
+                    setSelectedChapter(lastViewedChapter);
+                } else {
+                    console.log('No last viewed chapter, selecting first chapter');
+                    setSelectedChapter(chaptersData[0]);
+                }
             }
             
             return workstream;
@@ -145,6 +273,10 @@ const ViewModules = () => {
             });
             
             setChapters(sortedChapters);
+            
+            // Fetch assessment status for all chapters
+            await fetchAllChapterAssessmentStatus(sortedChapters);
+            
             return sortedChapters;
         } catch (err) {
             console.error('Error in fetchChapters:', err);
@@ -230,15 +362,34 @@ const ViewModules = () => {
                         params: { userId: user.id },
                         headers: { 'Authorization': `Bearer ${user.token}` }
                     });
-                    setIsAssessmentPassed(passCheckResponse.data.passed || false);
+                    const passed = passCheckResponse.data.passed || false;
+                    setIsAssessmentPassed(passed);
+                    
+                    // Update chapter assessment status map
+                    setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
+                        hasAssessment: true,
+                        passed: passed
+                    }));
                 } catch (passErr) {
                     console.log('Assessment not taken yet or failed to check pass status');
                     setIsAssessmentPassed(false);
+                    
+                    // Update chapter assessment status map
+                    setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
+                        hasAssessment: true,
+                        passed: false
+                    }));
                 }
             } else {
                 // No assessment for this chapter, clear assessment state
                 setAssessmentForCurrentChapter(null);
                 setIsAssessmentPassed(false);
+                
+                // Update chapter assessment status map
+                setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
+                    hasAssessment: false,
+                    passed: true // No assessment means it's automatically "passed"
+                }));
             }
         } catch (err) {
             console.error('Error fetching assessment:', err);
@@ -746,7 +897,24 @@ const ViewModules = () => {
                                     .map((chapter, index) => {
                                         const isCompleted = completedChapters.has(chapter.chapter_id);
                                         const isSelected = selectedChapter && selectedChapter.chapter_id === chapter.chapter_id;
-                                        const isLocked = index > 0 && !completedChapters.has(chapters[chapters.findIndex(ch => ch.chapter_id === chapter.chapter_id) - 1]?.chapter_id);
+                                        
+                                        // Improved locking logic: check if previous chapter's assessment (if any) has been passed
+                                        let isLocked = false;
+                                        if (index > 0) {
+                                            const previousChapter = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'))[index - 1];
+                                            if (previousChapter) {
+                                                const prevChapterStatus = chapterAssessmentStatus.get(previousChapter.chapter_id);
+                                                if (prevChapterStatus) {
+                                                    // If previous chapter has assessment, must be passed. If no assessment, must be completed.
+                                                    isLocked = prevChapterStatus.hasAssessment ? 
+                                                        !prevChapterStatus.passed : 
+                                                        !completedChapters.has(previousChapter.chapter_id);
+                                                } else {
+                                                    // Fallback to old logic if status not loaded yet
+                                                    isLocked = !completedChapters.has(previousChapter.chapter_id);
+                                                }
+                                            }
+                                        }
                                         
                                         return (
                                             <li 

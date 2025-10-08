@@ -237,16 +237,26 @@ router.post('/assessments/:id/submit', async (req, res) => {
                 // Check if user already has a perfect score for this assessment
                 const perfectScoreCheckSql = `
                     SELECT 
-                        COUNT(q.question_id) as total_questions,
-                        COALESCE(SUM(ans.score), 0) as total_score
-                    FROM questions q
-                    LEFT JOIN answers ans ON q.question_id = ans.question_id AND ans.user_id = ?
-                    WHERE q.assessment_id = ?
+                        CASE 
+                            WHEN EXISTS (
+                                SELECT 1 
+                                FROM (
+                                    SELECT 
+                                        UNIX_TIMESTAMP(ans2.answered_at) DIV 60 as attempt_minute,
+                                        COUNT(q2.question_id) as total_questions,
+                                        SUM(ans2.score) as correct_answers
+                                    FROM questions q2
+                                    INNER JOIN answers ans2 ON q2.question_id = ans2.question_id 
+                                    WHERE q2.assessment_id = ? AND ans2.user_id = ?
+                                    GROUP BY UNIX_TIMESTAMP(ans2.answered_at) DIV 60
+                                    HAVING correct_answers = total_questions AND total_questions > 0 AND COUNT(*) = total_questions
+                                ) perfect_attempts
+                            ) THEN 1
+                            ELSE 0
+                        END as has_perfect_attempt
                 `;
-                const [perfectScoreCheck] = await req.db.promise().query(perfectScoreCheckSql, [user_id, assessment_id]);
-                const previousResult = perfectScoreCheck[0];
-                const hadPerfectScore = previousResult && previousResult.total_questions > 0 && 
-                                     previousResult.total_score === previousResult.total_questions;
+                const [perfectScoreCheck] = await req.db.promise().query(perfectScoreCheckSql, [assessment_id, user_id]);
+                const hadPerfectScore = perfectScoreCheck[0]?.has_perfect_attempt === 1;
 
                 // If user already had a perfect score, don't allow retaking
                 if (hadPerfectScore) {
