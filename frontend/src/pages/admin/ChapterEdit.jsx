@@ -5,10 +5,12 @@ import axios from 'axios';
 import '../../styles/admin/ChapterEdit.css';
 import NotificationDialog from '../../components/NotificationDialog';
 import { FaPencilAlt, FaSave, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
+  const { user } = useAuth();
   const [editedTitle, setEditedTitle] = useState(chapter.title);
   const [editedContent, setEditedContent] = useState(chapter.content);
   const [newVideo, setNewVideo] = useState(null);
@@ -66,7 +68,10 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
 
     try {
       const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${user?.token}`
+        },
       });
       setIsEditing(prev => ({ ...prev, [field]: false }));
       
@@ -99,7 +104,11 @@ const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
     setError(null);
     try {
       const newPublishStatus = !isPublished;
-      const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus });
+      const response = await axios.put(`${API_URL}/chapters/${chapter.chapter_id}/publish`, { is_published: newPublishStatus }, {
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       setIsPublished(newPublishStatus);
       
       // Show notification
