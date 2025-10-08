@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
@@ -128,9 +129,102 @@ router.get('/assessments/:id', (req, res) => {
     });
 });
 
+// Debug endpoint to check current authentication state
+router.get('/debug/auth-check', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    console.log('🔍 Auth check - Headers:', Object.keys(req.headers));
+    console.log('🔍 Auth check - Auth header present:', !!authHeader);
+    console.log('🔍 Auth check - Token present:', !!token);
+    
+    if (token) {
+        try {
+            const decoded = jwt.decode(token);
+            console.log('🔍 Auth check - Token decoded successfully:', !!decoded);
+            res.json({
+                success: true,
+                hasAuthHeader: !!authHeader,
+                hasToken: !!token,
+                tokenDecoded: !!decoded,
+                userInfo: decoded ? { email: decoded.email, isAdmin: decoded.isAdmin } : null
+            });
+        } catch (err) {
+            console.log('🔍 Auth check - Token decode error:', err.message);
+            res.json({
+                success: false,
+                hasAuthHeader: !!authHeader,
+                hasToken: !!token,
+                error: err.message
+            });
+        }
+    } else {
+        res.json({
+            success: false,
+            hasAuthHeader: !!authHeader,
+            hasToken: !!token,
+            message: 'No token provided'
+        });
+    }
+});
+
+// Debug endpoint to check database tables
+router.get('/debug/database-check', (req, res) => {
+    try {
+        const db = req.db;
+        
+        // Check answers table
+        db.query('SELECT COUNT(*) as answer_count FROM answers', (err, answerResults) => {
+            if (err) {
+                console.error('Error checking answers table:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            // Check questions table
+            db.query('SELECT COUNT(*) as question_count FROM questions', (err2, questionResults) => {
+                if (err2) {
+                    console.error('Error checking questions table:', err2);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                // Check assessments table
+                db.query('SELECT COUNT(*) as assessment_count FROM assessments', (err3, assessmentResults) => {
+                    if (err3) {
+                        console.error('Error checking assessments table:', err3);
+                        return res.status(500).json({ error: 'Database error' });
+                    }
+                    
+                    // Check users table
+                    db.query('SELECT COUNT(*) as user_count, COUNT(CASE WHEN isAdmin = 1 THEN 1 END) as admin_count FROM users', (err4, userResults) => {
+                        if (err4) {
+                            console.error('Error checking users table:', err4);
+                            return res.status(500).json({ error: 'Database error' });
+                        }
+                        
+                        const summary = {
+                            answers: answerResults[0].answer_count,
+                            questions: questionResults[0].question_count,
+                            assessments: assessmentResults[0].assessment_count,
+                            users: userResults[0].user_count,
+                            admins: userResults[0].admin_count
+                        };
+                        
+                        console.log('📊 Database Summary:', summary);
+                        res.json(summary);
+                    });
+                });
+            });
+        });
+    } catch (err) {
+        console.error('Error in database check:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get all assessment results for the main table - Used by A_Assessment.jsx
 router.get('/assessment-results', (req, res) => {
     try {
+        console.log('🔍 Assessment Results endpoint called with query params:', req.query);
         const db = req.db;
         const { workstream_id, chapter_id } = req.query;
 
@@ -199,11 +293,20 @@ router.get('/assessment-results', (req, res) => {
         const queryCallback = (err, results) => {
             if (err) {
                 console.error('FATAL: Error fetching assessment results:', err);
+                console.error('SQL Query that failed:', sql);
+                console.error('Query parameters:', params);
                 return res.status(500).json({ 
                     error: 'Failed to fetch assessment results.', 
                     details: err.message, 
                     sqlState: err.sqlState 
                 });
+            }
+            console.log(`✅ Assessment results query successful. Found ${results.length} results`);
+            if (results.length === 0) {
+                console.log('⚠️ No assessment results found. This could mean:');
+                console.log('   - No users have taken assessments yet');
+                console.log('   - All assessment attempts are filtered out by the query conditions');
+                console.log('   - There might be data integrity issues');
             }
             res.json(results);
         };

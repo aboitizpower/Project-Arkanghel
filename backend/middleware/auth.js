@@ -11,7 +11,12 @@ export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    console.log('🔐 Auth middleware - Request URL:', req.url);
+    console.log('🔐 Auth middleware - Auth header:', authHeader ? 'Present' : 'Missing');
+    console.log('🔐 Auth middleware - Token:', token ? 'Present' : 'Missing');
+
     if (!token) {
+        console.log('❌ Auth middleware - No token provided');
         return res.status(401).json({
             success: false,
             error: 'Access token is required'
@@ -20,13 +25,15 @@ export const authenticateToken = (req, res, next) => {
     
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            console.error('Token verification failed:', err.message);
+            console.error('❌ Token verification failed:', err.message);
+            console.error('❌ Token that failed:', token.substring(0, 20) + '...');
             return res.status(403).json({
                 success: false,
                 error: 'Invalid or expired token'
             });
         }
 
+        console.log('✅ Auth middleware - Token verified successfully for user:', user.email);
         // Add user information to request object
         req.user = user;
         next();

@@ -81,6 +81,7 @@ export function AuthProvider({ children }) {
             
             // Clear local state
             localStorage.removeItem('token');
+            localStorage.removeItem('userId');
             
             // Sign out from MSAL
             const currentAccounts = instance.getAllAccounts();

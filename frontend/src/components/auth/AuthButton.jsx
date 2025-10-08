@@ -43,15 +43,20 @@ function AuthButton({ className }) {
             const appToken = verifyResponse.data.token;
             localStorage.setItem('token', appToken);
             
-            // 4. Decode the token to check admin status
+            // 4. Decode the token to check admin status and extract userId
             let isAdmin = false;
             let decodedToken;
+            let userId = null;
             
             try {
                 const tokenPayload = appToken.split('.')[1];
                 const decodedPayload = atob(tokenPayload.replace(/-/g, '+').replace(/_/g, '/'));
                 decodedToken = JSON.parse(decodedPayload);
                 console.log('Decoded token:', decodedToken);
+                
+                // Extract userId from token
+                userId = decodedToken.id || decodedToken.user_id || decodedToken.userId;
+                console.log('Extracted userId from token:', userId);
                 
                 // Check for admin status in various possible locations
                 isAdmin = Boolean(
@@ -75,6 +80,14 @@ function AuthButton({ className }) {
                 // If we can't decode the token, try to get admin status from the response
                 isAdmin = Boolean(verifyResponse.data.isAdmin);
                 console.log('Using direct isAdmin from response:', isAdmin);
+            }
+            
+            // Store userId in localStorage if we have it
+            if (userId) {
+                localStorage.setItem('userId', userId.toString());
+                console.log('Stored userId in localStorage:', userId);
+            } else {
+                console.warn('No userId found in token - Employee pages may not work correctly');
             }
             
             // 5. Force a redirect with full page reload

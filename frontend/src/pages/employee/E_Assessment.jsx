@@ -26,7 +26,14 @@ const E_Assessments = () => {
     // Fetch workstreams for filter
     useEffect(() => {
         if (!userId) return;
-        axios.get(`${API_URL}/employee/workstreams?userId=${userId}`)
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        axios.get(`${API_URL}/employee/workstreams?userId=${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
             .then(res => setWorkstreams(res.data))
             .catch(() => setWorkstreams([]));
     }, [userId]);
@@ -38,8 +45,20 @@ const E_Assessments = () => {
             setLoading(false);
             return;
         }
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('Authentication token not found. Please log in again.');
+            setLoading(false);
+            return;
+        }
+        
         setLoading(true);
-        axios.get(`${API_URL}/employee/assessment-results/${userId}`)
+        axios.get(`${API_URL}/employee/assessment-results/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
             .then(response => {
                 console.log('Assessment results response:', response.data);
                 console.log('First result object:', response.data[0]);
@@ -83,8 +102,19 @@ const E_Assessments = () => {
     // Fetch attempts for a specific assessment
     const fetchAssessmentAttempts = async (assessmentId) => {
         setAttemptsLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('Authentication token not found. Please log in again.');
+            setAttemptsLoading(false);
+            return;
+        }
+        
         try {
-            const response = await axios.get(`${API_URL}/employee/assessment-attempts/${userId}/${assessmentId}`);
+            const response = await axios.get(`${API_URL}/employee/assessment-attempts/${userId}/${assessmentId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             setSelectedAssessmentAttempts(Array.isArray(response.data) ? response.data : []);
             setShowAttemptsModal(true);
         } catch (err) {

@@ -117,7 +117,6 @@ const A_Assessment = () => {
         setKpis({
           totalWorkstreams: 0,
           totalChapters: 0,
-          totalAssessments: 0,
           totalAssessmentsTaken: 0,
         });
       });
@@ -125,6 +124,17 @@ const A_Assessment = () => {
 
   // Fetch results when filters change
   useEffect(() => {
+    console.log('A_Assessment - useEffect triggered');
+    console.log('A_Assessment - User object:', user ? 'Present' : 'Missing');
+    console.log('A_Assessment - User token:', user?.token ? 'Present' : 'Missing');
+    
+    if (!user || !user.token) {
+      console.log('A_Assessment - No user or token, skipping API call');
+      setError('User authentication required');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -134,6 +144,7 @@ const A_Assessment = () => {
 
     console.log('A_Assessment - Fetching results with URL:', url.toString());
     console.log('A_Assessment - Filters:', { selectedWorkstream, selectedChapter });
+    console.log('A_Assessment - Authorization header:', `Bearer ${user.token.substring(0, 20)}...`);
 
     fetch(url, {
       headers: {
@@ -161,7 +172,7 @@ const A_Assessment = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, [selectedWorkstream, selectedChapter]);
+  }, [selectedWorkstream, selectedChapter, user]);
 
   // Table filtering, sorting, searching, pagination
   const filteredResults = useMemo(() => {

@@ -1,9 +1,13 @@
 import express from 'express';
 import mysql from 'mysql2';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import helmet from 'helmet';
+
+// Explicitly configure dotenv
+dotenv.config();
+console.log('🔧 Environment variables loaded. JWT_SECRET available:', !!process.env.JWT_SECRET);
 
 // Convert CORS middleware to use CommonJS require
 const __filename = fileURLToPath(import.meta.url);

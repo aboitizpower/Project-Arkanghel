@@ -7,11 +7,18 @@ const router = express.Router();
 
 // This new endpoint will be called by the frontend after a successful MSAL login
 router.post('/api/auth/verify', async (req, res) => {
+    console.log('🔐 Auth verify endpoint called');
+    console.log('🔐 JWT_SECRET available:', !!process.env.JWT_SECRET);
+    console.log('🔐 JWT_SECRET length:', process.env.JWT_SECRET?.length);
+    
     const { idToken } = req.body;
 
     if (!idToken) {
+        console.log('❌ No ID token provided');
         return res.status(400).json({ message: 'ID token is required.' });
     }
+    
+    console.log('🔐 ID token received:', idToken.substring(0, 50) + '...');
 
     try {
         // Decode the token to get user claims without verification first
