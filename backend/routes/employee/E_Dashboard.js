@@ -12,6 +12,12 @@ const router = express.Router();
 router.get('/dashboard/:userId', (req, res) => {
     const { userId } = req.params;
     
+    // Debug logging
+    console.log('🔍 EMPLOYEE DASHBOARD ROUTE HIT');
+    console.log('🔍 Request URL:', req.url);
+    console.log('🔍 Request user from token:', req.user);
+    console.log('🔍 Requested userId:', userId);
+    
     // Input validation
     if (!userId || isNaN(parseInt(userId))) {
         console.error(`[ERROR] Invalid user ID provided: ${userId}`);

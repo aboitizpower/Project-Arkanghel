@@ -53,8 +53,12 @@ const E_Dashboard = () => {
             completed: completedCount
           });
         } catch (err) {
-          console.error('Full API Error:', err);
+          console.error('🔴 DASHBOARD API ERROR:', err);
+          console.error('🔴 Error response:', err.response);
+          console.error('🔴 Error status:', err.response?.status);
+          console.error('🔴 Error data:', err.response?.data);
           const errorMessage = err.response?.data?.details || err.response?.data?.error || err.message || 'Failed to fetch dashboard data.';
+          console.error('🔴 Setting error message:', errorMessage);
           setError(errorMessage);
           console.error('Error fetching dashboard data:', err);
         } finally {
