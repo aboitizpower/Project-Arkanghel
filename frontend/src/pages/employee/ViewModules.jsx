@@ -411,13 +411,17 @@ const ViewModules = () => {
     const handleFinalAssessmentClick = async (chapter) => {
         try {
             // Fetch assessment for this final assessment chapter
-            const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`);
+            const assessmentResponse = await axios.get(`${API_URL}/employee/chapters/${chapter.chapter_id}/assessment`, {
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
             const assessmentData = assessmentResponse.data.assessment;
 
             if (assessmentData && assessmentData.assessment_id) {
                 // Check if user has completed this final assessment with perfect score
                 try {
-                    const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/perfect-score?userId=${user.id}`);
+                    const perfectScoreResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/perfect-score?userId=${user.id}`, {
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    });
                     
                     if (perfectScoreResponse.data.completed_with_perfect_score) {
                         // Show completion dialog and prevent access
@@ -586,7 +590,9 @@ const ViewModules = () => {
             // If the specified chapter is a final assessment and workstream is complete, redirect to last regular chapter
             if (chapterToSelect && chapterToSelect.title.toLowerCase().includes('final assessment')) {
                 // Check if workstream is complete by fetching fresh progress data
-                axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`)
+                axios.get(`${API_URL}/user-progress/${user.id}/${selectedWorkstream.workstream_id}`, {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                })
                     .then(response => {
                         const progressData = response.data.chapters.reduce((acc, chapter) => {
                             if (chapter.is_completed) {

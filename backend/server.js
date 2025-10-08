@@ -61,7 +61,8 @@ app.use(helmet({
     contentSecurityPolicy: false, // Disable CSP for development
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: false, // Disable for development
-    crossOriginOpenerPolicy: false
+    crossOriginOpenerPolicy: false,
+    frameguard: false // Disable X-Frame-Options for development
 }));
 
 // CSP enabled for development with HTTP localhost support
@@ -76,7 +77,7 @@ app.use((req, res, next) => {
             "connect-src 'self' https: http: wss: ws:; " +
             "media-src 'self' http://localhost:8081; " +
             "object-src 'none'; " +
-            "frame-src 'none'; " +
+            "frame-src 'self' http://localhost:8081 https://login.microsoftonline.com; " +
             "base-uri 'self'; " +
             "form-action 'self'"
         );
@@ -107,10 +108,19 @@ app.use('/chapters/:id/video', (req, res, next) => {
     next();
 });
 
+app.use('/chapters/:id/pdf', (req, res, next) => {
+    console.log(`🔧 Setting CORS headers for PDF request: ${req.url}`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+});
+
 // Additional security headers to prevent cross-domain issues (relaxed for development)
 app.use((req, res, next) => {
-    // Prevent clickjacking
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    // Allow framing for development (X-Frame-Options disabled for localhost)
+    // res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Disabled for development
     // Prevent MIME type sniffing
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Enable XSS protection
@@ -145,6 +155,18 @@ app.use((req, res, next) => {
 
 // Route registration - Each route file corresponds to frontend pages/components
 app.use('/', authRoutes);
+
+// Handle root path for framing (development only)
+app.get('/', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.json({ 
+        message: 'Arkanghel Backend API', 
+        status: 'running',
+        timestamp: new Date().toISOString()
+    });
+});
 
 // Public media routes (no authentication required for images and videos)
 app.get('/workstreams/:id/image', (req, res) => {
@@ -246,6 +268,58 @@ app.get('/chapters/:id/video', (req, res) => {
         res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
         res.setHeader('Accept-Ranges', 'bytes'); // Enable video seeking
         res.send(video_file);
+    });
+});
+
+// Public PDF route (no authentication required for PDFs)
+app.get('/chapters/:id/pdf', (req, res) => {
+    const { id } = req.params;
+    console.log(`📄 PDF request for chapter ID: ${id}`);
+    
+    // Check if database connection exists
+    if (!req.db) {
+        console.error(`❌ No database connection available`);
+        return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const sql = 'SELECT pdf_file, pdf_mime_type FROM module_chapters WHERE chapter_id = ?';
+    console.log(`📝 Executing SQL: ${sql} with ID: ${id}`);
+    
+    req.db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error(`❌ Database error for chapter ${id}:`, err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`📊 Query results for chapter ${id}:`, {
+            resultCount: results.length,
+            hasPdf: results.length > 0 && !!results[0].pdf_file,
+            pdfType: results.length > 0 ? results[0].pdf_mime_type : null,
+            pdfSize: results.length > 0 && results[0].pdf_file ? results[0].pdf_file.length : 0
+        });
+        
+        if (results.length === 0) {
+            console.log(`❌ No chapter found with ID: ${id}`);
+            return res.status(404).json({ error: 'Chapter not found.' });
+        }
+        
+        if (!results[0].pdf_file) {
+            console.log(`❌ No PDF data for chapter ID: ${id}`);
+            return res.status(404).json({ error: 'PDF not found.' });
+        }
+        
+        const { pdf_file, pdf_mime_type } = results[0];
+        console.log(`✅ Serving PDF for chapter ${id}, type: ${pdf_mime_type}, size: ${pdf_file.length} bytes`);
+        
+        // Set CORS headers for PDF requests
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        
+        res.setHeader('Content-Type', pdf_mime_type || 'application/pdf');
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        res.setHeader('Content-Disposition', 'inline'); // Display in browser instead of download
+        res.send(pdf_file);
     });
 });
 

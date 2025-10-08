@@ -20,7 +20,7 @@ const cspPlugin = () => {
           "connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com",
           "media-src 'self' http://localhost:8081",
           "object-src 'none'",
-          "frame-src 'self' https://login.microsoftonline.com",
+          "frame-src 'self' http://localhost:8081 https://login.microsoftonline.com",
           "base-uri 'self'",
           "form-action 'self' https://login.microsoftonline.com"
         ].join('; ');
@@ -28,7 +28,7 @@ const cspPlugin = () => {
         // Set multiple security headers
         res.setHeader('Content-Security-Policy', cspPolicy);
         res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        // res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Disabled for development
         res.setHeader('X-XSS-Protection', '1; mode=block');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         
@@ -56,9 +56,9 @@ export default defineConfig({
     // Alternative approach: configure middleware directly
     middlewareMode: false,
     headers: {
-      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:8081 blob:; connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com; media-src 'self' http://localhost:8081; object-src 'none'; frame-src 'self' https://login.microsoftonline.com; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
+      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:8081 blob:; connect-src 'self' https: wss: ws: http://localhost:8081 http://localhost:5173 https://login.microsoftonline.com https://graph.microsoft.com; media-src 'self' http://localhost:8081; object-src 'none'; frame-src 'self' http://localhost:8081 https://login.microsoftonline.com; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'SAMEORIGIN',
+      // 'X-Frame-Options': 'SAMEORIGIN', // Disabled for development
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       // Additional security headers - relaxed for MSAL compatibility
