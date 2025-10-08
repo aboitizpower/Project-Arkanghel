@@ -890,6 +890,48 @@ router.get('/employee/workstreams/:workstreamId/last-viewed-chapter', (req, res)
     });
 });
 
+/**
+ * @route DELETE /employee/progress/:chapterId
+ * @description Clear completion status for a specific chapter
+ * @access Private (Employee)
+ * @param {string} chapterId - The ID of the chapter to clear progress for
+ * @returns {Object} Success status
+ */
+router.delete('/employee/progress/:chapterId', (req, res) => {
+    const { chapterId } = req.params;
+    const userId = req.user?.id;
+
+    if (!chapterId || !userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Chapter ID and User ID are required.'
+        });
+    }
+
+    const deleteProgressSql = `
+        DELETE FROM user_progress 
+        WHERE user_id = ? AND chapter_id = ?
+    `;
+
+    req.db.query(deleteProgressSql, [userId, chapterId], (err, result) => {
+        if (err) {
+            console.error('Error clearing chapter progress:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to clear chapter progress.'
+            });
+        }
+
+        console.log(`Cleared progress for user ${userId}, chapter ${chapterId}. Rows affected: ${result.affectedRows}`);
+        
+        res.json({
+            success: true,
+            message: 'Chapter progress cleared successfully.',
+            rowsAffected: result.affectedRows
+        });
+    });
+});
+
 // ally delete mo tong comment na to
 
 export default router;

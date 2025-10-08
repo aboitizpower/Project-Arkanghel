@@ -225,18 +225,34 @@ const ViewModules = () => {
                 const lastViewedChapterId = getLastViewedChapter(workstreamId);
                 const lastViewedChapter = lastViewedChapterId ? chaptersData.find(ch => ch.chapter_id === lastViewedChapterId) : null;
                 
+                // Get the first chapter in the current order (after any reordering)
+                const firstChapterInOrder = chaptersData[0];
+                
                 console.log('Initial workstream load - Last viewed chapter check:', {
                     workstreamId,
                     lastViewedChapterId,
-                    lastViewedChapter: lastViewedChapter?.title
+                    lastViewedChapter: lastViewedChapter?.title,
+                    firstChapterInOrder: firstChapterInOrder?.title,
+                    isLastViewedStillFirst: lastViewedChapter?.chapter_id === firstChapterInOrder?.chapter_id
                 });
                 
-                if (lastViewedChapter) {
-                    console.log('Selecting last viewed chapter on workstream load:', lastViewedChapter.title);
+                // If last viewed chapter exists and is still the first chapter in order, use it
+                // Otherwise, default to the new first chapter in order
+                if (lastViewedChapter && lastViewedChapter.chapter_id === firstChapterInOrder.chapter_id) {
+                    console.log('Last viewed chapter is still first in order, selecting:', lastViewedChapter.title);
                     setSelectedChapter(lastViewedChapter);
+                } else if (lastViewedChapter && lastViewedChapter.chapter_id !== firstChapterInOrder.chapter_id) {
+                    console.log('Last viewed chapter is no longer first in order, selecting new first chapter:', firstChapterInOrder.title);
+                    setSelectedChapter(firstChapterInOrder);
+                    // Update the stored last viewed chapter to the new first chapter
+                    storeLastViewedChapter(workstreamId, firstChapterInOrder.chapter_id);
+                    
+                    // Clear completion status of the previously first chapter since it was only marked as viewed
+                    // because users automatically landed on it, not because they intentionally completed it
+                    clearPreviousFirstChapterCompletion(lastViewedChapter.chapter_id);
                 } else {
-                    console.log('No last viewed chapter, selecting first chapter');
-                    setSelectedChapter(chaptersData[0]);
+                    console.log('No last viewed chapter, selecting first chapter:', firstChapterInOrder.title);
+                    setSelectedChapter(firstChapterInOrder);
                 }
             }
             
@@ -265,9 +281,9 @@ const ViewModules = () => {
             }
             
             const sortedChapters = [...response.data].sort((a, b) => {
-                // Sort by order if available, otherwise by chapter_id
-                if (a.order !== undefined && b.order !== undefined) {
-                    return a.order - b.order;
+                // Sort by order_index if available, otherwise by chapter_id
+                if (a.order_index !== undefined && b.order_index !== undefined) {
+                    return a.order_index - b.order_index;
                 }
                 return a.chapter_id - b.chapter_id;
             });
@@ -417,6 +433,34 @@ const ViewModules = () => {
     const clearLastViewedChapter = (workstreamId) => {
         const key = `lastViewedChapter_${user?.id}_${workstreamId}`;
         localStorage.removeItem(key);
+    };
+
+    // Clear completion status of a chapter that was previously first but is no longer first after reordering
+    const clearPreviousFirstChapterCompletion = async (chapterId) => {
+        if (!user?.id) return;
+        
+        try {
+            console.log(`Clearing completion status for previously first chapter: ${chapterId}`);
+            
+            const response = await axios.delete(`${API_URL}/employee/progress/${chapterId}`, {
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                }
+            });
+            
+            if (response.data.success) {
+                // Update the local completed chapters state
+                setCompletedChapters(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(chapterId);
+                    return newSet;
+                });
+                console.log(`Successfully cleared completion status for chapter ${chapterId}`);
+            }
+        } catch (err) {
+            console.error('Error clearing previous first chapter completion:', err);
+            // Don't throw error - this is not critical to the user experience
+        }
     };
 
     const handleSelectChapter = async (chapter, workstream = selectedWorkstream, preserveAssessmentStatus = false) => {
