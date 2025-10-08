@@ -885,19 +885,18 @@ const ViewModules = () => {
                                     <FaClipboardList /> Take Assessment
                                 </button>
                             )}
-                            {isLastChapter ? (
+                            {isLastChapter && workstreamProgress === 100 ? (
                                 <button 
                                     onClick={handleFinishWorkstream} 
-                                    className="btn-finish-workstream" 
-                                    disabled={isNextButtonDisabled}
+                                    className="btn-finish-workstream"
                                 >
                                     <FaCertificate /> Finish & Get Certificate
                                 </button>
-                            ) : (
+                            ) : !isLastChapter ? (
                                 <button onClick={handleNextChapter} className="btn-next-chapter" disabled={isNextButtonDisabled}>
                                     Next <FaChevronRight />
                                 </button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 </div>
