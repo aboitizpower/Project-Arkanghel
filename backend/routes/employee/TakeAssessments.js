@@ -3,6 +3,36 @@ import notificationService from '../../services/notificationService.js';
 
 const router = express.Router();
 
+// Get assessment details - Used by TakeAssessment.jsx (employee access)
+router.get('/assessments/:id', (req, res) => {
+    const { id } = req.params;
+    
+    const assessmentSql = `
+        SELECT 
+            a.*,
+            mc.title as chapter_title,
+            w.title as workstream_title,
+            w.deadline
+        FROM assessments a
+        JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+        JOIN workstreams w ON mc.workstream_id = w.workstream_id
+        WHERE a.assessment_id = ?
+    `;
+    
+    req.db.query(assessmentSql, [id], (err, assessmentResults) => {
+        if (err) {
+            console.error('Failed to fetch assessment details:', err);
+            return res.status(500).json({ error: 'Database query failed while fetching assessment details.' });
+        }
+        if (assessmentResults.length === 0) {
+            return res.status(404).json({ error: 'Assessment not found.' });
+        }
+        
+        const assessment = assessmentResults[0];
+        res.json(assessment);
+    });
+});
+
 // Get assessment questions - Used by TakeAssessments.jsx (TakeAssessment.jsx)
 router.get('/assessments/:id/questions', (req, res) => {
     const { id } = req.params;

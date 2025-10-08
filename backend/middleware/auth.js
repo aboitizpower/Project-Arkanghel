@@ -33,7 +33,7 @@ export const authenticateToken = (req, res, next) => {
             });
         }
 
-        console.log('✅ Auth middleware - Token verified successfully for user:', user.email);
+        console.log('✅ Auth middleware - User details:', { id: user.id, email: user.email, isAdmin: user.isAdmin });
         // Add user information to request object
         req.user = user;
         next();

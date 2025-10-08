@@ -337,6 +337,7 @@ app.use('/employee', authenticateToken, eFeedbackRoutes);
 app.use('/', authenticateToken, requireAdmin, aUsersRoutes)          // A_Users.jsx
 app.use('/', authenticateToken, requireAdmin, aModulesRoutes)        // A_Modules.jsx
 app.use('/', authenticateToken, requireAdmin, workstreamCreateRoutes) // WorkstreamCreate.jsx
+app.use('/', authenticateToken, requireAdmin, workstreamEditRoutes)  // WorkstreamEdit.jsx
 app.use('/', authenticateToken, requireAdmin, chapterCreateRoutes)   // ChapterCreate.jsx
 app.use('/', authenticateToken, requireAdmin, chapterEditRoutes)     // ChapterEdit.jsx
 app.use('/', authenticateToken, requireAdmin, aAssessmentRoutes)     // A_Assessment.jsx
