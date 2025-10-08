@@ -6,10 +6,12 @@ import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/WorkstreamCreate.css';
 import NotificationDialog from '../../components/NotificationDialog';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const WorkstreamCreate = () => {
+    const { user } = useAuth();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [image, setImage] = useState(null);
@@ -21,6 +23,12 @@ const WorkstreamCreate = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // Check if user is authenticated
+        if (!user || !user.token) {
+            setError('You must be logged in to create a workstream.');
+            return;
+        }
         
         // Frontend validation to match backend requirements
         if (!title || title.trim().length === 0) {
@@ -59,7 +67,10 @@ const WorkstreamCreate = () => {
         setIsLoading(true);
         try {
             const response = await axios.post(`${API_URL}/workstreams`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 
+                    'Content-Type': 'multipart/form-data',
+                    'Authorization': `Bearer ${user.token}`
+                }
             });
             
             setNotification({

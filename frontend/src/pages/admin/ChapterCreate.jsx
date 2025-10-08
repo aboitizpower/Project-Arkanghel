@@ -6,11 +6,13 @@ import AdminSidebar from '../../components/AdminSidebar';
 import axios from 'axios';
 import '../../styles/admin/ChapterCreate.css';
 import NotificationDialog from '../../components/NotificationDialog';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const ChapterCreate = () => {
   const { workstreamId } = useParams();
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [video, setVideo] = useState(null);
@@ -22,6 +24,13 @@ const ChapterCreate = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if user is authenticated
+    if (!user || !user.token) {
+      setError('You must be logged in to create a chapter.');
+      return;
+    }
+    
     setIsSubmitting(true);
     setError(null);
     try {
@@ -33,7 +42,10 @@ const ChapterCreate = () => {
       if (pdf) formData.append('pdf', pdf);
 
       const response = await axios.post(`${API_URL}/chapters`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${user.token}`
+        }
       });
       
       setNotification({

@@ -161,7 +161,12 @@ const TakeAssessments = () => {
     }, [assessmentId, location.pathname, location.state, user]);
 
     const handleAnswerChange = (questionId, answer) => {
-        setAnswers(prev => ({ ...prev, [questionId]: answer }));
+        console.log(`Answer changed for question ${questionId}:`, answer);
+        setAnswers(prev => {
+            const newAnswers = { ...prev, [questionId]: answer };
+            console.log('Updated answers state:', newAnswers);
+            return newAnswers;
+        });
     };
 
     const renderQuestionInputs = (q) => {
@@ -197,18 +202,30 @@ const TakeAssessments = () => {
                 if (optionsToRender.length === 0) {
                     return <p className="error-message">No options available for this question.</p>;
                 }
-                return optionsToRender.map((option, index) => (
-                    <label key={option.answer_id || index} className="option-label">
-                        <input 
-                            type="radio" 
-                            name={`question-${q.question_id}`} 
-                            value={option.answer_text}
-                            checked={answers[q.question_id] === option.answer_text}
-                            onChange={() => handleAnswerChange(q.question_id, option.answer_text)} 
-                        />
-                        {option.answer_text}
-                    </label>
-                ));
+                return optionsToRender.map((option, index) => {
+                    const isSelected = answers[q.question_id] === option.answer_text;
+                    console.log(`Rendering option for question ${q.question_id}:`, {
+                        optionText: option.answer_text,
+                        currentAnswer: answers[q.question_id],
+                        isSelected: isSelected
+                    });
+                    return (
+                        <label 
+                            key={option.answer_id || index} 
+                            className={`option-label ${isSelected ? 'selected' : ''}`}
+                            style={isSelected ? { backgroundColor: '#e7f3ff', borderColor: '#007bff' } : {}}
+                        >
+                            <input 
+                                type="radio" 
+                                name={`question-${q.question_id}`} 
+                                value={option.answer_text}
+                                checked={isSelected}
+                                onChange={() => handleAnswerChange(q.question_id, option.answer_text)} 
+                            />
+                            {option.answer_text}
+                        </label>
+                    );
+                });
             case 'short_answer':
             case 'identification':
                 return (

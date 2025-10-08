@@ -7,11 +7,13 @@ import axios from 'axios';
 import '../../styles/admin/AssessmentCreate.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import NotificationDialog from '../../components/NotificationDialog';
+import { useAuth } from '../../auth/AuthProvider';
 
 const API_URL = 'http://localhost:8081';
 
 const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) => {
   const { workstreamId } = useParams();
+  const { user } = useAuth();
   if (!workstreamId) {
     return (
       <div style={{ padding: '2rem', color: 'red', textAlign: 'center' }}>
@@ -48,8 +50,12 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         const targetWorkstreamId = propWorkstream?.workstream_id || stateWorkstream?.workstream_id || workstreamId;
         console.log('AssessmentCreate - Fetching data for workstream ID:', targetWorkstreamId);
         const [workstreamRes, assessmentsRes] = await Promise.all([
-          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/complete`),
-          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`)
+          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/complete`, {
+            headers: { 'Authorization': `Bearer ${user?.token}` }
+          }),
+          axios.get(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, {
+            headers: { 'Authorization': `Bearer ${user?.token}` }
+          })
         ]);
         console.log('AssessmentCreate - Workstream response:', workstreamRes.data);
         console.log('AssessmentCreate - Assessments response:', assessmentsRes.data);
@@ -120,16 +126,18 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
         type: 'multiple'
       };
     } else if (modalType === 'truefalse') {
-      // Simple True/False handling
+      // Simple True/False handling - ensure correctAnswer is always a string
       const correctAnswerValue = modalCorrectAnswer === true ? 'True' : 'False';
       
       newQuestion = {
         id: Date.now(),
         question: modalQuestion,
         options: ['True', 'False'],
-        correctAnswer: correctAnswerValue,
+        correctAnswer: correctAnswerValue, // This should be "True" or "False" string
         type: 'truefalse'
       };
+      
+      console.log('Created True/False question:', newQuestion);
     } else if (modalType === 'identification') {
       newQuestion = {
         id: Date.now(),
@@ -188,6 +196,13 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if user is authenticated
+    if (!user || !user.token) {
+      setError('You must be logged in to create an assessment.');
+      return;
+    }
+    
     if (!selectedChapterId) {
       setError('Please select a chapter or final assessment.');
       return;
@@ -219,18 +234,33 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       const assessmentData = {
         title: generatedTitle,
         description: `Assessment for ${workstream?.title || ''}`,
-        questions: questions.map(q => ({
-          ...q,
-          type: q.type === 'multiple' ? 'multiple_choice' :
-                        q.type === 'truefalse' ? 'true_false' :
-                        'identification'
-        })),
+        questions: questions.map(q => {
+          console.log('Frontend sending question:', {
+            question: q.question?.substring(0, 50) + '...',
+            type: q.type,
+            correctAnswer: q.correctAnswer,
+            options: q.options
+          });
+          return {
+            question: q.question,
+            type: q.type, // Keep original type values: 'multiple', 'truefalse', 'identification'
+            correctAnswer: q.type === 'truefalse' ? String(q.correctAnswer) : q.correctAnswer, // Ensure True/False answers are strings
+            options: q.options || null
+          };
+        }),
         chapterId: chapterIdToSend,
         is_final: isFinalToSend,
         deadline: deadline || null
       };
+      
+      console.log('Complete assessment data being sent:', assessmentData);
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
-      await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData);
+      await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData, {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
       
       setNotification({
         message: 'Assessment created successfully!',

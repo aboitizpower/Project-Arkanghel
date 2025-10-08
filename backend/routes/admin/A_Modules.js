@@ -1071,13 +1071,24 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                             for (const question of questions) {
                                 const { question: questionText, type, correctAnswer, options } = question;
                                 
+                                console.log('Backend processing question:', {
+                                    questionText: questionText?.substring(0, 50) + '...',
+                                    type: type,
+                                    correctAnswer: correctAnswer,
+                                    options: options
+                                });
+                                
                                 // Map frontend types to database types
                                 const questionType = type === 'multiple' ? 'multiple_choice' :
                                                    type === 'truefalse' ? 'true_false' :
                                                    'identification';
                                 
+                                console.log('Mapped question type:', type, '->', questionType);
+                                
                                 // Handle options based on question type
                                 let optionsString = null;
+                                let normalizedCorrectAnswer = correctAnswer;
+                                
                                 if (questionType === 'multiple_choice') {
                                     // Multiple choice needs options array
                                     if (options && Array.isArray(options) && options.length > 0) {
@@ -1089,14 +1100,39 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                                 } else if (questionType === 'true_false') {
                                     // True/False questions don't need options stored (handled by frontend)
                                     optionsString = null;
+                                    // Normalize True/False answers to 'True' or 'False' strings
+                                    if (typeof correctAnswer === 'boolean') {
+                                        normalizedCorrectAnswer = correctAnswer ? 'True' : 'False';
+                                    } else if (typeof correctAnswer === 'string') {
+                                        const lowerAnswer = correctAnswer.toLowerCase().trim();
+                                        if (lowerAnswer === 'true' || lowerAnswer === '1' || lowerAnswer === 'yes' || lowerAnswer === 't') {
+                                            normalizedCorrectAnswer = 'True';
+                                        } else {
+                                            normalizedCorrectAnswer = 'False';
+                                        }
+                                    } else {
+                                        normalizedCorrectAnswer = 'True'; // Default fallback
+                                    }
                                 } else if (questionType === 'identification') {
                                     // Identification questions don't need options
                                     optionsString = null;
                                 }
                                 
+                                console.log('Normalized correct answer:', correctAnswer, '->', normalizedCorrectAnswer);
+                                
                                 // Insert question - database trigger will handle True/False normalization
                                 const questionSql = 'INSERT INTO questions (assessment_id, question_text, question_type, correct_answer, options) VALUES (?, ?, ?, ?, ?)';
-                                await req.db.promise().query(questionSql, [assessmentId, questionText, questionType, correctAnswer, optionsString]);
+                                
+                                console.log('Inserting question into database:', {
+                                    assessmentId,
+                                    questionText: questionText?.substring(0, 50) + '...',
+                                    questionType,
+                                    correctAnswer: normalizedCorrectAnswer,
+                                    optionsString
+                                });
+                                
+                                const result = await req.db.promise().query(questionSql, [assessmentId, questionText, questionType, normalizedCorrectAnswer, optionsString]);
+                                console.log('Question inserted successfully, ID:', result[0].insertId);
                             }
                             
                             // Commit transaction after all questions are processed
