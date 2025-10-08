@@ -60,25 +60,25 @@ app.use(helmet({
     crossOriginOpenerPolicy: false
 }));
 
-// CSP disabled for development - uncomment for production
-// app.use((req, res, next) => {
-//     if (!res.getHeader('Content-Security-Policy')) {
-//         res.setHeader('Content-Security-Policy', 
-//             "default-src 'self'; " +
-//             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-//             "font-src 'self' https://fonts.gstatic.com; " +
-//             "script-src 'self'; " +
-//             "img-src 'self' data: https: http://localhost:8081 blob:; " +
-//             "connect-src 'self' https: wss: ws:; " +
-//             "media-src 'self'; " +
-//             "object-src 'none'; " +
-//             "frame-src 'none'; " +
-//             "base-uri 'self'; " +
-//             "form-action 'self'"
-//         );
-//     }
-//     next();
-// });
+// CSP enabled for development with HTTP localhost support
+app.use((req, res, next) => {
+    if (!res.getHeader('Content-Security-Policy')) {
+        res.setHeader('Content-Security-Policy', 
+            "default-src 'self'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "script-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: https: http: blob:; " +
+            "connect-src 'self' https: http: wss: ws:; " +
+            "media-src 'self'; " +
+            "object-src 'none'; " +
+            "frame-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'"
+        );
+    }
+    next();
+});
 
 // Apply CORS middleware after security middleware
 app.use(corsMiddleware);
@@ -94,21 +94,17 @@ app.use('/workstreams/:id/image', (req, res, next) => {
     next();
 });
 
-// Additional security headers to prevent cross-domain issues
+// Additional security headers to prevent cross-domain issues (relaxed for development)
 app.use((req, res, next) => {
     // Prevent clickjacking
-    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     // Prevent MIME type sniffing
     res.setHeader('X-Content-Type-Options', 'nosniff');
     // Enable XSS protection
     res.setHeader('X-XSS-Protection', '1; mode=block');
     // Referrer policy
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    // Prevent embedding in frames from other domains
-    res.setHeader('Content-Security-Policy', 'frame-ancestors \'none\'');
-    // Additional cross-origin policies
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    // Additional cross-origin policies (relaxed for development)
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     // Strict transport security (if using HTTPS)
     if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
