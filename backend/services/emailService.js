@@ -42,17 +42,30 @@ class EmailService {
         }
     }
 
+    // Map notification types to database ENUM values
+    mapTypeToDbEnum(type) {
+        const typeMapping = {
+            'new_workstream': 'workstream',
+            'new_chapter': 'chapter',
+            'new_assessment': 'assessment',
+            'deadline_reminder_week': 'reminder',
+            'deadline_reminder_day': 'reminder'
+        };
+        return typeMapping[type] || type;
+    }
+
     async logNotification(type, targetId, targetType, recipientEmail, subject, status = 'pending', errorMessage = null) {
         const connection = await this.getConnection();
         try {
             const notificationId = uuidv4();
+            const dbType = this.mapTypeToDbEnum(type);
             await connection.execute(
                 `INSERT INTO notifications_log 
                 (notification_id, type, target_id, target_type, recipient_email, subject, status, error_message, sent_at) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     notificationId,
-                    type,
+                    dbType,
                     targetId,
                     targetType,
                     recipientEmail,

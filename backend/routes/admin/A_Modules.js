@@ -288,14 +288,18 @@ router.delete('/workstreams/:id', (req, res) => {
             
             // If there are chapters, delete related data first
             if (chapterIds.length > 0) {
-                // Delete assessment results for these chapters
-                const deleteAssessmentResultsSql = `
-                    DELETE ar FROM assessment_results ar
-                    JOIN assessments a ON ar.assessment_id = a.assessment_id
-                    WHERE a.chapter_id IN (?)
+                // Create placeholders for the IN clause
+                const placeholders = chapterIds.map(() => '?').join(',');
+                
+                // Delete answers for these chapters
+                const deleteAnswersSql = `
+                    DELETE ans FROM answers ans
+                    JOIN questions q ON ans.question_id = q.question_id
+                    JOIN assessments a ON q.assessment_id = a.assessment_id
+                    WHERE a.chapter_id IN (${placeholders})
                 `;
                 
-                 req.db.query(deleteAnswersSql, [chapterIds], (err) => {
+                 req.db.query(deleteAnswersSql, chapterIds, (err) => {
                     if (err) {
                         console.error('Error deleting answers:', err);
                         return req.db.rollback(() => {
@@ -310,10 +314,10 @@ router.delete('/workstreams/:id', (req, res) => {
                     const deleteQuestionsSql = `
                         DELETE q FROM questions q
                         JOIN assessments a ON q.assessment_id = a.assessment_id
-                        WHERE a.chapter_id IN (?)
+                        WHERE a.chapter_id IN (${placeholders})
                     `;
                     
-                    req.db.query(deleteQuestionsSql, [chapterIds], (err) => {
+                    req.db.query(deleteQuestionsSql, chapterIds, (err) => {
                         if (err) {
                             console.error('Error deleting questions:', err);
                             return req.db.rollback(() => {
@@ -325,9 +329,9 @@ router.delete('/workstreams/:id', (req, res) => {
                         }
                         
                       // Delete assessments for these chapters
-                        const deleteAssessmentsSql = 'DELETE FROM assessments WHERE chapter_id IN (?)';
+                        const deleteAssessmentsSql = `DELETE FROM assessments WHERE chapter_id IN (${placeholders})`;
                         
-                        req.db.query(deleteAssessmentsSql, [chapterIds], (err) => {
+                        req.db.query(deleteAssessmentsSql, chapterIds, (err) => {
                             if (err) {
                                console.error('Error deleting assessments:', err);
                                 return req.db.rollback(() => {
@@ -339,9 +343,9 @@ router.delete('/workstreams/:id', (req, res) => {
                             }
                             
                            // Delete user progress for these chapters first (foreign key constraint)
-                            const deleteUserProgressSql = 'DELETE FROM user_progress WHERE chapter_id IN (?)';
+                            const deleteUserProgressSql = `DELETE FROM user_progress WHERE chapter_id IN (${placeholders})`;
                             
-                             req.db.query(deleteUserProgressSql, [chapterIds], (err) => {
+                             req.db.query(deleteUserProgressSql, chapterIds, (err) => {
                                 if (err) {
                                    console.error('Error deleting user progress:', err);
                                     return req.db.rollback(() => {

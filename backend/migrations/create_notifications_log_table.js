@@ -19,7 +19,7 @@ async function createNotificationTables() {
         await connection.execute(`
             CREATE TABLE IF NOT EXISTS notifications_log (
                 notification_id VARCHAR(36) PRIMARY KEY,
-                type ENUM('workstream', 'chapter', 'assessment', 'update', 'reminder', 'completion', 'overdue', 'reassignment', 'cancellation') NOT NULL,
+                type ENUM('new_workstream', 'new_chapter', 'new_assessment', 'update', 'reminder', 'completion', 'overdue', 'reassignment', 'cancellation', 'deadline_reminder_week', 'deadline_reminder_day') NOT NULL,
                 target_id VARCHAR(36) NOT NULL,
                 target_type ENUM('workstream', 'chapter', 'assessment') NOT NULL,
                 recipient_email VARCHAR(255) NOT NULL,
