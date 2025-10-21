@@ -295,85 +295,65 @@ router.delete('/workstreams/:id', (req, res) => {
                     WHERE a.chapter_id IN (?)
                 `;
                 
-                req.db.query(deleteAssessmentResultsSql, [chapterIds], (err) => {
+                 req.db.query(deleteAnswersSql, [chapterIds], (err) => {
                     if (err) {
-                        console.error('Error deleting assessment results:', err);
+                        console.error('Error deleting answers:', err);
                         return req.db.rollback(() => {
                             res.status(500).json({
                                 success: false,
-                                error: 'Failed to delete workstream assessment data. Please try again.'
+                                error: 'Failed to delete workstream answers. Please try again.'
                             });
                         });
                     }
                     
-                    // Delete answers for these chapters
-                    const deleteAnswersSql = `
-                        DELETE ans FROM answers ans
-                        JOIN questions q ON ans.question_id = q.question_id
+                   // Delete questions for these chapters
+                    const deleteQuestionsSql = `
+                        DELETE q FROM questions q
                         JOIN assessments a ON q.assessment_id = a.assessment_id
                         WHERE a.chapter_id IN (?)
                     `;
                     
-                    req.db.query(deleteAnswersSql, [chapterIds], (err) => {
+                    req.db.query(deleteQuestionsSql, [chapterIds], (err) => {
                         if (err) {
-                            console.error('Error deleting answers:', err);
+                            console.error('Error deleting questions:', err);
                             return req.db.rollback(() => {
                                 res.status(500).json({
                                     success: false,
-                                    error: 'Failed to delete workstream answers. Please try again.'
+                                    error: 'Failed to delete workstream questions. Please try again.'
                                 });
                             });
                         }
                         
-                        // Delete questions for these chapters
-                        const deleteQuestionsSql = `
-                            DELETE q FROM questions q
-                            JOIN assessments a ON q.assessment_id = a.assessment_id
-                            WHERE a.chapter_id IN (?)
-                        `;
+                      // Delete assessments for these chapters
+                        const deleteAssessmentsSql = 'DELETE FROM assessments WHERE chapter_id IN (?)';
                         
-                        req.db.query(deleteQuestionsSql, [chapterIds], (err) => {
+                        req.db.query(deleteAssessmentsSql, [chapterIds], (err) => {
                             if (err) {
-                                console.error('Error deleting questions:', err);
+                               console.error('Error deleting assessments:', err);
                                 return req.db.rollback(() => {
                                     res.status(500).json({
                                         success: false,
-                                        error: 'Failed to delete workstream questions. Please try again.'
+                                       error: 'Failed to delete workstream assessments. Please try again.'
                                     });
                                 });
                             }
                             
-                            // Delete assessments for these chapters
-                            const deleteAssessmentsSql = 'DELETE FROM assessments WHERE chapter_id IN (?)';
+                           // Delete user progress for these chapters first (foreign key constraint)
+                            const deleteUserProgressSql = 'DELETE FROM user_progress WHERE chapter_id IN (?)';
                             
-                            req.db.query(deleteAssessmentsSql, [chapterIds], (err) => {
+                             req.db.query(deleteUserProgressSql, [chapterIds], (err) => {
                                 if (err) {
-                                    console.error('Error deleting assessments:', err);
+                                   console.error('Error deleting user progress:', err);
                                     return req.db.rollback(() => {
                                         res.status(500).json({
                                             success: false,
-                                            error: 'Failed to delete workstream assessments. Please try again.'
+                                             error: 'Failed to delete workstream user progress. Please try again.'
                                         });
                                     });
                                 }
                                 
-                                // Delete chapter content for these chapters
-                                const deleteChapterContentSql = 'DELETE FROM chapter_content WHERE chapter_id IN (?)';
-                                
-                                req.db.query(deleteChapterContentSql, [chapterIds], (err) => {
-                                    if (err) {
-                                        console.error('Error deleting chapter content:', err);
-                                        return req.db.rollback(() => {
-                                            res.status(500).json({
-                                                success: false,
-                                                error: 'Failed to delete workstream chapter content. Please try again.'
-                                            });
-                                        });
-                                    }
-                                    
-                                    // Finally, delete the chapters
-                                    deleteChapters();
-                                });
+                                 // Finally, delete the chapters (content is stored in module_chapters table)
+                                deleteChapters();
                             });
                         });
                     });

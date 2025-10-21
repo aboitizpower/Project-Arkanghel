@@ -179,7 +179,7 @@ const E_Assessments = () => {
                                     <tr key={result.assessment_id}>
                                         <td className="assessment-title-cell">
                                             <div className="assessment-title-container">
-                                                <div className="workstream-title">Anomaly Detection</div>
+                                                <div className="workstream-title">{result.workstream_title || 'No Workstream'}</div>
                                                 <div className="chapter-title">{result.assessment_title}</div>
                                             </div>
                                         </td>
@@ -231,20 +231,20 @@ const E_Assessments = () => {
                         </tbody>
                     </table>
                     {filteredResults.length > resultsPerPage && !loading && !error && (
-                        <div className="pagination-controls">
-                            <button className="pagination-btn" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+                        <div className="pagination-container">
+                            <button 
+                                onClick={() => paginate(currentPage - 1)} 
+                                disabled={currentPage === 1}
+                                className="pagination-button"
+                            >
                                 &laquo;
                             </button>
-                            {Array.from({ length: totalPages }, (_, i) => (
-                                <button
-                                    key={i + 1}
-                                    onClick={() => paginate(i + 1)}
-                                    className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
-                                >
-                                    {i + 1}
-                                </button>
-                            ))}
-                            <button className="pagination-btn" onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}>
+                            <span className="pagination-info">{currentPage}</span>
+                            <button 
+                                onClick={() => paginate(currentPage + 1)} 
+                                disabled={currentPage === totalPages}
+                                className="pagination-button"
+                            >
                                 &raquo;
                             </button>
                         </div>

@@ -236,23 +236,16 @@ const ViewModules = () => {
                     isLastViewedStillFirst: lastViewedChapter?.chapter_id === firstChapterInOrder?.chapter_id
                 });
                 
-                // If last viewed chapter exists and is still the first chapter in order, use it
-                // Otherwise, default to the new first chapter in order
-                if (lastViewedChapter && lastViewedChapter.chapter_id === firstChapterInOrder.chapter_id) {
-                    console.log('Last viewed chapter is still first in order, selecting:', lastViewedChapter.title);
+                // If last viewed chapter exists (still in the list), continue using it
+                // This allows users to return to the chapter they were on after taking assessments
+                if (lastViewedChapter) {
+                    console.log('Last viewed chapter found, selecting:', lastViewedChapter.title);
                     setSelectedChapter(lastViewedChapter);
-                } else if (lastViewedChapter && lastViewedChapter.chapter_id !== firstChapterInOrder.chapter_id) {
-                    console.log('Last viewed chapter is no longer first in order, selecting new first chapter:', firstChapterInOrder.title);
-                    setSelectedChapter(firstChapterInOrder);
-                    // Update the stored last viewed chapter to the new first chapter
-                    storeLastViewedChapter(workstreamId, firstChapterInOrder.chapter_id);
-                    
-                    // Clear completion status of the previously first chapter since it was only marked as viewed
-                    // because users automatically landed on it, not because they intentionally completed it
-                    clearPreviousFirstChapterCompletion(lastViewedChapter.chapter_id);
                 } else {
-                    console.log('No last viewed chapter, selecting first chapter:', firstChapterInOrder.title);
+                    // If no last viewed chapter or it doesn't exist anymore, use first chapter
+                    console.log('No valid last viewed chapter, selecting first chapter:', firstChapterInOrder.title);
                     setSelectedChapter(firstChapterInOrder);
+                    storeLastViewedChapter(workstreamId, firstChapterInOrder.chapter_id);
                 }
             }
             
@@ -373,27 +366,37 @@ const ViewModules = () => {
                 setAssessmentForCurrentChapter(assessmentData);
                 
                 // Check if user has passed this assessment by checking answers table
-                try {
-                    const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed`, {
-                        params: { userId: user.id },
-                        headers: { 'Authorization': `Bearer ${user.token}` }
-                    });
-                    const passed = passCheckResponse.data.passed || false;
-                    setIsAssessmentPassed(passed);
-                    
-                    // Update chapter assessment status map
+                // But only if we're not preserving the status (which means it was just passed)
+                if (!preserveAssessmentStatus) {
+                    try {
+                        const passCheckResponse = await axios.get(`${API_URL}/employee/assessment/${assessmentData.assessment_id}/passed`, {
+                            params: { userId: user.id },
+                            headers: { 'Authorization': `Bearer ${user.token}` }
+                        });
+                        const passed = passCheckResponse.data.passed || false;
+                        setIsAssessmentPassed(passed);
+                        
+                        // Update chapter assessment status map
+                        setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
+                            hasAssessment: true,
+                            passed: passed
+                        }));
+                    } catch (passErr) {
+                        console.log('Assessment not taken yet or failed to check pass status');
+                        setIsAssessmentPassed(false);
+                        
+                        // Update chapter assessment status map
+                        setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
+                            hasAssessment: true,
+                            passed: false
+                        }));
+                    }
+                } else {
+                    // If preserving status, update the map with passed=true
+                    console.log('Preserving assessment passed status for chapter', chapter.chapter_id);
                     setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
                         hasAssessment: true,
-                        passed: passed
-                    }));
-                } catch (passErr) {
-                    console.log('Assessment not taken yet or failed to check pass status');
-                    setIsAssessmentPassed(false);
-                    
-                    // Update chapter assessment status map
-                    setChapterAssessmentStatus(prev => new Map(prev).set(chapter.chapter_id, {
-                        hasAssessment: true,
-                        passed: false
+                        passed: true
                     }));
                 }
             } else {
@@ -753,8 +756,13 @@ const ViewModules = () => {
         if (refresh && chapterId) {
             console.log('ViewModules - Handling refresh navigation to chapterId:', chapterId, 'assessmentPassed:', assessmentPassed);
             setHasHandledRefreshNavigation(true);
-            // Refresh user progress first
-            fetchUserProgress(selectedWorkstream.workstream_id).then(() => {
+            // Add a small delay to ensure backend has finished processing assessment results
+            setTimeout(() => {
+                // Refresh user progress and assessment statuses
+                Promise.all([
+                    fetchUserProgress(selectedWorkstream.workstream_id),
+                    fetchAllChapterAssessmentStatus(chapters) // Re-fetch all assessment statuses to ensure they're current
+                ]).then(() => {
                 const chapterToSelect = chapters.find(ch => ch.chapter_id === parseInt(chapterId));
                 console.log('ViewModules - Found chapter to select:', chapterToSelect?.title, 'ID:', chapterToSelect?.chapter_id);
                 if (chapterToSelect) {
@@ -767,7 +775,8 @@ const ViewModules = () => {
                 } else {
                     console.error('ViewModules - Chapter not found for ID:', chapterId);
                 }
-            });
+                });
+            }, 500); // 500ms delay to ensure backend processing is complete
             // IMPORTANT: Clear the state so this block doesn't run again.
             navigate(location.pathname, { state: {}, replace: true });
         
@@ -943,8 +952,9 @@ const ViewModules = () => {
                                         const isSelected = selectedChapter && selectedChapter.chapter_id === chapter.chapter_id;
                                         
                                         // Improved locking logic: check if previous chapter's assessment (if any) has been passed
+                                        // BUT: Never lock a chapter that has already been accessed/completed
                                         let isLocked = false;
-                                        if (index > 0) {
+                                        if (index > 0 && !isCompleted) { // Don't lock if already completed
                                             const previousChapter = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'))[index - 1];
                                             if (previousChapter) {
                                                 const prevChapterStatus = chapterAssessmentStatus.get(previousChapter.chapter_id);

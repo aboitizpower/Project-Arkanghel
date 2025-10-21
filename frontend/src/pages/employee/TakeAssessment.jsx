@@ -120,7 +120,15 @@ const TakeAssessments = () => {
                     if (!signal.aborted) {
                         const chapter = chapterRes.data.chapter;
                         
+                        console.log('TakeAssessment - Chapter loaded:', {
+                            chapterId,
+                            title: chapter?.title,
+                            lowerCase: chapter?.title?.toLowerCase(),
+                            includesFinal: chapter?.title?.toLowerCase().includes('final assessment')
+                        });
+                        
                         if (chapter && chapter.title && chapter.title.toLowerCase().includes('final assessment')) {
+                            console.log('Setting isFinalAssessment to TRUE');
                             setIsFinalAssessment(true);
                             
                             // Get workstream info
@@ -415,20 +423,49 @@ const TakeAssessments = () => {
     };
 
     const handleCloseResultsModal = async () => {
+        console.log('handleCloseResultsModal called with:', {
+            isFinalAssessment,
+            passed: assessmentResults?.passed,
+            chapterId,
+            workstreamId
+        });
+        
         setShowResultsModal(false);
         
         // For final assessments that are passed, navigate back to workstreams list
         if (isFinalAssessment && assessmentResults?.passed) {
+            console.log('Final assessment PASSED - navigating to modules list');
             navigate('/employee/modules');
         } else if (isFinalAssessment && !assessmentResults?.passed) {
             // For failed final assessments, navigate to the last regular chapter
+            console.log('Final assessment FAILED - fetching chapters to find last regular chapter');
             try {
-                const chaptersResponse = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`);
+                const chaptersResponse = await axios.get(`${API_URL}/employee/workstreams/${workstreamId}/chapters`, {
+                    headers: { 'Authorization': `Bearer ${user.token}` }
+                });
                 const chapters = chaptersResponse.data;
                 
+                // Sort chapters by order_index to ensure correct order
+                const sortedChapters = [...chapters].sort((a, b) => {
+                    if (a.order_index !== undefined && b.order_index !== undefined) {
+                        return a.order_index - b.order_index;
+                    }
+                    return a.chapter_id - b.chapter_id;
+                });
+                
+                console.log('All chapters sorted:', sortedChapters.map(ch => ({ id: ch.chapter_id, title: ch.title, order: ch.order_index })));
+                
                 // Find the last regular chapter (not a final assessment)
-                const regularChapters = chapters.filter(ch => !ch.title.toLowerCase().includes('final assessment'));
+                const regularChapters = sortedChapters.filter(ch => {
+                    const isFinal = ch.title.toLowerCase().includes('final assessment');
+                    console.log(`Chapter "${ch.title}" - is final assessment:`, isFinal);
+                    return !isFinal;
+                });
+                
+                console.log('Regular chapters:', regularChapters.map(ch => ({ id: ch.chapter_id, title: ch.title })));
                 const lastRegularChapter = regularChapters[regularChapters.length - 1];
+                
+                console.log('Failed final assessment - navigating to last regular chapter:', lastRegularChapter?.title, 'ID:', lastRegularChapter?.chapter_id);
                 
                 if (lastRegularChapter) {
                     navigate(`/employee/modules/${workstreamId}`, {
@@ -465,6 +502,7 @@ const TakeAssessments = () => {
         } else {
             // Navigate back to chapter after closing modal (regular assessments)
             // Use immediate navigation without API calls to prevent 404 errors
+            console.log('REGULAR assessment (not final) - navigating back to chapter');
             console.log('Regular assessment navigation - chapterId:', chapterId, 'workstreamId:', workstreamId, 'passed:', assessmentResults?.passed);
             if (workstreamId && chapterId) {
                 navigate(`/employee/modules/${workstreamId}`, {

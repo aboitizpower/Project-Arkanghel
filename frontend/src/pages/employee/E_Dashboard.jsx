@@ -40,7 +40,7 @@ const E_Dashboard = () => {
           // Calculate KPIs based on workstream progress
           const inProgressCount = workstreamsData.filter(ws => {
             const progress = Math.round(ws.progress || 0);
-            return progress === 0 && (ws.chapters_count > 0 || ws.assessments_count > 0);
+            return progress > 0 && progress < 100;
           }).length;
           
           const completedCount = workstreamsData.filter(ws => {
@@ -112,8 +112,7 @@ const E_Dashboard = () => {
                   return (
                       <div 
                           key={ws.workstream_id} 
-                          className={`card-ws ${!hasContent ? 'inactive' : 'clickable'}`}
-                          onClick={() => hasContent && navigate(`/employee/modules/${ws.workstream_id}`)}
+                          className={`card-ws ${!hasContent ? 'inactive' : ''}`}
                       >
                           <div className="card-ws-image-container">
                               {ws.image_type ? 
@@ -151,32 +150,22 @@ const E_Dashboard = () => {
 
             {/* Pagination Controls */}
             {Math.ceil(workstreams.length / workstreamsPerPage) > 1 && (
-                <div className="pagination-wrapper">
-                    <div className="pagination-container">
-                        <button 
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="pagination-btn"
-                        >
-                            &laquo;
-                        </button>
-                        {[...Array(Math.ceil(workstreams.length / workstreamsPerPage)).keys()].map(number => (
-                            <button 
-                                key={number + 1}
-                                onClick={() => setCurrentPage(number + 1)}
-                                className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
-                            >
-                                {number + 1}
-                            </button>
-                        ))}
-                        <button 
-                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(workstreams.length / workstreamsPerPage), prev + 1))}
-                            disabled={currentPage === Math.ceil(workstreams.length / workstreamsPerPage)}
-                            className="pagination-btn"
-                        >
-                            &raquo;
-                        </button>
-                    </div>
+                <div className="pagination-container">
+                    <button 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="pagination-button"
+                    >
+                        «
+                    </button>
+                    <span className="pagination-info">{currentPage}</span>
+                    <button 
+                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(workstreams.length / workstreamsPerPage), prev + 1))}
+                        disabled={currentPage === Math.ceil(workstreams.length / workstreamsPerPage)}
+                        className="pagination-button"
+                    >
+                        »
+                    </button>
                 </div>
             )}
           </>

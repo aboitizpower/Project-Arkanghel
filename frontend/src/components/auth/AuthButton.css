@@ -8,14 +8,14 @@
   visibility: hidden;
 }
 
-/* Button loading state */
-button[disabled] {
+/* Button loading state - only for buttons with loading class */
+button[disabled].loading {
   opacity: 0.7;
   cursor: not-allowed;
   position: relative;
 }
 
-button[disabled]::after {
+button[disabled].loading::after {
   content: '';
   position: absolute;
   top: 50%;

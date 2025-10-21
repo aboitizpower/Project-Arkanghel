@@ -545,32 +545,22 @@ const E_Modules = () => {
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="pagination-wrapper">
-                        <div className="pagination-container">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="pagination-btn"
-                            >
-                                &laquo;
-                            </button>
-                            {[...Array(totalPages).keys()].map(number => (
-                                <button
-                                    key={number + 1}
-                                    onClick={() => setCurrentPage(number + 1)}
-                                    className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
-                                >
-                                    {number + 1}
-                                </button>
-                            ))}
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="pagination-btn"
-                            >
-                                &raquo;
-                            </button>
-                        </div>
+                    <div className="pagination-container">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="pagination-button"
+                        >
+                            «
+                        </button>
+                        <span className="pagination-info">{currentPage}</span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="pagination-button"
+                        >
+                            »
+                        </button>
                     </div>
                 )}
             </div>
@@ -583,7 +573,6 @@ const E_Modules = () => {
         }
 
         const isNextButtonDisabled = !!assessmentForCurrentChapter && !isAssessmentPassed;
-        const currentIndex = chapters.findIndex(c => c.chapter_id === selectedChapter.chapter_id);
         const isLastChapter = currentIndex === chapters.length - 1;
         const isFirstChapter = currentIndex === 0;
 

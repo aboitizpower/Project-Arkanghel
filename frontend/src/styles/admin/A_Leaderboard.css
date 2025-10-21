@@ -1,4 +1,44 @@
-/* Leaderboard page-specific styles only. Layout, table, header, button, badge, and search are in AdminCommon.css */
+/* Leaderboard Management page-specific styles only. Layout, table, header, button, badge, and search are in AdminCommon.css */
+
+/* Pagination Controls - Fixed Bottom Position */
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1.5rem 0;
+  position: fixed;
+  bottom: 0.5rem;
+  right: 6vw;
+  z-index: 1000;
+}
+
+.pagination-button {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin: 0 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-button:not(:disabled):hover {
+  background-color: #f9fafb;
+}
+
+.pagination-info {
+  background-color: #254EDB;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin: 0 0.5rem;
+  font-weight: 600;
+}
 
 /* Leaderboard Layout - No Scroll */
 .leaderboard-container {

@@ -492,7 +492,7 @@ body.module-view-active {
     width: 100%;
     padding-top: 50%; /* Slightly taller image area */
     position: relative;
-    cursor: pointer;
+    cursor: default;
 }
 
 .card-ws-image-placeholder {
@@ -1337,45 +1337,44 @@ body.module-view-active {
     margin-top: 1rem;
 }
 
-.pagination-wrapper {
-  width: 100%;
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 1.5rem;
-}
-
+/* Pagination Controls - Fixed Bottom Position */
 .pagination-container {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 0.5rem;
+  padding: 1.5rem 0;
+  position: fixed;
+  bottom: 0.5rem;
+  right: 6vw;
+  z-index: 1000;
 }
 
-.pagination-btn {
-  background: #f1f5f9;
-  color: #2563eb;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 7px;
+.pagination-button {
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   padding: 0.5rem 1rem;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0.25rem;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(59,130,246,0.04);
+  transition: background-color 0.2s;
 }
 
-.pagination-btn:hover:not(:disabled), .pagination-btn.active {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59,130,246,0.12);
-}
-
-.pagination-btn:disabled {
-  opacity: 0.6;
+.pagination-button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+}
+
+.pagination-button:not(:disabled):hover {
+  background-color: #f9fafb;
+}
+
+.pagination-info {
+  background-color: #254EDB;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin: 0 0.5rem;
+  font-weight: 600;
 }
 
 /* Modal Styles */

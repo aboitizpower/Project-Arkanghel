@@ -834,6 +834,48 @@ router.get('/employee/assessment/:assessmentId/perfect-score', (req, res) => {
 });
 
 /**
+ * @route GET /employee/workstreams/:workstreamId/chapters
+ * @description Get all chapters for a workstream
+ * @access Private (Employee)
+ * @returns {Array} List of chapters
+ */
+router.get('/employee/workstreams/:workstreamId/chapters', (req, res) => {
+    const { workstreamId } = req.params;
+    
+    const sql = `
+        SELECT 
+            chapter_id, 
+            workstream_id, 
+            title, 
+            content, 
+            order_index, 
+            video_filename, 
+            video_mime_type, 
+            pdf_filename, 
+            pdf_mime_type 
+        FROM module_chapters 
+        WHERE workstream_id = ? AND is_published = TRUE
+        ORDER BY order_index ASC
+    `;
+    
+    req.db.query(sql, [workstreamId], (err, results) => {
+        if (err) {
+            console.error('Error fetching chapters:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        // Add URLs for video and PDF content
+        const chapters = results.map(chapter => ({
+            ...chapter,
+            video_url: chapter.video_filename ? `/chapters/${chapter.chapter_id}/video` : null,
+            pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
+        }));
+        
+        res.json(chapters);
+    });
+});
+
+/**
  * @route GET /employee/workstreams/:workstreamId/last-viewed-chapter
  * @description Get the last viewed or completed chapter for a user in a workstream
  * @access Private (Employee)

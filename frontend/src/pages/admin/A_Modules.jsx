@@ -356,32 +356,22 @@ const A_Modules = () => {
                     </div>
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
-                        <div className="pagination-wrapper">
-                            <div className="pagination-container">
-                                <button 
-                                    className="pagination-btn" 
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                                    disabled={currentPage === 1}
-                                >
-                                    &laquo;
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => (
-                                    <button
-                                        key={i + 1}
-                                        className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
-                                        onClick={() => setCurrentPage(i + 1)}
-                                    >
-                                        {i + 1}
-                                    </button>
-                                ))}
-                                <button 
-                                    className="pagination-btn" 
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                                    disabled={currentPage === totalPages}
-                                >
-                                    &raquo;
-                                </button>
-                            </div>
+                        <div className="pagination-container">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                disabled={currentPage === 1} 
+                                className="pagination-button"
+                            >
+                                «
+                            </button>
+                            <span className="pagination-info">{currentPage}</span>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                                disabled={currentPage === totalPages} 
+                                className="pagination-button"
+                            >
+                                »
+                            </button>
                         </div>
                     )}
                     </>

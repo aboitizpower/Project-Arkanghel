@@ -338,7 +338,7 @@ const A_Assessment = () => {
                       <td className="name-col">{row.first_name} {row.last_name}</td>
                       <td className="assessment-title-cell">
                         <div className="assessment-title-container">
-                          <div className="workstream-title">Anomaly Detection</div>
+                          <div className="workstream-title">{row.workstream_title}</div>
                           <div className="chapter-title">{row.assessment_title}</div>
                         </div>
                       </td>
@@ -381,39 +381,31 @@ const A_Assessment = () => {
                   ))}
                 </tbody>
               </table>
-              <div className="pagination-wrapper">
+              {totalPages > 1 && (
                 <div className="pagination-container">
                   <button
-                    className="pagination-btn"
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
+                    className="pagination-button"
                   >
-                    &laquo;
+                    «
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setPage(i + 1)}
-                      className={`pagination-btn${page === i + 1 ? ' active' : ''}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  <span className="pagination-info">{page}</span>
                   <button
-                    className="pagination-btn"
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
+                    className="pagination-button"
                   >
-                    &raquo;
+                    »
                   </button>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
         </div>
       </main>
-  </div>
+    </div>
   );
 };
 

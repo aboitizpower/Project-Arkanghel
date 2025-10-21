@@ -255,17 +255,15 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
       
       console.log('Complete assessment data being sent:', assessmentData);
       const targetWorkstreamId = workstream?.workstream_id || workstreamId;
-      const response = await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData, {
+      await axios.post(`${API_URL}/workstreams/${targetWorkstreamId}/assessments`, assessmentData, {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token}`
         }
       });
       
-      // Use the message from the backend response
-      const backendMessage = response.data?.message || 'Assessment created successfully!';
       setNotification({
-        message: backendMessage,
+        message: 'Assessment created successfully!',
         type: 'success',
         isVisible: true
       });
@@ -476,9 +474,9 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                           {question.options.map((option, oIndex) => (
                             <div
                               key={oIndex}
-                              className={`answer-option${question.correctAnswer === oIndex ? ' correct-answer' : ''}`}
+                              className={`answer-option${(question.type === 'truefalse' ? question.correctAnswer === option : question.correctAnswer === oIndex) ? ' correct-answer' : ''}`}
                               style={
-                                question.correctAnswer === oIndex
+                                (question.type === 'truefalse' ? question.correctAnswer === option : question.correctAnswer === oIndex)
                                   ? {
                                       background: '#e0f2fe',
                                       border: '2px solid #3b82f6',
@@ -505,8 +503,12 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                               <input
                                 type="radio"
                                 name={`question-${question.id}`}
-                                checked={question.correctAnswer === oIndex}
-                                onChange={() => updateQuestion(question.id, 'correctAnswer', oIndex)}
+                                checked={
+                                  question.type === 'truefalse' 
+                                    ? question.correctAnswer === option 
+                                    : question.correctAnswer === oIndex
+                                }
+                                onChange={() => updateQuestion(question.id, 'correctAnswer', question.type === 'truefalse' ? option : oIndex)}
                                 style={{ accentColor: '#3b82f6' }}
                               />
                               <input
@@ -517,7 +519,7 @@ const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) =
                                 placeholder={`Option ${oIndex + 1}`}
                                 required
                               />
-                              {question.correctAnswer === oIndex && (
+                              {(question.type === 'truefalse' ? question.correctAnswer === option : question.correctAnswer === oIndex) && (
                                 <span
                                   style={{
                                     color: '#3b82f6',

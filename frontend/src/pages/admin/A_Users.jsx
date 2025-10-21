@@ -497,33 +497,25 @@ const A_Users = () => {
               )}
             </tbody>
           </table>
-          <div className="pagination-wrapper">
+          {Math.ceil(filteredUsers.length / usersPerPage) > 1 && (
             <div className="pagination-container">
               <button
-                className="pagination-btn"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
+                className="pagination-button"
               >
-                &laquo;
+                «
               </button>
-              {Array.from({ length: Math.ceil(filteredUsers.length / usersPerPage) }, (_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`pagination-btn${currentPage === i + 1 ? ' active' : ''}`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              <span className="pagination-info">{currentPage}</span>
               <button
-                className="pagination-btn"
                 onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredUsers.length / usersPerPage), prev + 1))}
                 disabled={currentPage === Math.ceil(filteredUsers.length / usersPerPage)}
+                className="pagination-button"
               >
-                &raquo;
+                »
               </button>
             </div>
-          </div>
+          )}
         </div>
         {/* Workstream Permission Modal */}
         {wsModalUser && (

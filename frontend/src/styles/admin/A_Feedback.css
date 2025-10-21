@@ -115,6 +115,10 @@
   justify-content: flex-end;
   align-items: center;
   padding: 1.5rem 0;
+  position: fixed;
+  bottom: 0.5rem;
+  right: 6vw;
+  z-index: 1000;
 }
 
 .pagination-button {
