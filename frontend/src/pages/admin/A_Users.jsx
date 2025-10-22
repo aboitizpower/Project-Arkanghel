@@ -396,7 +396,11 @@ const A_Users = () => {
                 aria-expanded={sortOpen}
               >
                 <FaSort />
-                <span>Sort by Role</span>
+                <span>
+                  {sortOrder === 'none' ? 'Sort by Role' : 
+                   sortOrder === 'admin' ? 'Admin' : 
+                   sortOrder === 'employee' ? 'Employee' : 'Sort by Role'}
+                </span>
                 <FaChevronDown className={`sort-chevron${sortOpen ? " open" : ""}`} />
               </button>
               {sortOpen && (

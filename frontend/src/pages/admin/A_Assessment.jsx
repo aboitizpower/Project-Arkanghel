@@ -273,7 +273,7 @@ const A_Assessment = () => {
             <KPIBox label="Total Workstreams" value={kpis.totalWorkstreams} icon={<FaStream />} />
             <KPIBox label="Total Chapters" value={kpis.totalChapters} icon={<FaBookOpen />} />
             <KPIBox label="Total Assessments" value={kpis.totalAssessments} icon={<FaClipboardList />} />
-            <KPIBox label="Total Assessments Taken" value={kpis.totalAssessmentsTaken} icon={<FaTasks />} />
+            <KPIBox label="Total Assessment Attempts" value={kpis.totalAssessmentsTaken} icon={<FaTasks />} />
           </div>
           {/* Filters Row */}
           <div className="assessment-filters-row">

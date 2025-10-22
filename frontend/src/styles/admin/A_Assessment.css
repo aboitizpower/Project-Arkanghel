@@ -599,6 +599,7 @@
   text-align: center;
   max-width: 100%;
   word-wrap: break-word;
+  white-space: normal;
 }
 
 .admin-table .chapter-title {
@@ -610,6 +611,10 @@
   padding: 2px 8px;
   border-radius: 12px;
   display: inline-block;
+  text-align: center;
+  max-width: 100%;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 
