@@ -618,6 +618,8 @@ router.get('/admin/analytics/critical-areas', (req, res) => {
             FROM answers ans
             JOIN questions q ON ans.question_id = q.question_id
             JOIN users u ON ans.user_id = u.user_id
+            JOIN assessments a_inner ON q.assessment_id = a_inner.assessment_id
+            JOIN module_chapters mc_inner ON a_inner.chapter_id = mc_inner.chapter_id
             JOIN (
                 SELECT 
                     q2.assessment_id,
@@ -627,18 +629,23 @@ router.get('/admin/analytics/critical-areas', (req, res) => {
                     SUM(ans2.score) as correct_answers
                 FROM answers ans2
                 JOIN questions q2 ON ans2.question_id = q2.question_id
+                JOIN assessments a2 ON q2.assessment_id = a2.assessment_id
+                JOIN module_chapters mc2 ON a2.chapter_id = mc2.chapter_id
+                WHERE mc2.title LIKE '%Final Assessment%'
                 GROUP BY q2.assessment_id, ans2.user_id, DATE(ans2.answered_at)
             ) attempt_scores ON q.assessment_id = attempt_scores.assessment_id 
                             AND ans.user_id = attempt_scores.user_id
             WHERE u.isAdmin = FALSE
+              AND mc_inner.title LIKE '%Final Assessment%'
             GROUP BY q.assessment_id, ans.user_id
         ) user_best_scores ON a.assessment_id = user_best_scores.assessment_id
         WHERE w.is_published = TRUE 
           AND mc.is_published = TRUE
+          AND mc.title LIKE '%Final Assessment%'
         GROUP BY w.workstream_id, w.title
-        HAVING COUNT(DISTINCT user_best_scores.user_id) >= 2 
-           AND SUM(CASE WHEN user_best_scores.best_percentage < 75 THEN 1 ELSE 0 END) > 0
-        ORDER BY failed_count DESC, failure_rate DESC
+        HAVING COUNT(DISTINCT user_best_scores.user_id) >= 3 
+           AND (SUM(CASE WHEN user_best_scores.best_percentage < 75 THEN 1 ELSE 0 END) * 100.0 / COUNT(DISTINCT user_best_scores.user_id)) >= 50
+        ORDER BY failure_rate DESC, failed_count DESC
         LIMIT 5
     `;
     
@@ -647,6 +654,11 @@ router.get('/admin/analytics/critical-areas', (req, res) => {
             console.error('Error fetching critical areas:', err);
             return res.status(500).json({ error: err.message });
         }
+        
+        console.log('📊 Critical Areas Query Results:', results);
+        console.log('📊 Critical Areas (filtered):', results.map(r => 
+            `${r.area}: ${r.failed_count}/${r.total_users} failed (${r.failure_rate}%)`
+        ));
         
         const areas = results.map(row => row.area);
         res.json(areas);
