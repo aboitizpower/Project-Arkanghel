@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { FaCalendarAlt, FaCheckCircle, FaClock, FaTimes } from 'react-icons/fa';
+import { FaCalendarAlt, FaCheckCircle, FaClock, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 import { useAuth } from '../auth/AuthProvider';
 import '../styles/components/TaskSidebar.css';
 
@@ -11,7 +11,9 @@ const TaskSidebar = () => {
   const [upcomingTasks, setUpcomingTasks] = useState([]);
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dueToday');
+  const [activeTab, setActiveTab] = useState('comingUp');
+  const [currentPage, setCurrentPage] = useState({ comingUp: 1, missed: 1, completed: 1 });
+  const [itemsPerPage] = useState(8);
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -19,9 +21,8 @@ const TaskSidebar = () => {
     if (user?.id) {
       fetchTaskData();
     } else {
-      // If no user but we're not loading, show sample data
+      // If no user, just stop loading and show empty state
       setLoading(false);
-      setSampleData();
     }
   }, [user]);
 
@@ -36,85 +37,21 @@ const TaskSidebar = () => {
         }
       });
       
-      // If no data or empty arrays, fall back to sample data
-      if (!response.data || 
-          (!response.data.todos && !response.data.upcomingTasks && !response.data.recentFeedback)) {
-        console.log('No task data received, showing sample data');
-        setSampleData();
-      } else {
-        setTodos(response.data.todos || []);
-        setUpcomingTasks(response.data.upcomingTasks || []);
-        setRecentFeedback(response.data.recentFeedback || []);
-      }
+      // Set the actual data from API, empty arrays if no data
+      setTodos(response.data.todos || []);
+      setUpcomingTasks(response.data.upcomingTasks || []);
+      setRecentFeedback(response.data.recentFeedback || []);
     } catch (error) {
       console.error('Error fetching task data:', error);
-      // Set sample data for development
-      setSampleData();
+      // Set empty arrays on error
+      setTodos([]);
+      setUpcomingTasks([]);
+      setRecentFeedback([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const setSampleData = () => {
-    setTodos([
-      {
-        id: 1,
-        title: 'Turn in Group Assignment',
-        dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-        completed: false,
-        type: 'assignment'
-      },
-      {
-        id: 2,
-        title: 'Turn in Video Assignment',
-        dueDate: new Date(Date.now() + 3 * 60 * 60 * 1000), // 3 hours from now
-        completed: false,
-        type: 'assignment'
-      }
-    ]);
-
-    setUpcomingTasks([
-      {
-        id: 3,
-        title: 'Group Assignment',
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        type: 'assignment'
-      },
-      {
-        id: 4,
-        title: 'Unit 2 Discussion',
-        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Day after tomorrow
-        type: 'discussion'
-      },
-      {
-        id: 5,
-        title: 'Midterm Assignment',
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-        type: 'assignment'
-      },
-      {
-        id: 6,
-        title: 'Video Assignment',
-        dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // 4 days from now
-        type: 'assignment'
-      }
-    ]);
-
-    setRecentFeedback([
-      {
-        id: 7,
-        title: 'Pass/Fail',
-        status: 'Complete',
-        type: 'feedback'
-      },
-      {
-        id: 8,
-        title: 'Croc O Group Assignment',
-        score: '10 out of 10',
-        type: 'feedback'
-      }
-    ]);
-  };
 
   const markTodoComplete = async (todoId) => {
     try {
@@ -162,6 +99,73 @@ const TaskSidebar = () => {
     }
   };
 
+  const getMissedTasks = () => {
+    // Filter todos for tasks that are overdue (past due date and not completed)
+    return todos.filter(todo => {
+      if (todo.completed) return false;
+      const dueDate = new Date(todo.dueDate);
+      const now = new Date();
+      return dueDate < now;
+    });
+  };
+
+  const getPaginatedItems = (items, tabName) => {
+    const startIndex = (currentPage[tabName] - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return items.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = (items) => {
+    return Math.ceil(items.length / itemsPerPage);
+  };
+
+  const handlePageChange = (tabName, direction) => {
+    setCurrentPage(prev => ({
+      ...prev,
+      [tabName]: direction === 'next' 
+        ? Math.min(prev[tabName] + 1, getTotalPages(getItemsForTab(tabName)))
+        : Math.max(prev[tabName] - 1, 1)
+    }));
+  };
+
+  const getItemsForTab = (tabName) => {
+    switch (tabName) {
+      case 'comingUp': return upcomingTasks || [];
+      case 'missed': return getMissedTasks();
+      case 'completed': return recentFeedback || [];
+      default: return [];
+    }
+  };
+
+  const renderPaginationControls = (tabName) => {
+    const items = getItemsForTab(tabName);
+    const totalPages = getTotalPages(items);
+    
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="task-pagination">
+        <button 
+          className="pagination-btn"
+          onClick={() => handlePageChange(tabName, 'prev')}
+          disabled={currentPage[tabName] === 1}
+        >
+          ‹
+        </button>
+        <span className="pagination-info">
+          {currentPage[tabName]} / {totalPages}
+        </span>
+        <button 
+          className="pagination-btn"
+          onClick={() => handlePageChange(tabName, 'next')}
+          disabled={currentPage[tabName] === totalPages}
+        >
+          ›
+        </button>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     if (loading) {
       return (
@@ -173,81 +177,91 @@ const TaskSidebar = () => {
     }
 
     switch (activeTab) {
-      case 'dueToday':
+      case 'comingUp':
+        const paginatedUpcoming = getPaginatedItems(upcomingTasks || [], 'comingUp');
         return (
-          <div className="task-list">
-            {todos && todos.length > 0 ? (
-              todos.filter(todo => !todo.completed).map(todo => (
-                <div key={todo.id} className="task-item todo-item">
-                  <div className="task-item-content">
-                    <button 
-                      className="task-checkbox"
-                      onClick={() => markTodoComplete(todo.id)}
-                    >
-                      <FaCheckCircle className="checkbox-icon" />
-                    </button>
-                    <div className="task-details">
-                      <span className="task-title">{todo.title || 'Untitled Task'}</span>
-                      <span className="task-due-date">{formatDueDate(todo.dueDate)}</span>
+          <div className="task-list-container">
+            <div className="task-list">
+              {upcomingTasks && upcomingTasks.length > 0 ? (
+                paginatedUpcoming.map(task => (
+                  <div key={task.id} className="task-item upcoming-item">
+                    <div className="task-item-content">
+                      <div className="task-icon">
+                        <FaClock />
+                      </div>
+                      <div className="task-details">
+                        <span className="task-title">{task.title || 'Untitled Task'}</span>
+                        <span className="task-due-date">{formatDueDate(task.dueDate)}</span>
+                      </div>
                     </div>
                   </div>
-                  <button 
-                    className="task-remove"
-                    onClick={() => removeTodo(todo.id)}
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="no-tasks">No pending tasks</div>
-            )}
+                ))
+              ) : (
+                <div className="no-tasks">No upcoming tasks</div>
+              )}
+            </div>
+            {renderPaginationControls('comingUp')}
           </div>
         );
-      case 'comingUp':
+      case 'missed':
+        const missedTasks = getMissedTasks();
+        const paginatedMissed = getPaginatedItems(missedTasks, 'missed');
         return (
-          <div className="task-list">
-            {upcomingTasks && upcomingTasks.length > 0 ? (
-              upcomingTasks.map(task => (
-                <div key={task.id} className="task-item upcoming-item">
-                  <div className="task-item-content">
-                    <div className="task-icon">
-                      <FaClock />
+          <div className="task-list-container">
+            <div className="task-list">
+              {missedTasks && missedTasks.length > 0 ? (
+                paginatedMissed.map(task => (
+                  <div key={task.id} className="task-item missed-item">
+                    <div className="task-item-content">
+                      <div className="task-icon missed-icon">
+                        <FaExclamationTriangle />
+                      </div>
+                      <div className="task-details">
+                        <span className="task-title">{task.title || 'Untitled Task'}</span>
+                        <span className="task-due-date missed-date">{formatDueDate(task.dueDate)}</span>
+                      </div>
                     </div>
-                    <div className="task-details">
-                      <span className="task-title">{task.title || 'Untitled Task'}</span>
-                      <span className="task-due-date">{formatDueDate(task.dueDate)}</span>
-                    </div>
+                    <button 
+                      className="task-remove"
+                      onClick={() => removeTodo(task.id)}
+                    >
+                      <FaTimes />
+                    </button>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-tasks">No upcoming tasks</div>
-            )}
+                ))
+              ) : (
+                <div className="no-tasks">No missed tasks</div>
+              )}
+            </div>
+            {renderPaginationControls('missed')}
           </div>
         );
       case 'completed':
+        const paginatedCompleted = getPaginatedItems(recentFeedback || [], 'completed');
         return (
-          <div className="task-list">
-            {recentFeedback && recentFeedback.length > 0 ? (
-              recentFeedback.map(feedback => (
-                <div key={feedback.id} className="task-item feedback-item">
-                  <div className="task-item-content">
-                    <div className="task-icon feedback-icon">
-                      <FaCheckCircle />
-                    </div>
-                    <div className="task-details">
-                      <span className="task-title">{feedback.title || 'Untitled Feedback'}</span>
-                      <span className="task-status">
-                        {feedback.status || feedback.score || 'No status'}
-                      </span>
+          <div className="task-list-container">
+            <div className="task-list">
+              {recentFeedback && recentFeedback.length > 0 ? (
+                paginatedCompleted.map(feedback => (
+                  <div key={feedback.id} className="task-item feedback-item">
+                    <div className="task-item-content">
+                      <div className="task-icon feedback-icon">
+                        <FaCheckCircle />
+                      </div>
+                      <div className="task-details">
+                        <span className="task-title">{feedback.title || 'Untitled Feedback'}</span>
+                        <span className="task-status">
+                          {feedback.status || feedback.score || 'No status'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-tasks">No recent feedback</div>
-            )}
+                ))
+              ) : (
+                <div className="no-tasks">No recent feedback</div>
+              )}
+            </div>
+            {renderPaginationControls('completed')}
           </div>
         );
       default:
@@ -260,16 +274,6 @@ const TaskSidebar = () => {
       {/* Tab Navigation */}
       <div className="sidebar-tab-navigation">
         <button 
-          className={`sidebar-tab-button ${activeTab === 'dueToday' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dueToday')}
-        >
-          <FaCalendarAlt className="tab-icon" />
-          <span className="tab-text">Due Today</span>
-          {todos && todos.filter(todo => !todo.completed).length > 0 && (
-            <span className="tab-badge">{todos.filter(todo => !todo.completed).length}</span>
-          )}
-        </button>
-        <button 
           className={`sidebar-tab-button ${activeTab === 'comingUp' ? 'active' : ''}`}
           onClick={() => setActiveTab('comingUp')}
         >
@@ -280,14 +284,24 @@ const TaskSidebar = () => {
           )}
         </button>
         <button 
+          className={`sidebar-tab-button ${activeTab === 'missed' ? 'active' : ''}`}
+          onClick={() => setActiveTab('missed')}
+        >
+          <FaExclamationTriangle className="tab-icon" />
+          <span className="tab-text">Missed</span>
+          {(() => {
+            const missedTasks = getMissedTasks();
+            return missedTasks && missedTasks.length > 0 && (
+              <span className="tab-badge">{missedTasks.length}</span>
+            );
+          })()}
+        </button>
+        <button 
           className={`sidebar-tab-button ${activeTab === 'completed' ? 'active' : ''}`}
           onClick={() => setActiveTab('completed')}
         >
           <FaCheckCircle className="tab-icon" />
           <span className="tab-text">Completed</span>
-          {recentFeedback && recentFeedback.length > 0 && (
-            <span className="tab-badge">{recentFeedback.length}</span>
-          )}
         </button>
       </div>
 

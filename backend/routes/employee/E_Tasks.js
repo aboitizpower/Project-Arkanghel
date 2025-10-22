@@ -7,41 +7,109 @@ router.get('/tasks/:userId', async (req, res) => {
     const { userId } = req.params;
     
     try {
-        // Get upcoming assessments with deadlines
-        const upcomingAssessmentsSql = `
-            SELECT 
-                a.assessment_id,
-                a.title,
-                a.deadline,
-                a.description,
-                mc.title as chapter_title,
-                w.title as workstream_title,
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1 FROM answers ans 
-                        JOIN questions q ON ans.question_id = q.question_id 
-                        WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
-                    ) THEN 1 
-                    ELSE 0 
-                END as is_completed
-            FROM assessments a
-            LEFT JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
-            LEFT JOIN workstreams w ON mc.workstream_id = w.workstream_id
-            WHERE a.deadline IS NOT NULL 
-            AND a.deadline > NOW()
-            AND NOT EXISTS (
-                SELECT 1 FROM answers ans 
-                JOIN questions q ON ans.question_id = q.question_id 
-                WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
-                GROUP BY q.assessment_id
-                HAVING COUNT(DISTINCT q.question_id) = COUNT(DISTINCT ans.question_id)
-                AND AVG(ans.score) = 1
-            )
-            ORDER BY a.deadline ASC
-            LIMIT 10
+        // First, check if user has specific workstream permissions
+        const userPermissionsCheckSql = `
+            SELECT COUNT(*) as permission_count 
+            FROM user_workstream_permissions 
+            WHERE user_id = ? AND has_access = TRUE
         `;
         
-        const [upcomingAssessments] = await req.db.promise().query(upcomingAssessmentsSql, [userId, userId]);
+        const [permissionCheck] = await req.db.promise().query(userPermissionsCheckSql, [userId]);
+        const hasSpecificPermissions = permissionCheck[0].permission_count > 0;
+        
+        console.log(`User ${userId} has specific permissions: ${hasSpecificPermissions}`);
+        
+        // Get ALL assessments for the user (both completed and incomplete) 
+        // but only from workstreams the user has access to
+        let allAssessmentsSql;
+        let queryParams;
+        
+        if (hasSpecificPermissions) {
+            // User has specific workstream permissions - only show those workstreams
+            allAssessmentsSql = `
+                SELECT 
+                    a.assessment_id,
+                    a.title,
+                    a.deadline,
+                    a.description,
+                    mc.title as chapter_title,
+                    w.title as workstream_title,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM answers ans 
+                            JOIN questions q ON ans.question_id = q.question_id 
+                            WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
+                            GROUP BY q.assessment_id
+                            HAVING COUNT(DISTINCT ans.question_id) = COUNT(DISTINCT q.question_id)
+                        ) THEN 1 
+                        ELSE 0 
+                    END as is_completed,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM answers ans 
+                            JOIN questions q ON ans.question_id = q.question_id 
+                            WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
+                            GROUP BY q.assessment_id
+                            HAVING COUNT(DISTINCT ans.question_id) = COUNT(DISTINCT q.question_id)
+                            AND AVG(ans.score) >= 0.75
+                        ) THEN 1 
+                        ELSE 0 
+                    END as is_passed
+                FROM assessments a
+                LEFT JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                LEFT JOIN workstreams w ON mc.workstream_id = w.workstream_id
+                INNER JOIN user_workstream_permissions uwp ON uwp.workstream_id = w.workstream_id AND uwp.user_id = ? AND uwp.has_access = TRUE
+                ORDER BY 
+                    CASE WHEN a.deadline IS NULL THEN 1 ELSE 0 END,
+                    a.deadline ASC
+                LIMIT 50
+            `;
+            queryParams = [userId, userId, userId];
+        } else {
+            // User has no specific permissions - show all workstreams
+            allAssessmentsSql = `
+                SELECT 
+                    a.assessment_id,
+                    a.title,
+                    a.deadline,
+                    a.description,
+                    mc.title as chapter_title,
+                    w.title as workstream_title,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM answers ans 
+                            JOIN questions q ON ans.question_id = q.question_id 
+                            WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
+                            GROUP BY q.assessment_id
+                            HAVING COUNT(DISTINCT ans.question_id) = COUNT(DISTINCT q.question_id)
+                        ) THEN 1 
+                        ELSE 0 
+                    END as is_completed,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM answers ans 
+                            JOIN questions q ON ans.question_id = q.question_id 
+                            WHERE q.assessment_id = a.assessment_id AND ans.user_id = ?
+                            GROUP BY q.assessment_id
+                            HAVING COUNT(DISTINCT ans.question_id) = COUNT(DISTINCT q.question_id)
+                            AND AVG(ans.score) >= 0.75
+                        ) THEN 1 
+                        ELSE 0 
+                    END as is_passed
+                FROM assessments a
+                LEFT JOIN module_chapters mc ON a.chapter_id = mc.chapter_id
+                LEFT JOIN workstreams w ON mc.workstream_id = w.workstream_id
+                ORDER BY 
+                    CASE WHEN a.deadline IS NULL THEN 1 ELSE 0 END,
+                    a.deadline ASC
+                LIMIT 50
+            `;
+            queryParams = [userId, userId];
+        }
+        
+        const [allAssessments] = await req.db.promise().query(allAssessmentsSql, queryParams);
+        
+        console.log(`Found ${allAssessments.length} assessments for user ${userId}`);
         
         // Get recent assessment results for feedback
         const recentFeedbackSql = `
@@ -65,8 +133,10 @@ router.get('/tasks/:userId', async (req, res) => {
         const [recentFeedback] = await req.db.promise().query(recentFeedbackSql, [userId]);
         
         // Format the data for frontend
-        const todos = upcomingAssessments
+        const todos = allAssessments
             .filter(assessment => {
+                if (assessment.is_completed === 1) return false; // Skip completed
+                if (!assessment.deadline) return false; // Skip assessments without deadlines for todos
                 const deadline = new Date(assessment.deadline);
                 const now = new Date();
                 const timeDiff = deadline.getTime() - now.getTime();
@@ -83,14 +153,9 @@ router.get('/tasks/:userId', async (req, res) => {
                 chapter: assessment.chapter_title
             }));
         
-        const upcomingTasks = upcomingAssessments
-            .filter(assessment => {
-                const deadline = new Date(assessment.deadline);
-                const now = new Date();
-                const timeDiff = deadline.getTime() - now.getTime();
-                const hoursDiff = timeDiff / (1000 * 60 * 60);
-                return hoursDiff > 24; // Due after 24 hours
-            })
+        // Show ALL incomplete assessments in "Coming Up"
+        const upcomingTasks = allAssessments
+            .filter(assessment => assessment.is_completed === 0) // Only incomplete assessments
             .map(assessment => ({
                 id: assessment.assessment_id,
                 title: assessment.title,
@@ -100,6 +165,19 @@ router.get('/tasks/:userId', async (req, res) => {
                 chapter: assessment.chapter_title
             }));
         
+        // Get completed assessments from the main query instead of separate query
+        const completedAssessments = allAssessments
+            .filter(assessment => assessment.is_completed === 1)
+            .map(assessment => ({
+                id: assessment.assessment_id,
+                title: assessment.title,
+                status: assessment.is_passed === 1 ? 'Passed' : 'Failed',
+                type: 'feedback',
+                workstream: assessment.workstream_title,
+                chapter: assessment.chapter_title
+            }));
+        
+        // Keep the detailed feedback from the separate query for additional info
         const formattedFeedback = recentFeedback.map(feedback => {
             const percentage = Math.round((feedback.avg_score || 0) * 100);
             const isPassed = percentage >= 75;
@@ -118,7 +196,7 @@ router.get('/tasks/:userId', async (req, res) => {
         res.json({
             todos: todos,
             upcomingTasks: upcomingTasks,
-            recentFeedback: formattedFeedback
+            recentFeedback: completedAssessments // Use completed assessments from main query instead of limited feedback
         });
         
     } catch (error) {

@@ -511,7 +511,17 @@ router.get('/workstreams/:id/complete', (req, res) => {
                 return res.json(responsePayload);
             }
             
-            const assessmentsSql = 'SELECT assessment_id, chapter_id, title, total_points FROM assessments WHERE chapter_id IN (?) ORDER BY assessment_id ASC';
+            const assessmentsSql = `SELECT 
+                assessment_id, 
+                chapter_id, 
+                title, 
+                total_points, 
+                DATE_FORMAT(deadline, '%Y-%m-%d %H:%i:%s') as deadline,
+                description, 
+                is_final 
+            FROM assessments 
+            WHERE chapter_id IN (?) 
+            ORDER BY assessment_id ASC`;
             req.db.query(assessmentsSql, [chapterIds], (err, assessments) => {
                 if (err) {
                     return res.status(500).json({ error: err.message });
@@ -534,14 +544,33 @@ router.get('/workstreams/:id/complete', (req, res) => {
                     pdf_url: chapter.pdf_filename ? `/chapters/${chapter.chapter_id}/pdf` : null,
                 }));
                 
-                const responsePayload = {
-                    ...workstream,
-                    chapters: chaptersWithAssessments,
-                    image_url: workstream.image_type ? `/workstreams/${id}/image` : null
-                };
-                console.log('A_Modules /complete endpoint - sending response:', responsePayload); // Debug log
-                console.log('A_Modules /complete endpoint - response deadline:', responsePayload.deadline); // Debug log
-                res.json(responsePayload);
+                // Get final assessments (assessments with chapter_id = NULL)
+                const finalAssessmentsSql = `SELECT 
+                    assessment_id, 
+                    chapter_id, 
+                    title, 
+                    total_points, 
+                    DATE_FORMAT(deadline, '%Y-%m-%d %H:%i:%s') as deadline,
+                    description, 
+                    is_final 
+                FROM assessments 
+                WHERE workstream_id = ? AND chapter_id IS NULL 
+                ORDER BY assessment_id ASC`;
+                req.db.query(finalAssessmentsSql, [id], (err, finalAssessments) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    
+                    const responsePayload = {
+                        ...workstream,
+                        chapters: chaptersWithAssessments,
+                        final_assessments: finalAssessments || [],
+                        image_url: workstream.image_type ? `/workstreams/${id}/image` : null
+                    };
+                    console.log('A_Modules /complete endpoint - sending response:', responsePayload); // Debug log
+                    console.log('A_Modules /complete endpoint - response deadline:', responsePayload.deadline); // Debug log
+                    res.json(responsePayload);
+                });
             });
         });
     });

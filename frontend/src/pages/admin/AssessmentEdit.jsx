@@ -34,8 +34,8 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const [hasFinalAssessment, setHasFinalAssessment] = useState(false);
   const [deadline, setDeadline] = useState(() => {
     if (assessment?.deadline) {
-      const date = new Date(assessment.deadline);
-      return date.toISOString().slice(0, 16); // Format for datetime-local input
+      // MySQL format: "2025-10-23 09:53:00" -> datetime-local format: "2025-10-23T09:53"
+      return assessment.deadline.replace(' ', 'T').slice(0, 16);
     }
     return '';
   });
@@ -64,6 +64,18 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
 
   // Memoize assessment ID to prevent unnecessary re-renders
   const assessmentId = useMemo(() => assessment?.assessment_id, [assessment?.assessment_id]);
+
+  // Update deadline when assessment prop changes
+  useEffect(() => {
+    if (assessment?.deadline) {
+      // MySQL format: "2025-10-23 09:53:00" -> datetime-local format: "2025-10-23T09:53"
+      // Don't use toISOString() as it converts to UTC causing timezone shifts
+      const deadlineStr = assessment.deadline.replace(' ', 'T').slice(0, 16);
+      setDeadline(deadlineStr);
+    } else {
+      setDeadline('');
+    }
+  }, [assessment?.deadline]);
 
   // Fetch questions when component mounts
   useEffect(() => {
@@ -234,12 +246,12 @@ const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
         });
       }
       
-      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}`, {
+      const response = await axios.get(`${API_URL}/assessments/${assessment.assessment_id}/questions`, {
         headers: {
           'Authorization': `Bearer ${user?.token}`
         }
       });
-      setQuestions(response.data.questions || []);
+      setQuestions(response.data || []);
       closeModal();
       
       // Show success notification

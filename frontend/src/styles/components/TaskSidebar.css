@@ -322,3 +322,62 @@
     padding: 10px 6px;
   }
 }
+
+/* Task List Container for Pagination */
+.task-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.task-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Pagination Controls */
+.task-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  margin-top: auto;
+}
+
+.pagination-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  transition: all 0.2s ease;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f9fafb;
+}
+
+.pagination-info {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 40px;
+  text-align: center;
+}
