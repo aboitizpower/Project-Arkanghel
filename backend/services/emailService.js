@@ -179,9 +179,9 @@ class EmailService {
                     <p>We're excited to announce that a new training workstream is now available on the Project Arkanghel platform.</p>
                     <div class="accent-line"></div>
                     <div class="details success">
-                        <h3 style="color: #1e40af; margin-top: 0;">📚 ${data.title}</h3>
+                        <h3 style="color: #1e40af; margin-top: 0;">${data.title}</h3>
                         <p><strong>Overview:</strong> ${data.description}</p>
-                        <p><strong>Target Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
+                        ${data.deadline ? `<p><strong>Target Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>` : ''}
                     </div>
                     <div style="text-align: center;">
                         <a href="${this.frontendUrl}/workstreams/${data.workstream_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Begin Learning Journey</a>
@@ -194,10 +194,10 @@ class EmailService {
                     <p>Great news! A new chapter has been published and is ready for your review. This content builds upon your existing knowledge and will further advance your professional development.</p>
                     <div class="accent-line"></div>
                     <div class="details success">
-                        <h3 style="color: #1e40af; margin-top: 0;">📖 ${data.chapter_title}</h3>
+                        <h3 style="color: #1e40af; margin-top: 0;">${data.chapter_title}</h3>
                         <p><strong>Part of Workstream:</strong> <span class="highlight">${data.workstream_title}</span></p>
                         <p><strong>Content Overview:</strong> ${data.content || 'New learning material available'}</p>
-                        <p><strong>Recommended Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
+                        ${data.deadline ? `<p><strong>Recommended Completion:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>` : ''}
                     </div>
                     <div style="text-align: center;">
                         <a href="${this.frontendUrl}/workstreams/${data.workstream_id}/chapters/${data.chapter_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Access Chapter</a>
@@ -210,11 +210,11 @@ class EmailService {
                     <p>An assessment opportunity is now available for you to demonstrate your knowledge and skills. This is an excellent chance to showcase your learning progress.</p>
                     <div class="accent-line"></div>
                     <div class="details success">
-                        <h3 style="color: #1e40af; margin-top: 0;">🎯 ${data.title}</h3>
+                        <h3 style="color: #1e40af; margin-top: 0;">${data.title}</h3>
                         <p><strong>Related to:</strong> <span class="highlight">${data.chapter_title || data.workstream_title || 'Training Module'}</span></p>
                         <p><strong>Total Points:</strong> ${data.total_points || 'TBD'} points</p>
                         <p><strong>Passing Score:</strong> ${data.passing_score || 70}%</p>
-                        <p><strong>Due Date:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>
+                        ${data.deadline ? `<p><strong>Due Date:</strong> <span class="highlight">${new Date(data.deadline).toLocaleDateString()}</span></p>` : ''}
                     </div>
                     <div style="text-align: center;">
                         <a href="${this.frontendUrl}/assessments/${data.assessment_id}" class="button" style="color: #ffffff !important; text-decoration: none;">Begin Assessment</a>
@@ -225,7 +225,7 @@ class EmailService {
             case 'deadline_reminder_week':
                 return `
                     <div class="details warning">
-                        <h3>⚠️ Deadline Reminder - 1 Week</h3>
+                        <h3>Deadline Reminder - 1 Week</h3>
                         <p><strong>${data.title}</strong></p>
                         <p><strong>Deadline:</strong> ${new Date(data.deadline).toLocaleDateString()}</p>
                         <p>You have <strong>1 week</strong> remaining to complete this ${data.type}.</p>
@@ -237,7 +237,7 @@ class EmailService {
             case 'deadline_reminder_day':
                 return `
                     <div class="details urgent">
-                        <h3>🚨 Urgent: Deadline Tomorrow!</h3>
+                        <h3>Urgent: Deadline Tomorrow!</h3>
                         <p><strong>${data.title}</strong></p>
                         <p><strong>Deadline:</strong> ${new Date(data.deadline).toLocaleDateString()}</p>
                         <p>You have <strong>less than 24 hours</strong> to complete this ${data.type}!</p>
@@ -249,7 +249,7 @@ class EmailService {
             case 'overdue':
                 return `
                     <div class="details urgent">
-                        <h3>🚨 Overdue: Immediate Action Required</h3>
+                        <h3>Overdue: Immediate Action Required</h3>
                         <p><strong>${data.title}</strong></p>
                         <p><strong>Original Deadline:</strong> ${new Date(data.deadline).toLocaleDateString()}</p>
                         <p><strong>Days Overdue:</strong> ${data.daysOverdue}</p>
@@ -261,7 +261,7 @@ class EmailService {
             case 'completion':
                 return `
                     <div class="details success">
-                        <h3>🎉 Congratulations! Workstream Completed</h3>
+                        <h3>Congratulations! Workstream Completed</h3>
                         <p><strong>${data.title}</strong></p>
                         <p><strong>Completed on:</strong> ${new Date().toLocaleDateString()}</p>
                     </div>

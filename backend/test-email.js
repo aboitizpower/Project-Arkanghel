@@ -50,7 +50,7 @@ async function testEmailConfig() {
             to: process.env.EMAIL_USER // Send test to yourself
         },
         to: process.env.EMAIL_USER, // Send test to yourself
-        subject: '✅ Project Arkanghel Email Configuration Test',
+        subject: 'Project Arkanghel Email Configuration Test',
         html: `
             <!DOCTYPE html>
             <html>
@@ -68,12 +68,12 @@ async function testEmailConfig() {
             </head>
             <body>
                 <div class="header">
-                    <h1>🎉 Email Configuration Test</h1>
+                    <h1>Email Configuration Test</h1>
                     <p>Project Arkanghel</p>
                 </div>
                 <div class="content">
                     <div class="success">
-                        <strong>✅ SUCCESS!</strong> Your email configuration is working correctly.
+                        <strong>SUCCESS!</strong> Your email configuration is working correctly.
                     </div>
                     
                     <h2>Configuration Details:</h2>
@@ -92,17 +92,17 @@ async function testEmailConfig() {
                     
                     <h2>What This Means:</h2>
                     <ul>
-                        <li>✅ Authentication with <strong>${process.env.EMAIL_USER}</strong> is working</li>
-                        <li>✅ Recipients will see emails from <strong>${defaultFromAddress}</strong></li>
-                        <li>✅ Replies will go to <strong>${defaultReplyTo}</strong></li>
-                        <li>✅ SMTP connection is stable and ready for production</li>
+                        <li>Authentication with <strong>${process.env.EMAIL_USER}</strong> is working</li>
+                        <li>Recipients will see emails from <strong>${defaultFromAddress}</strong></li>
+                        <li>Replies will go to <strong>${defaultReplyTo}</strong></li>
+                        <li>SMTP connection is stable and ready for production</li>
                     </ul>
 
                     <h2>Next Steps:</h2>
                     <ol>
                         <li>Check the email headers to verify SPF/DKIM/DMARC pass</li>
-                        <li>Ensure <code>no-reply@aboitizpower.com</code> is configured as a send-as alias in Google Workspace</li>
                         <li>Test sending notifications from your application</li>
+                        <li>Monitor the notifications_log table for delivery status</li>
                     </ol>
 
                     <p><strong>Note:</strong> If this email landed in spam, check your domain's SPF/DKIM/DMARC records.</p>
