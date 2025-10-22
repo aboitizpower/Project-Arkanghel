@@ -7,13 +7,43 @@ dotenv.config();
 
 class EmailService {
     constructor() {
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
+        const useCustomSmtp = !!process.env.EMAIL_HOST;
+        const baseAuth = {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        };
+
+        const transportOptions = useCustomSmtp
+            ? {
+                host: process.env.EMAIL_HOST,
+                port: Number(process.env.EMAIL_PORT || 587),
+                secure: String(process.env.EMAIL_SECURE || 'false').toLowerCase() === 'true',
+                auth: baseAuth,
             }
-        });
+            : {
+                service: 'gmail',
+                auth: baseAuth,
+            };
+
+        // Optional DKIM for better deliverability
+        if (
+            process.env.EMAIL_DKIM_DOMAIN &&
+            process.env.EMAIL_DKIM_SELECTOR &&
+            process.env.EMAIL_DKIM_PRIVATE_KEY
+        ) {
+            transportOptions.dkim = {
+                domainName: process.env.EMAIL_DKIM_DOMAIN,
+                keySelector: process.env.EMAIL_DKIM_SELECTOR,
+                privateKey: process.env.EMAIL_DKIM_PRIVATE_KEY,
+            };
+        }
+
+        this.transporter = nodemailer.createTransport(transportOptions);
+
+        // Use EMAIL_USER as From address if FROM_ADDRESS not specified
+        this.defaultFromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER;
+        this.defaultFromName = process.env.EMAIL_FROM_NAME || 'Project Arkanghel';
+        this.defaultReplyTo = process.env.EMAIL_REPLY_TO || process.env.EMAIL_USER;
 
         this.dbConfig = {
             host: process.env.DB_HOST || "localhost",
@@ -306,7 +336,9 @@ class EmailService {
 
                 try {
                     await this.transporter.sendMail({
-                        from: `"Project Arkanghel: End-User Training System" <${process.env.EMAIL_USER}>`,
+                        from: `"${this.defaultFromName}" <${this.defaultFromAddress}>`,
+                        replyTo: this.defaultReplyTo,
+                        envelope: { from: process.env.EMAIL_USER, to: user.email },
                         to: user.email,
                         subject: subject,
                         html: htmlContent
@@ -400,7 +432,9 @@ class EmailService {
 
         try {
             await this.transporter.sendMail({
-                from: `"Project Arkanghel: End-User Training System" <${process.env.EMAIL_USER}>`,
+                from: `"${this.defaultFromName}" <${this.defaultFromAddress}>`,
+                replyTo: this.defaultReplyTo,
+                envelope: { from: process.env.EMAIL_USER, to: userEmail },
                 to: userEmail,
                 subject: subject,
                 html: htmlContent
