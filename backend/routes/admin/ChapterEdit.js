@@ -285,63 +285,15 @@ router.put('/chapters/:id/publish', (req, res) => {
             
             const updatedChapter = updatedResults[0];
             
-            // Send notification if chapter is being published
+            // DISABLED: No longer sending notifications when chapter is published
+            // Users will only receive deadline reminders (1 week and 1 day before)
             if (is_published) {
-                console.log(`🔔 Attempting to send notifications for chapter ${id}...`);
-                
-                if (notificationService) {
-                    // Add timeout to prevent hanging requests
-                    const notificationTimeout = setTimeout(() => {
-                        console.warn(`⏰ Notification service timeout for chapter ${id}`);
-                        res.json({
-                            success: true,
-                            message: `Chapter published successfully! Email notifications are being sent.`,
-                            ...updatedChapter
-                        });
-                    }, 6000); // 6 second timeout
-                    
-                    notificationService.notifyNewChapter(id)
-                        .then((result) => {
-                            clearTimeout(notificationTimeout);
-                            if (result && result.success) {
-                                console.log(`✅ Email notifications initiated for chapter ${id}`);
-                                if (!res.headersSent) {
-                                    res.json({
-                                        success: true,
-                                        message: `Chapter published successfully! Email notifications have been sent.`,
-                                        ...updatedChapter
-                                    });
-                                }
-                            } else {
-                                console.log(`⚠️ Email notifications failed for chapter ${id}:`, result?.message || 'Unknown error');
-                                if (!res.headersSent) {
-                                    res.json({
-                                        success: true,
-                                        message: `Chapter published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
-                                        ...updatedChapter
-                                    });
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            clearTimeout(notificationTimeout);
-                            console.error(`❌ Failed to send new chapter notifications for ${id}:`, err);
-                            if (!res.headersSent) {
-                                res.json({
-                                    success: true,
-                                    message: `Chapter published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
-                                    ...updatedChapter
-                                });
-                            }
-                        });
-                } else {
-                    console.log(`⚠️ Notification service not available - skipping email notifications`);
-                    res.json({
-                        success: true,
-                        message: `Chapter published successfully! Note: Email notification service is currently unavailable.`,
-                        ...updatedChapter
-                    });
-                }
+                console.log(`✅ Chapter ${id} published (email notifications disabled)`);
+                res.json({
+                    success: true,
+                    message: `Chapter published successfully!`,
+                    ...updatedChapter
+                });
             } else {
                 console.log(`📝 Chapter ${id} unpublished - no notifications sent`);
                 res.json({

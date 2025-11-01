@@ -892,68 +892,16 @@ router.put('/workstreams/:id/publish', (req, res) => {
             
             console.log(`Successfully updated publish status for workstream ${id} to: ${is_published}`);
             
-            // Send notification if workstream is being published
+            // DISABLED: No longer sending notifications when workstream is published
+            // Users will only receive deadline reminders (1 week and 1 day before)
             if (is_published) {
-                console.log(`🔔 Attempting to send notifications for workstream ${id}...`);
-                
-                if (notificationService) {
-                    // Add timeout to prevent hanging requests
-                    const notificationTimeout = setTimeout(() => {
-                        console.warn(`⏰ Notification service timeout for workstream ${id}`);
-                        res.json({
-                            success: true,
-                            message: `Workstream published successfully! Email notifications are being sent.`,
-                            workstream_id: id,
-                            is_published: 1
-                        });
-                    }, 6000); // 6 second timeout
-                    
-                    notificationService.notifyNewWorkstream(id)
-                        .then((result) => {
-                            clearTimeout(notificationTimeout);
-                            if (result && result.success) {
-                                console.log(`✅ Email notifications initiated for workstream ${id}`);
-                                if (!res.headersSent) {
-                                    res.json({
-                                        success: true,
-                                        message: `Workstream published successfully! Email notifications have been sent.`,
-                                        workstream_id: id,
-                                        is_published: 1
-                                    });
-                                }
-                            } else {
-                                console.log(`⚠️ Email notifications failed for workstream ${id}:`, result?.message || 'Unknown error');
-                                if (!res.headersSent) {
-                                    res.json({
-                                        success: true,
-                                        message: `Workstream published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
-                                        workstream_id: id,
-                                        is_published: 1
-                                    });
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            clearTimeout(notificationTimeout);
-                            console.error(`❌ Failed to send new workstream notifications for ${id}:`, err);
-                            if (!res.headersSent) {
-                                res.json({
-                                    success: true,
-                                    message: `Workstream published successfully! However, email notifications could not be sent. Please check the email service configuration.`,
-                                    workstream_id: id,
-                                    is_published: 1
-                                });
-                            }
-                        });
-                } else {
-                    console.log(`⚠️ Notification service not available - skipping email notifications`);
-                    res.json({
-                        success: true,
-                        message: `Workstream published successfully! Note: Email notification service is currently unavailable.`,
-                        workstream_id: id,
-                        is_published: 1
-                    });
-                }
+                console.log(`✅ Workstream ${id} published (email notifications disabled)`);
+                res.json({
+                    success: true,
+                    message: `Workstream published successfully!`,
+                    workstream_id: id,
+                    is_published: 1
+                });
             } else {
                 console.log(`📝 Workstream ${id} unpublished - no notifications sent`);
                 res.json({
@@ -1174,107 +1122,23 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                                 
                                 console.log(`Successfully created assessment with ID: ${assessmentId} and ${questions.length} questions`);
                                 
-                                // Send notification for new assessment
-                                if (notificationService) {
-                                    console.log(`🔔 Attempting to send notifications for assessment ${assessmentId}...`);
-                                    
-                                    const notificationTimeout = setTimeout(() => {
-                                        console.warn(`⏰ Notification service timeout for assessment ${assessmentId}`);
-                                        if (!res.headersSent) {
-                                            res.status(201).json({
-                                                success: true,
-                                                message: 'Assessment created successfully! Email notifications are being sent.',
-                                                assessment: {
-                                                    id: assessmentId,
-                                                    title,
-                                                    description,
-                                                    chapter_id: chapterId,
-                                                    total_points: totalPoints || 100,
-                                                    passing_score: passingScore || 70,
-                                                    deadline,
-                                                    questions_count: questions.length
-                                                }
-                                            });
-                                        }
-                                    }, 6000);
-                                    
-                                    notificationService.notifyNewAssessment(assessmentId)
-                                        .then((result) => {
-                                            clearTimeout(notificationTimeout);
-                                            if (result && result.success) {
-                                                console.log(`✅ Email notifications initiated for assessment ${assessmentId}`);
-                                                if (!res.headersSent) {
-                                                    res.status(201).json({
-                                                        success: true,
-                                                        message: 'Assessment created successfully! Email notifications have been sent.',
-                                                        assessment: {
-                                                            id: assessmentId,
-                                                            title,
-                                                            description,
-                                                            chapter_id: chapterId,
-                                                            total_points: totalPoints || 100,
-                                                            passing_score: passingScore || 70,
-                                                            deadline,
-                                                            questions_count: questions.length
-                                                        }
-                                                    });
-                                                }
-                                            } else {
-                                                console.log(`⚠️ Email notifications failed for assessment ${assessmentId}:`, result?.message || 'Unknown error');
-                                                if (!res.headersSent) {
-                                                    res.status(201).json({
-                                                        success: true,
-                                                        message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
-                                                        assessment: {
-                                                            id: assessmentId,
-                                                            title,
-                                                            description,
-                                                            chapter_id: chapterId,
-                                                            total_points: totalPoints || 100,
-                                                            passing_score: passingScore || 70,
-                                                            deadline,
-                                                            questions_count: questions.length
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        })
-                                        .catch(err => {
-                                            clearTimeout(notificationTimeout);
-                                            console.error(`❌ Failed to send assessment notifications for ${assessmentId}:`, err);
-                                            if (!res.headersSent) {
-                                                res.status(201).json({
-                                                    success: true,
-                                                    message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
-                                                    assessment: {
-                                                        id: assessmentId,
-                                                        title,
-                                                        description,
-                                                        chapter_id: chapterId,
-                                                        total_points: totalPoints || 100,
-                                                        passing_score: passingScore || 70,
-                                                        deadline,
-                                                        questions_count: questions.length
-                                                    }
-                                                });
-                                            }
-                                        });
-                                } else {
-                                    res.status(201).json({
-                                        success: true,
-                                        message: 'Assessment created successfully! Note: Email notification service is currently unavailable.',
-                                        assessment: {
-                                            id: assessmentId,
-                                            title,
-                                            description,
-                                            chapter_id: chapterId,
-                                            total_points: totalPoints || 100,
-                                            passing_score: passingScore || 70,
-                                            deadline,
-                                            questions_count: questions.length
-                                        }
-                                    });
-                                }
+                                // DISABLED: No longer sending notifications when assessment is created
+                                // Users will only receive deadline reminders (1 week and 1 day before)
+                                console.log(`✅ Assessment ${assessmentId} created (email notifications disabled)`);
+                                res.status(201).json({
+                                    success: true,
+                                    message: 'Assessment created successfully!',
+                                    assessment: {
+                                        id: assessmentId,
+                                        title,
+                                        description,
+                                        chapter_id: chapterId,
+                                        total_points: totalPoints || 100,
+                                        passing_score: passingScore || 70,
+                                        deadline,
+                                        questions_count: questions.length
+                                    }
+                                });
                             });
                         } catch (error) {
                             console.error('Error processing questions:', error);
@@ -1304,102 +1168,22 @@ router.post('/workstreams/:id/assessments', (req, res) => {
                         
                         console.log(`Successfully created assessment with ID: ${assessmentId} (no questions)`);
                         
-                        // Send notification for new assessment with timeout handling
-                        if (notificationService) {
-                            console.log(`🔔 Attempting to send notifications for assessment ${assessmentId} (no questions)...`);
-                            
-                            const notificationTimeout = setTimeout(() => {
-                                console.warn(`⏰ Notification service timeout for assessment ${assessmentId}`);
-                                if (!res.headersSent) {
-                                    res.status(201).json({
-                                        success: true,
-                                        message: 'Assessment created successfully! Email notifications are being sent.',
-                                        assessment: {
-                                            id: assessmentId,
-                                            title,
-                                            description,
-                                            chapter_id: chapterId,
-                                            total_points: totalPoints || 100,
-                                            passing_score: passingScore || 70,
-                                            deadline
-                                        }
-                                    });
-                                }
-                            }, 6000);
-                            
-                            notificationService.notifyNewAssessment(assessmentId)
-                                .then((result) => {
-                                    clearTimeout(notificationTimeout);
-                                    if (result && result.success) {
-                                        console.log(`✅ Email notifications initiated for assessment ${assessmentId}`);
-                                        if (!res.headersSent) {
-                                            res.status(201).json({
-                                                success: true,
-                                                message: 'Assessment created successfully! Email notifications have been sent.',
-                                                assessment: {
-                                                    id: assessmentId,
-                                                    title,
-                                                    description,
-                                                    chapter_id: chapterId,
-                                                    total_points: totalPoints || 100,
-                                                    passing_score: passingScore || 70,
-                                                    deadline
-                                                }
-                                            });
-                                        }
-                                    } else {
-                                        console.log(`⚠️ Email notifications failed for assessment ${assessmentId}:`, result?.message || 'Unknown error');
-                                        if (!res.headersSent) {
-                                            res.status(201).json({
-                                                success: true,
-                                                message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
-                                                assessment: {
-                                                    id: assessmentId,
-                                                    title,
-                                                    description,
-                                                    chapter_id: chapterId,
-                                                    total_points: totalPoints || 100,
-                                                    passing_score: passingScore || 70,
-                                                    deadline
-                                                }
-                                            });
-                                        }
-                                    }
-                                })
-                                .catch(err => {
-                                    clearTimeout(notificationTimeout);
-                                    console.error(`❌ Failed to send assessment notifications for ${assessmentId}:`, err);
-                                    if (!res.headersSent) {
-                                        res.status(201).json({
-                                            success: true,
-                                            message: 'Assessment created successfully! However, email notifications could not be sent. Please check the email service configuration.',
-                                            assessment: {
-                                                id: assessmentId,
-                                                title,
-                                                description,
-                                                chapter_id: chapterId,
-                                                total_points: totalPoints || 100,
-                                                passing_score: passingScore || 70,
-                                                deadline
-                                            }
-                                        });
-                                    }
-                                });
-                        } else {
-                            res.status(201).json({
-                                success: true,
-                                message: 'Assessment created successfully! Note: Email notification service is currently unavailable.',
-                                assessment: {
-                                    id: assessmentId,
-                                    title,
-                                    description,
-                                    chapter_id: chapterId,
-                                    total_points: totalPoints || 100,
-                                    passing_score: passingScore || 70,
-                                    deadline
-                                }
-                            });
-                        }
+                        // DISABLED: No longer sending notifications when assessment is created
+                        // Users will only receive deadline reminders (1 week and 1 day before)
+                        console.log(`✅ Assessment ${assessmentId} created (email notifications disabled)`);
+                        res.status(201).json({
+                            success: true,
+                            message: 'Assessment created successfully!',
+                            assessment: {
+                                id: assessmentId,
+                                title,
+                                description,
+                                chapter_id: chapterId,
+                                total_points: totalPoints || 100,
+                                passing_score: passingScore || 70,
+                                deadline
+                            }
+                        });
                     });
                 }
             });

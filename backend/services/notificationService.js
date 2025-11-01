@@ -579,15 +579,20 @@ class NotificationService {
             }
 
             if (title) {
+                // DISABLED: No longer sending update notifications
+                // Users will only receive deadline reminders
+                console.log(`✅ Update detected for ${targetType}: ${title} (email notifications disabled)`);
+                
+                /* DISABLED CODE:
                 const data = {
                     id: targetId,
                     title: title,
                     type: targetType,
                     changes: changes
                 };
-
                 await emailService.sendNotification('update', data, targetId, targetType);
                 console.log(`📝 Sent update notifications for: ${title}`);
+                */
             }
         } finally {
             await connection.end();
