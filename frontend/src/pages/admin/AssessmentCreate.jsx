@@ -9,7 +9,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 import NotificationDialog from '../../components/NotificationDialog';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const AssessmentCreate = ({ workstream: propWorkstream, onCancel, onCreated }) => {
   const { workstreamId } = useParams();

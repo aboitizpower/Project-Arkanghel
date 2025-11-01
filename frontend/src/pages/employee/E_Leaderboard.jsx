@@ -4,6 +4,7 @@ import EmployeeSidebar from '../../components/EmployeeSidebar';
 import '../../styles/employee/E_Leaderboard.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
+import API_URL from '../../config/api';
 
 const E_Leaderboard = () => {
     const { user } = useAuth(); // Get user from auth context
@@ -18,7 +19,7 @@ const E_Leaderboard = () => {
     useEffect(() => {
         const fetchLeaderboard = async () => {
             try {
-                const response = await axios.get('http://localhost:8081/employee/leaderboard', { headers: { 'Authorization': `Bearer ${user.token}` } });
+                const response = await axios.get(`${API_URL}/employee/leaderboard`, { headers: { 'Authorization': `Bearer ${user.token}` } });
                 setLeaderboardData(response.data);
             } catch (err) {
                 setError('Failed to fetch leaderboard data. Please try again later.');

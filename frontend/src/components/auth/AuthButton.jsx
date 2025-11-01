@@ -3,6 +3,7 @@ import { useMsal } from '@azure/msal-react';
 import axios from 'axios';
 import { loginRequest } from '../../authConfig';
 import { useAuth } from '../../auth/AuthProvider.jsx';
+import API_URL from '../../config/api';
 import './AuthButton.css'; // We'll create this for transitions
 
 function AuthButton({ className }) {
@@ -29,7 +30,7 @@ function AuthButton({ className }) {
 
             // 2. Verify the token with our backend
             console.log('Verifying token with backend...');
-            const verifyResponse = await axios.post('http://localhost:8081/api/auth/verify', { 
+            const verifyResponse = await axios.post(`${API_URL}/api/auth/verify`, { 
                 idToken: loginResponse.idToken 
             });
             

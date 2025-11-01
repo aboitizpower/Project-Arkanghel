@@ -9,7 +9,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import arkanghelLogo from '../../assets/arkanghel_logo.png';
 import certBackground from '../../assets/certbg.png';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const ViewModules = () => {
     const { moduleId } = useParams(); // Get module ID from URL

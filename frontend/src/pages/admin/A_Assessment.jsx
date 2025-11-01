@@ -5,8 +5,9 @@ import '../../styles/admin/A_Assessment.css';
 import '../../styles/admin/AdminCommon.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
+import API_URL from '../../config/api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8081';
+const API_BASE = API_URL;
 
 const PAGE_SIZE = 4;
 

@@ -9,7 +9,7 @@ import { Users, TrendingUp, AlertTriangle, Activity, FileCheck, BookOpenCheck, F
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const A_Analytics = () => {
     const [kpis, setKpis] = useState({ totalUsers: 0, averageScore: 0, userProgress: { completed: 0, pending: 0 } });

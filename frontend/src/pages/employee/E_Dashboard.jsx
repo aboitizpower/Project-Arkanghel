@@ -9,7 +9,7 @@ import '../../styles/employee/E_Modules.css';    // For workstream card styles
 import { FaCheckCircle, FaHourglassHalf } from 'react-icons/fa';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const E_Dashboard = () => {
   const [workstreams, setWorkstreams] = useState([]);

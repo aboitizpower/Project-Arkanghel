@@ -6,7 +6,7 @@ import '../../styles/employee/EmployeeCommon.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { FaHistory } from 'react-icons/fa';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const E_Assessments = () => {
     const [results, setResults] = useState([]);

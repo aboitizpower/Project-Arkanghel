@@ -6,7 +6,7 @@ import '../../styles/admin/A_Leaderboard.css';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const A_Leaderboard = () => {
     const { user } = useAuth(); // Get user from auth context
@@ -27,9 +27,9 @@ const A_Leaderboard = () => {
             try {
                 let response;
                 if (selectedWorkstream) {
-                    response = await axios.get(`http://localhost:8081/admin/leaderboard/workstream/${selectedWorkstream}`, { headers: { 'Authorization': `Bearer ${user.token}` } });
+                    response = await axios.get(`${API_URL}/admin/leaderboard/workstream/${selectedWorkstream}`, { headers: { 'Authorization': `Bearer ${user.token}` } });
                 } else {
-                    response = await axios.get('http://localhost:8081/admin/leaderboard', { headers: { 'Authorization': `Bearer ${user.token}` } });
+                    response = await axios.get(`${API_URL}/admin/leaderboard`, { headers: { 'Authorization': `Bearer ${user.token}` } });
                 }
                 setLeaderboardData(response.data);
                 setError(null);

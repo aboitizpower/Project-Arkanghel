@@ -7,7 +7,7 @@ import { FaBook, FaClipboardList, FaArrowLeft, FaFilePdf, FaVideo, FaLock, FaChe
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const E_Modules = () => {
     const [workstreams, setWorkstreams] = useState([]);

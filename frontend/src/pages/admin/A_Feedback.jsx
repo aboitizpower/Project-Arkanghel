@@ -3,6 +3,7 @@ import { FaCalendarAlt, FaClock, FaBug, FaLightbulb } from 'react-icons/fa';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/admin/A_Feedback.css';
 import { useAuth } from '../../auth/AuthProvider';
+import API_URL from '../../config/api';
 
 const A_Feedback = () => {
   const { user } = useAuth(); // Get user from auth context
@@ -32,7 +33,7 @@ const A_Feedback = () => {
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
-        const response = await fetch('http://localhost:8081/admin/feedback', {
+        const response = await fetch(`${API_URL}/admin/feedback`, {
           headers: {
             'Authorization': `Bearer ${user.token}`
           }

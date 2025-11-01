@@ -14,7 +14,7 @@ import NotificationDialog from '../../components/NotificationDialog';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const WorkstreamEdit = () => {
   const { workstreamId } = useParams();

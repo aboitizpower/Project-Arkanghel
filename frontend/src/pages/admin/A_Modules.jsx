@@ -12,7 +12,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const PAGE_SIZE = 7;
 

@@ -8,6 +8,7 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 import NotificationDialog from '../../components/NotificationDialog';
 import { useAuth } from '../../auth/AuthProvider';
 import axios from 'axios';
+import API_URL from '../../config/api';
 
 const getInitials = (first, last) => {
   if (!first && !last) return '?';
@@ -99,7 +100,7 @@ const A_Users = () => {
       
       try {
         // Fetch users
-        const usersResponse = await axios.get("http://localhost:8081/users", {
+        const usersResponse = await axios.get(`${API_URL}/users`, {
           headers: {
             'Authorization': `Bearer ${user.token}`
           }
@@ -107,7 +108,7 @@ const A_Users = () => {
         setUsers(usersResponse.data.users || []);
 
         // Fetch workstreams
-        const workstreamsResponse = await axios.get("http://localhost:8081/workstreams?published_only=true", {
+        const workstreamsResponse = await axios.get(`${API_URL}/workstreams?published_only=true`, {
           headers: {
             'Authorization': `Bearer ${user.token}`
           }
@@ -129,7 +130,7 @@ const A_Users = () => {
     setUpdatingId(userId);
     const newIsAdmin = currentIsAdmin === 1 ? 0 : 1; // Toggle 1 and 0
     try {
-      const res = await axios.put(`http://localhost:8081/users/${userId}/role`, 
+      const res = await axios.put(`${API_URL}/users/${userId}/role`, 
         { isAdmin: newIsAdmin }, // Send integer
         {
           headers: { 
@@ -160,7 +161,7 @@ const A_Users = () => {
     setWsModalUser(selectedUser);
     setWsModalLoading(true);
     try {
-      const res = await axios.get(`http://localhost:8081/users/${selectedUser.id}/workstreams`, {
+      const res = await axios.get(`${API_URL}/users/${selectedUser.id}/workstreams`, {
         headers: {
           'Authorization': `Bearer ${user?.token}`
         }
@@ -186,7 +187,7 @@ const A_Users = () => {
   const saveWsModal = async () => {
     setWsModalSaving(true);
     try {
-      const res = await axios.put(`http://localhost:8081/users/${wsModalUser.id}/workstreams`, 
+      const res = await axios.put(`${API_URL}/users/${wsModalUser.id}/workstreams`, 
         { workstream_ids: wsModalChecked },
         {
           headers: { 
@@ -239,7 +240,7 @@ const A_Users = () => {
     setLoadingOptions(true);
     
     try {
-      const res = await axios.get(`http://localhost:8081/users/${selectedUser.id}/progress-options`, {
+      const res = await axios.get(`${API_URL}/users/${selectedUser.id}/progress-options`, {
         headers: {
           'Authorization': `Bearer ${user?.token}`
         }
@@ -303,7 +304,7 @@ const A_Users = () => {
         ...(clearType === 'assessment' && { assessmentId: parseInt(selectedAssessment) })
       };
       
-      const res = await axios.delete(`http://localhost:8081/users/${clearProgressUser.id}/progress`, {
+      const res = await axios.delete(`${API_URL}/users/${clearProgressUser.id}/progress`, {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token}`

@@ -8,7 +8,7 @@ import '../../styles/admin/WorkstreamCreate.css';
 import NotificationDialog from '../../components/NotificationDialog';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const WorkstreamCreate = () => {
     const { user } = useAuth();

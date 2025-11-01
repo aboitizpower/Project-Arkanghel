@@ -5,6 +5,7 @@ import "../styles/Auth.css";
 import "../styles/Login.css";
 import logo from "../assets/loginlogo.jpg";
 import bgImg from "../assets/bg_login.jpg";
+import API_URL from '../config/api';
 
 const Register = () => {
   const [form, setForm] = useState({
@@ -35,7 +36,7 @@ const Register = () => {
       return;
     }
     try {
-      const res = await fetch("http://localhost:8081/register", {
+      const res = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

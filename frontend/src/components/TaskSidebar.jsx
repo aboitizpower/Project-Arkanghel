@@ -4,7 +4,7 @@ import { FaCalendarAlt, FaCheckCircle, FaClock, FaTimes, FaExclamationTriangle }
 import { useAuth } from '../auth/AuthProvider';
 import '../styles/components/TaskSidebar.css';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../config/api';
 
 const TaskSidebar = () => {
   const [todos, setTodos] = useState([]);

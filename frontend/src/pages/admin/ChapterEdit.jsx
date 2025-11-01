@@ -7,7 +7,7 @@ import NotificationDialog from '../../components/NotificationDialog';
 import { FaPencilAlt, FaSave, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const ChapterEdit = ({ chapter, onCancel, onUpdated }) => {
   const { user } = useAuth();

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import '../styles/FeedbackModal.css';
 import { Bug, Lightbulb } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
+import API_URL from '../config/api';
 
 const FeedbackModal = ({ closeModal, showNotification }) => {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ const FeedbackModal = ({ closeModal, showNotification }) => {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:8081/employee/feedback', {
+      const response = await fetch(`${API_URL}/employee/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

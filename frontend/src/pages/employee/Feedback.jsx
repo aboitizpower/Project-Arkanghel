@@ -3,6 +3,7 @@ import EmployeeSidebar from '../../components/EmployeeSidebar';
 import NotificationDialog from '../../components/NotificationDialog';
 import '../../styles/employee/Feedback.css';
 import { useAuth } from '../../auth/AuthProvider';
+import API_URL from '../../config/api';
 
 const E_Feedback = () => {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ const E_Feedback = () => {
     setSuccess(false);
 
     try {
-      const response = await fetch('http://localhost:8081/employee/feedback', {
+      const response = await fetch(`${API_URL}/employee/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

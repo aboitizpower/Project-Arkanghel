@@ -11,7 +11,7 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 import NotificationDialog from '../../components/NotificationDialog';
 import { useAuth } from '../../auth/AuthProvider';
 
-const API_URL = 'http://localhost:8081';
+import API_URL from '../../config/api';
 
 const AssessmentEdit = ({ assessment, onCancel, onUpdated }) => {
   const { user } = useAuth();
